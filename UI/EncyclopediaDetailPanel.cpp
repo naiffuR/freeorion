@@ -25,6 +25,7 @@
 #include "../universe/Predicates.h"
 #include "../Empire/Empire.h"
 #include "../Empire/EmpireManager.h"
+#include "../Empire/Government.h"
 #include "../util/EnumText.h"
 #include "../util/i18n.h"
 #include "../util/Logger.h"
@@ -3101,6 +3102,12 @@ void EncyclopediaDetailPanel::SetTech(const std::string& tech_name) {
     AddItem("ENC_TECH", tech_name);
 }
 
+void EncyclopediaDetailPanel::SetPolicy(const std::string& policy_name) {
+    if (m_items_it != m_items.end() && policy_name == m_items_it->second)
+        return;
+    AddItem("ENC_POLICY", policy_name);
+}
+
 void EncyclopediaDetailPanel::SetPartType(const std::string& part_name) {
     if (m_items_it != m_items.end() && part_name == m_items_it->second)
         return;
@@ -3222,6 +3229,9 @@ void EncyclopediaDetailPanel::SetItem(std::shared_ptr<const Planet> planet)
 
 void EncyclopediaDetailPanel::SetItem(const Tech* tech)
 { SetTech(tech ? tech->Name() : EMPTY_STRING); }
+
+void EncyclopediaDetailPanel::SetItem(const Policy* policy)
+{ SetPolicy(policy ? policy->Name() : EMPTY_STRING); }
 
 void EncyclopediaDetailPanel::SetItem(const PartType* part)
 { SetPartType(part ? part->Name() : EMPTY_STRING); }
