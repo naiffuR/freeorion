@@ -36,6 +36,7 @@ namespace parse {
             |   tok.ShipHull_       [ _val = UIT_SHIP_HULL ]
             |   tok.ShipDesign_     [ _val = UIT_SHIP_DESIGN ]
             |   tok.Tech_           [ _val = UIT_TECH ]
+            |   tok.Policy_         [ _val = UIT_POLICY ]
             ;
     }
 
