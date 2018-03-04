@@ -105,6 +105,7 @@
     (EffectsGroups)                             \
     (Else)                                      \
     (Empire)                                    \
+    (EmpireHasAdoptedPolicy)                    \
     (EmpireHasBuildingAvailable)                \
     (EmpireHasShipDesignAvailable)              \
     (EmpireHasShipPartAvailable)                \
