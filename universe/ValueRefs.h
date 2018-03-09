@@ -1356,6 +1356,9 @@ template <>
 FO_COMMON_API StarType ComplexVariable<StarType>::Eval(const ScriptingContext& context) const;
 
 template <>
+FO_COMMON_API std::vector<std::string> ComplexVariable<std::vector<std::string>>::Eval(const ScriptingContext& context) const;
+
+template <>
 FO_COMMON_API Visibility ComplexVariable<Visibility>::Eval(const ScriptingContext& context) const;
 
 template <>
@@ -1366,6 +1369,9 @@ FO_COMMON_API int ComplexVariable<int>::Eval(const ScriptingContext& context) co
 
 template <>
 FO_COMMON_API std::string ComplexVariable<std::string>::Eval(const ScriptingContext& context) const;
+
+template <>
+FO_COMMON_API std::string ComplexVariable<std::vector<std::string>>::Dump(unsigned short ntabs) const;
 
 template <>
 FO_COMMON_API std::string ComplexVariable<Visibility>::Dump(unsigned short ntabs) const;
