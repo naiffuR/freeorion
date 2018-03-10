@@ -10,6 +10,7 @@
 #include "../util/GameRules.h"
 #include "../Empire/Empire.h"
 #include "../Empire/EmpireManager.h"
+#include "../Empire/Government.h"
 #include "IDAllocator.h"
 #include "Building.h"
 #include "Effect.h"
@@ -1343,6 +1344,33 @@ void Universe::GetEffectsAndTargets(Effect::TargetsCauses& targets_causes,
                 run_queue.AddWork(new StoreTargetsAndCausesOfEffectsGroupsWorkItem(
                     m_objects, effects_group, tech_sources.back(),
                     ECT_TECH, tech->Name(),
+                    all_potential_targets, targets_causes_reorder_buffer.back(),
+                    cached_source_condition_matches,
+                    invariant_condition_matches,
+                    global_mutex));
+            }
+        }
+    }
+
+    // 3.5) EffectsGroups from Policies
+    type_timer.EnterSection("policies");
+    TraceLogger(effects) << "Universe::GetEffectsAndTargets for POLICIES";
+    std::list<std::vector<std::shared_ptr<const UniverseObject>>> policy_sources;
+    for (auto& entry : Empires()) {
+        const Empire* empire = entry.second;
+        auto source = empire->Source();
+        if (!source)
+            continue;
+
+        policy_sources.push_back(std::vector<std::shared_ptr<const UniverseObject>>(1U, source));
+        for (const auto tech_entry : empire->ResearchedTechs()) {
+            const Policy* policy = GetPolicy(tech_entry.first);
+            if (!policy) continue;
+
+            for (auto& effects_group : policy->Effects()) {
+                targets_causes_reorder_buffer.push_back(Effect::TargetsCauses());
+                run_queue.AddWork(new StoreTargetsAndCausesOfEffectsGroupsWorkItem(
+                    effects_group, policy_sources.back(), ECT_POLICY, policy->Name(),
                     all_potential_targets, targets_causes_reorder_buffer.back(),
                     cached_source_condition_matches,
                     invariant_condition_matches,
