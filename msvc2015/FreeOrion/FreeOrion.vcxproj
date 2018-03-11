@@ -179,6 +179,7 @@
     <ClInclude Include="..\..\UI\FleetButton.h" />
     <ClInclude Include="..\..\UI\FleetWnd.h" />
     <ClInclude Include="..\..\UI\GalaxySetupWnd.h" />
+    <ClInclude Include="..\..\UI\GovernmentWnd.h" />
     <ClInclude Include="..\..\UI\GraphControl.h" />
     <ClInclude Include="..\..\UI\Hotkeys.h" />
     <ClInclude Include="..\..\UI\IconTextBrowseWnd.h" />
@@ -290,6 +291,7 @@
     <ClCompile Include="..\..\UI\FleetButton.cpp" />
     <ClCompile Include="..\..\UI\FleetWnd.cpp" />
     <ClCompile Include="..\..\UI\GalaxySetupWnd.cpp" />
+    <ClCompile Include="..\..\UI\GovernmentWnd.cpp" />
     <ClCompile Include="..\..\UI\GraphControl.cpp" />
     <ClCompile Include="..\..\UI\Hotkeys.cpp" />
     <ClCompile Include="..\..\UI\IconTextBrowseWnd.cpp" />
