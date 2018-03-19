@@ -289,6 +289,9 @@ std::vector<std::string> Empire::AdoptedPolicies() const {
 const std::set<std::string>& Empire::AvailablePolicies() const
 { return m_available_policies; }
 
+bool Empire::PolicyAvailable(const std::string& name) const
+{ return m_available_policies.count(name); }
+
 namespace {
     // todo: get / derive from PolicyManager info
     const std::initializer_list<std::pair<std::string, std::string>> policy_slot_cats_meters = {
