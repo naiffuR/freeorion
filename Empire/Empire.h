@@ -64,6 +64,8 @@ public:
     int                             TurnPolicyAdopted(const std::string& name) const;
     int                             SlotPolicyAdoptedIn(const std::string& name) const;
     std::vector<std::string>        AdoptedPolicies() const;
+    std::map<std::string, std::map<int, std::string>>
+                                    CategoriesSlotsPoliciesAdopted() const;
 
     /** Returns the policies the empire has adopted and the categories
       * in which they were adopted. */
