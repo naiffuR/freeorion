@@ -406,7 +406,7 @@ public:
       * current empire */
     static void ConquerProductionQueueItemsAtLocation(int location_id, int empire_id);
 
-    mutable boost::signals2::signal<void ()>  ShipDesignsChangedSignal;
+    mutable boost::signals2::signal<void ()> ShipDesignsChangedSignal;
 
 private:
     void Init();
