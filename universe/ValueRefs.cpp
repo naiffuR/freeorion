@@ -205,8 +205,8 @@ namespace {
             meter_name_map["TargetIndustry"] =     METER_TARGET_INDUSTRY;
             meter_name_map["Research"] =           METER_RESEARCH;
             meter_name_map["TargetResearch"] =     METER_TARGET_RESEARCH;
-            meter_name_map["Trade"] =              METER_TRADE;
-            meter_name_map["TargetTrade"] =        METER_TARGET_TRADE;
+            meter_name_map["Influence"] =          METER_INFLUENCE;
+            meter_name_map["TargetInfluence"] =    METER_TARGET_INFLUENCE;
             meter_name_map["Construction"] =       METER_CONSTRUCTION;
             meter_name_map["TargetConstruction"] = METER_TARGET_CONSTRUCTION;
             meter_name_map["Happiness"] =          METER_HAPPINESS;

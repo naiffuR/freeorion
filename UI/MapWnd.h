@@ -183,10 +183,10 @@ public:
     /** Programatically selects fleets. */
     void SelectFleet(std::shared_ptr<Fleet> fleet);
 
-    void ReselectLastFleet();                    //!< re-selects the most recent selected fleet, if a valid one exists
+    void ReselectLastFleet();                   //!< re-selects the most recent selected fleet, if a valid one exists
 
-    void RemoveFleet(int fleet_id); //!< removes specified fleet.
-    void SetFleetMovementLine(int fleet_id);     //!< creates fleet movement line for a single fleet.  Move lines originate from the fleet's button location.
+    void RemoveFleet(int fleet_id);             //!< removes specified fleet.
+    void SetFleetMovementLine(int fleet_id);    //!< creates fleet movement line for a single fleet.  Move lines originate from the fleet's button location.
 
     /* creates specially-coloured projected fleet movement line for specified
      * fleet following the specified route.  Move line originates from the
@@ -195,7 +195,8 @@ public:
     /* creates specially-coloured projected fleet movement lines for specified
      * fleets following the specified route.  Move lines originates from the
      * fleets' button locations. */
-    void SetProjectedFleetMovementLines(const std::vector<int>& fleet_ids, const std::list<int>& travel_route);
+    void SetProjectedFleetMovementLines(const std::vector<int>& fleet_ids,
+                                        const std::list<int>& travel_route);
 
     void ClearProjectedFleetMovementLines();     //!< removes all projected fleet movement lines
 
@@ -204,7 +205,7 @@ public:
 
     void ResetEmpireShown();                     //!< auto-resets the shown empire in any contained Wnds, to the current client's empire (if any)
 
-    void RegisterPopup(const std::shared_ptr<MapWndPopup>& popup);              //!< registers a MapWndPopup, which can be cleaned up with a call to DeleteAllPopups( )
+    void RegisterPopup(const std::shared_ptr<MapWndPopup>& popup);  //!< registers a MapWndPopup, which can be cleaned up with a call to DeleteAllPopups( )
     void RemovePopup(MapWndPopup* popup);        //!< removes a MapWndPopup from the list cleaned up on a call to DeleteAllPopups( )
     void Sanitize();                             //!< sanitizes the MapWnd after a game
     void ResetTimeoutClock(int timeout);         //!< start count down \a timeout seconds
@@ -219,7 +220,7 @@ public:
 private:
     void RefreshTurnButtonTooltip();
 
-    void RefreshTradeResourceIndicator();
+    void RefreshInfluenceResourceIndicator();
     void RefreshFleetResourceIndicator();
     void RefreshResearchResourceIndicator();
     void RefreshIndustryResourceIndicator();
@@ -569,7 +570,7 @@ private:
     bool                            m_sidepanel_open_before_showing_other = false;  //!< was the sidepanel open before switching to production, research or design screens?  If so, it should be restored when leaving them.
 
     std::shared_ptr<CUIToolBar>     m_toolbar = nullptr;
-    std::shared_ptr<StatisticIcon>  m_trade = nullptr, m_population = nullptr, m_research = nullptr,
+    std::shared_ptr<StatisticIcon>  m_influence = nullptr, m_population = nullptr, m_research = nullptr,
                                     m_industry = nullptr, m_stockpile = nullptr, m_detection = nullptr,
                                     m_fleet = nullptr;
     std::shared_ptr<GG::Button>     m_industry_wasted = nullptr, m_research_wasted = nullptr,
