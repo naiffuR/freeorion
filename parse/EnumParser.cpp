@@ -69,7 +69,7 @@ namespace parse {
             |   tok.Bombard_            [ _val = PC_BOMBARD ]
             |   tok.Research_           [ _val = PC_RESEARCH ]
             |   tok.Industry_           [ _val = PC_INDUSTRY ]
-            |   tok.Trade_              [ _val = PC_TRADE ]
+            |   tok.Influence_          [ _val = PC_INFLUENCE ]
             |   tok.ProductionLocation_ [ _val = PC_PRODUCTION_LOCATION ]
             ;
     }
@@ -111,7 +111,7 @@ namespace parse {
             |   tok.TargetIndustry_         [ _val = METER_TARGET_INDUSTRY ]
             |   tok.TargetPopulation_       [ _val = METER_TARGET_POPULATION ]
             |   tok.TargetResearch_         [ _val = METER_TARGET_RESEARCH ]
-            |   tok.TargetTrade_            [ _val = METER_TARGET_TRADE ]
+            |   tok.TargetInfluence_        [ _val = METER_TARGET_INFLUENCE ]
             |   tok.TargetHappiness_        [ _val = METER_TARGET_HAPPINESS ]
             |   tok.MaxDefense_             [ _val = METER_MAX_DEFENSE ]
             |   tok.MaxFuel_                [ _val = METER_MAX_FUEL ]
@@ -125,7 +125,7 @@ namespace parse {
             |   tok.Industry_               [ _val = METER_INDUSTRY ]
             |   tok.Population_             [ _val = METER_POPULATION ]
             |   tok.Research_               [ _val = METER_RESEARCH ]
-            |   tok.Trade_                  [ _val = METER_TRADE ]
+            |   tok.Influence_              [ _val = METER_INFLUENCE ]
             |   tok.Happiness_              [ _val = METER_HAPPINESS ]
 
             |   tok.Defense_                [ _val = METER_DEFENSE ]
@@ -166,7 +166,7 @@ namespace parse {
             |   tok.SetTargetIndustry_      [ _val = METER_TARGET_INDUSTRY ]
             |   tok.SetTargetPopulation_    [ _val = METER_TARGET_POPULATION ]
             |   tok.SetTargetResearch_      [ _val = METER_TARGET_RESEARCH ]
-            |   tok.SetTargetTrade_         [ _val = METER_TARGET_TRADE ]
+            |   tok.SetTargetInfluence_     [ _val = METER_TARGET_INFLUENCE ]
             |   tok.SetTargetHappiness_     [ _val = METER_TARGET_HAPPINESS ]
 
             |   tok.SetMaxDefense_          [ _val = METER_MAX_DEFENSE ]
@@ -181,7 +181,7 @@ namespace parse {
             |   tok.SetIndustry_            [ _val = METER_INDUSTRY ]
             |   tok.SetPopulation_          [ _val = METER_POPULATION ]
             |   tok.SetResearch_            [ _val = METER_RESEARCH ]
-            |   tok.SetTrade_               [ _val = METER_TRADE ]
+            |   tok.SetInfluence_           [ _val = METER_INFLUENCE ]
             |   tok.SetHappiness_           [ _val = METER_HAPPINESS ]
 
             |   tok.SetDefense_             [ _val = METER_DEFENSE ]

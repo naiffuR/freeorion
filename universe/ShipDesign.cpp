@@ -381,8 +381,8 @@ void PartType::Init(std::vector<std::unique_ptr<Effect::EffectsGroup>>&& effects
         case PC_INDUSTRY:
             m_effects.push_back(IncreaseMeter(METER_TARGET_INDUSTRY,m_capacity));
             break;
-        case PC_TRADE:
-            m_effects.push_back(IncreaseMeter(METER_TARGET_TRADE,   m_capacity));
+        case PC_INFLUENCE:
+            m_effects.push_back(IncreaseMeter(METER_TARGET_INFLUENCE,m_capacity));
             break;
         default:
             break;
@@ -1376,8 +1376,8 @@ void ShipDesign::BuildStatCaches() {
         case PC_INDUSTRY:
             m_industry_generation += part->Capacity();
             break;
-        case PC_TRADE:
-            m_trade_generation += part->Capacity();
+        case PC_INFLUENCE:
+            m_influence_generation += part->Capacity();
             break;
         case PC_PRODUCTION_LOCATION:
             m_is_production_location = true;

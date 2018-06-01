@@ -90,8 +90,8 @@ namespace {
     std::shared_ptr<GG::Texture> ResearchIcon()
     { return ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "meter" / "research.png"); }
 
-    std::shared_ptr<GG::Texture> TradeIcon()
-    { return ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "meter" / "trade.png"); }
+    std::shared_ptr<GG::Texture> InfluenceIcon()
+    { return ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "meter" / "influence.png"); }
 
     std::string FleetDestinationText(int fleet_id) {
         std::string retval = "";
@@ -966,8 +966,8 @@ namespace {
             meters_icons.push_back({METER_INDUSTRY,       IndustryIcon()});
         if (ship->InitialMeterValue(METER_RESEARCH) > 0.0f)
             meters_icons.push_back({METER_RESEARCH,       ResearchIcon()});
-        if (ship->InitialMeterValue(METER_TRADE) > 0.0f)
-            meters_icons.push_back({METER_TRADE,          TradeIcon()});
+        if (ship->InitialMeterValue(METER_INFLUENCE) > 0.0f)
+            meters_icons.push_back({METER_INFLUENCE,      InfluenceIcon()});
 
         for (auto& meter : {METER_SHIELD, METER_FUEL, METER_DETECTION,
                             METER_STEALTH, METER_SPEED})
@@ -1593,8 +1593,8 @@ void FleetDataPanel::SetStatIconValues() {
                 AttachChild(icon);
         }
             break;
-        case METER_TRADE: {
-            const auto resource_output = fleet->ResourceOutput(RE_TRADE);
+        case METER_INFLUENCE: {
+            const auto resource_output = fleet->ResourceOutput(RE_INFLUENCE);
             icon->SetValue(resource_output);
             if (resource_output > 0.0f)
                 AttachChild(icon);
@@ -1732,7 +1732,7 @@ void FleetDataPanel::Init() {
         meters_icons_browsetext.emplace_back(METER_POPULATION,      ColonyIcon(),                           "FW_FLEET_COLONY_SUMMARY");
         meters_icons_browsetext.emplace_back(METER_INDUSTRY,        IndustryIcon(),                         "FW_FLEET_INDUSTRY_SUMMARY");
         meters_icons_browsetext.emplace_back(METER_RESEARCH,        ResearchIcon(),                         "FW_FLEET_RESEARCH_SUMMARY");
-        meters_icons_browsetext.emplace_back(METER_TRADE,           TradeIcon(),                            "FW_FLEET_TRADE_SUMMARY");
+        meters_icons_browsetext.emplace_back(METER_INFLUENCE,       InfluenceIcon(),                        "FW_FLEET_INFLUENCE_SUMMARY");
         meters_icons_browsetext.emplace_back(METER_STRUCTURE,       ClientUI::MeterIcon(METER_STRUCTURE),   "FW_FLEET_STRUCTURE_SUMMARY");
         meters_icons_browsetext.emplace_back(METER_SHIELD,          ClientUI::MeterIcon(METER_SHIELD),      "FW_FLEET_SHIELD_SUMMARY");
         meters_icons_browsetext.emplace_back(METER_FUEL,            ClientUI::MeterIcon(METER_FUEL),        "FW_FLEET_FUEL_SUMMARY");

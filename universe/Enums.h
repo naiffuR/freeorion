@@ -89,7 +89,7 @@ GG_ENUM(MeterType,
     METER_TARGET_POPULATION,
     METER_TARGET_INDUSTRY,
     METER_TARGET_RESEARCH,
-    METER_TARGET_TRADE,
+    METER_TARGET_INFLUENCE,
     METER_TARGET_CONSTRUCTION,
     METER_TARGET_HAPPINESS,
 
@@ -107,7 +107,7 @@ GG_ENUM(MeterType,
     METER_POPULATION,
     METER_INDUSTRY,
     METER_RESEARCH,
-    METER_TRADE,
+    METER_INFLUENCE,
     METER_CONSTRUCTION,
     METER_HAPPINESS,
 
@@ -231,7 +231,7 @@ GG_ENUM(BuildType,
 GG_ENUM(ResourceType,
     INVALID_RESOURCE_TYPE = -1,
     RE_INDUSTRY,
-    RE_TRADE,
+    RE_INFLUENCE,
     RE_RESEARCH,
     RE_STOCKPILE,
     NUM_RESOURCE_TYPES
@@ -255,7 +255,7 @@ GG_ENUM(ShipPartClass,
     PC_BOMBARD,             ///< permit orbital bombardment by ships against planets
     PC_INDUSTRY,            ///< generates production points for owner at its location
     PC_RESEARCH,            ///< generates research points for owner
-    PC_TRADE,               ///< generates trade points for owner
+    PC_INFLUENCE,           ///< generates influence points for owner
     PC_PRODUCTION_LOCATION, ///< allows production items to be produced at its location
     NUM_SHIP_PART_CLASSES
 )
