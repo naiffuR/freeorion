@@ -1372,7 +1372,7 @@ void MapWnd::CompleteConstruction() {
     layout->Add(m_research,         0, layout_column, GG::ALIGN_LEFT | GG::ALIGN_VCENTER);
     ++layout_column;
 
-    layout->SetColumnStretch(layout_column, 1.0);
+    layout->SetColumnStretch(layout_column, 1.2);
     layout->Add(m_influence,        0, layout_column, GG::ALIGN_LEFT | GG::ALIGN_VCENTER);
     ++layout_column;
 
@@ -1451,6 +1451,7 @@ void MapWnd::CompleteConstruction() {
     layout->SetCellMargin(5);
     layout->SetBorderMargin(5);
 
+    layout->RenderOutline(true);
 
     ///////////////////
     // Misc widgets on map screen
