@@ -59,18 +59,17 @@ public:
 
     std::string         Dump() const;
 
-    /** Returns the policies the empire has adopted and the turns on
-      * which they were adopted. */
     bool                            PolicyAdopted(const std::string& name) const;
     int                             TurnPolicyAdopted(const std::string& name) const;
     int                             SlotPolicyAdoptedIn(const std::string& name) const;
     std::vector<std::string>        AdoptedPolicies() const;
+    /** For each category, returns the slots in which policies have been adopted
+      * and what policy is in that slot. */
     std::map<std::string, std::map<int, std::string>>
                                     CategoriesSlotsPoliciesAdopted() const;
+    /** Returns the policies the empire has adopted and the turns on
+      * which they were adopted. */
     std::map<std::string, int>      TurnsPoliciesAdopted() const;
-
-    /** Returns the policies the empire has adopted and the categories
-      * in which they were adopted. */
 
     /** Returns the set of policies / slots the empire has avaialble. */
     const std::set<std::string>&    AvailablePolicies() const;
@@ -196,8 +195,8 @@ public:
 
     /** Checks that all policy adoption conditions are met, removing any that
       * are not allowed. Also copies adopted policies to initial adopted
-      * policies */
-    void AuditPolicies();
+      * policies. Updates how many turns each policy has (ever) been adopted. */
+    void UpdatePolicies();
 
     /** Returns the meter with the indicated \a name if it exists, or nullptr. */
     Meter* GetMeter(const std::string& name);
@@ -434,10 +433,11 @@ private:
         void serialize(Archive& ar, const unsigned int version);
     };
     std::map<std::string, PolicyAdoptionInfo>
-                                    m_adopted_policies;         ///< map from policy name to turn, category, and slot in/on which it was adopted
+                                    m_adopted_policies;                 ///< map from policy name to turn, category, and slot in/on which it was adopted
     std::map<std::string, PolicyAdoptionInfo>
-                                    m_initial_adopted_policies; ///< adopted policies at start of turn
-    std::set<std::string>           m_available_policies;       ///< names of unlocked policies
+                                    m_initial_adopted_policies;         ///< adopted policies at start of turn
+    std::map<std::string, int>      m_policy_adoption_total_duration;   ///< how many turns each policy has been adopted over the course of the game by this empire
+    std::set<std::string>           m_available_policies;               ///< names of unlocked policies
 
 
     /** The source id is the id of any object owned by the empire.  It is
