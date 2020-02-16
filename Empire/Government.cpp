@@ -31,7 +31,7 @@ namespace {
 ///////////////////////////////////////////////////////////
 Policy::Policy(const std::string& name, const std::string& description,
                const std::string& short_description, const std::string& category,
-               std::unique_ptr<ValueRef::ValueRefBase<double>>&& adoption_cost,
+               std::unique_ptr<ValueRef::ValueRef<double>>&& adoption_cost,
                std::vector<std::unique_ptr<Effect::EffectsGroup>>&& effects,
                const std::string& graphic) :
     m_name(name),
