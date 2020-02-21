@@ -4514,7 +4514,7 @@ void DesignWnd::MainPanel::Populate() {
 
     const std::vector<HullType::Slot>& hull_slots = m_hull->Slots();
 
-    for (size_t i = 0; i != hull_slots.size(); ++i) {
+    for (std::size_t i = 0; i < hull_slots.size(); ++i) {
         const HullType::Slot& slot = hull_slots[i];
         auto slot_control = GG::Wnd::Create<SlotControl>(slot.x, slot.y, slot.type);
         m_slots.push_back(slot_control);
@@ -4524,8 +4524,7 @@ void DesignWnd::MainPanel::Populate() {
             boost::bind(static_cast<void (DesignWnd::MainPanel::*)(
                 const PartType*, unsigned int, bool, bool)>(&DesignWnd::MainPanel::SetPart),
                     this, _1, i, true, _2));
-        slot_control->PartTypeClickedSignal.connect(
-            PartTypeClickedSignal);
+        slot_control->PartTypeClickedSignal.connect(PartTypeClickedSignal);
     }
 }
 
