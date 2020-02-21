@@ -6748,6 +6748,8 @@ std::string EmpireHasAdoptedPolicy::Description(bool negated/* = false*/) const 
 
 std::string EmpireHasAdoptedPolicy::Dump(unsigned short ntabs) const {
     std::string retval = DumpIndent(ntabs) + "EmpireHasAdoptedPolicy";
+    if (m_empire_id)
+        retval += " empire = " + m_empire_id->Dump(ntabs);
     if (m_name)
         retval += " name = " + m_name->Dump(ntabs);
     retval += "\n";
@@ -6768,6 +6770,8 @@ bool EmpireHasAdoptedPolicy::Match(const ScriptingContext& local_context) const 
 }
 
 void EmpireHasAdoptedPolicy::SetTopLevelContent(const std::string& content_name) {
+    if (m_empire_id)
+        m_empire_id->SetTopLevelContent(content_name);
     if (m_name)
         m_name->SetTopLevelContent(content_name);
 }
@@ -6776,6 +6780,7 @@ unsigned int EmpireHasAdoptedPolicy::GetCheckSum() const {
     unsigned int retval{0};
 
     CheckSums::CheckSumCombine(retval, "Condition::EmpireHasAdoptedPolicy");
+    CheckSums::CheckSumCombine(retval, m_empire_id);
     CheckSums::CheckSumCombine(retval, m_name);
 
     TraceLogger() << "GetCheckSum(EmpireHasAdoptedPolicy): retval: " << retval;
