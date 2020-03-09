@@ -7,9 +7,18 @@ environment:
     - BUILD_SYSTEM: CMAKE
     - BUILD_SYSTEM: MSVC
 
+platform:
+  - Win32
+  - x64
+
 matrix:
   allow_failures:
     - BUILD_SYSTEM: CMAKE
+      platform: Win32
+
+  exclude:
+    - BUILD_DYSTEM: CMAKE
+      platform: x64
 
 init:
   - git config --global core.eol native
@@ -27,7 +36,13 @@ skip_commits:
 
 install:
   - cd ..
-  - ps: Start-FileDownload https://github.com/freeorion/freeorion-sdk/releases/download/v11/FreeOrionSDK_11_MSVC-v141-Win32.zip -FileName FreeOrionSDK.zip
+  - ps: |
+      If ($env:platform -eq "x64") {
+        Start-FileDownload https://github.com/freeorion/freeorion-sdk/releases/download/v11/FreeOrionSDK_11_MSVC-v141-x64.zip -FileName FreeOrionSDK.zip
+      } else {
+        Start-FileDownload https://github.com/freeorion/freeorion-sdk/releases/download/v11/FreeOrionSDK_11_MSVC-v141-Win32.zip -FileName FreeOrionSDK.zip
+      }
+  
   - unzip -q FreeOrionSDK.zip
   - cp bin/* freeorion/
   - cd freeorion
@@ -35,20 +50,25 @@ install:
 before_build:
   - if "%BUILD_SYSTEM%" == "MSVC" (
       cd msvc2017
-    )
+    )    
   - if "%BUILD_SYSTEM%" == "CMAKE" (
       mkdir build
     )
 
 build_script:
-  - if "%BUILD_SYSTEM%" == "MSVC" (
-      msbuild FreeOrion.sln /maxcpucount /property:BuildInParallel=true /property:CL_MPCount=2 /property:PlatformToolset=v141 /property:Configuration=Release /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" /verbosity:minimal
-    )
   - if "%BUILD_SYSTEM%" == "CMAKE" (
       pushd build &&
       cmake -G "Visual Studio 15 2017" -T v141 -A Win32 -DBUILD_TESTING=On .. &&
       cmake --build . --config "Release" -- /maxcpucount /property:BuildInParallel=true /property:CL_MPCount=2 /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" /verbosity:minimal &&
       popd
+    )
+  - if "%BUILD_SYSTEM%" == "MSVC" (
+      if "%platform%" == "x64" (
+        msbuild FreeOrion.sln /maxcpucount /property:BuildInParallel=true /property:CL_MPCount=2 /property:PlatformToolset=v141 /property:Configuration=Release /property:Platform=x64 /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" /verbosity:minimal      
+      )
+      if "%platform%" == "Win32" (
+        msbuild FreeOrion.sln /maxcpucount /property:BuildInParallel=true /property:CL_MPCount=2 /property:PlatformToolset=v141 /property:Configuration=Release /property:Platform=Win32 /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" /verbosity:minimal
+      )
     )
 
 test: off
