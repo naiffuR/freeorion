@@ -1370,7 +1370,8 @@ void Universe::GetEffectsAndTargets(Effect::TargetsCauses& targets_causes,
             for (auto& effects_group : policy->Effects()) {
                 targets_causes_reorder_buffer.push_back(Effect::TargetsCauses());
                 run_queue.AddWork(new StoreTargetsAndCausesOfEffectsGroupsWorkItem(
-                    effects_group, policy_sources.back(), ECT_POLICY, policy->Name(),
+                    m_objects, effects_group, policy_sources.back(),
+                    ECT_POLICY, policy->Name(),
                     all_potential_targets, targets_causes_reorder_buffer.back(),
                     cached_source_condition_matches,
                     invariant_condition_matches,
