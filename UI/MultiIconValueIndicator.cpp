@@ -119,10 +119,13 @@ void MultiIconValueIndicator::Update() {
         for (const auto& obj : Objects().find<UniverseObject>(m_object_ids)) {
             if (!obj)
                 continue;
-            //DebugLogger() << "MultiIconValueIndicator::Update object:";
-            //DebugLogger() << obj->Dump();
             auto type = m_meter_types[i].first;
-            double value = obj->InitialMeterValue(type);
+            const auto* meter{obj->GetMeter(type)};
+            if (!meter) {
+                ErrorLogger() << "MultiIconValueIndicator::Update couldn't get meter type " << type << " for object " << obj->Name() << " (" << obj->ID() << ")";
+                continue;
+            }
+            double value = obj->GetMeter(type)->Initial();
             // Supply is a special case: the only thing that matters is the highest value.
             if (type == METER_SUPPLY)
                 total = std::max(total, value);

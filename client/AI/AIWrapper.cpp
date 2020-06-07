@@ -17,6 +17,7 @@
 #include "../../Empire/Empire.h"
 #include "../../Empire/EmpireManager.h"
 #include "../../Empire/Diplomacy.h"
+#include "../../Empire/Government.h"
 #include "../../python/SetWrapper.h"
 #include "../../python/CommonWrappers.h"
 
@@ -339,6 +340,52 @@ namespace {
         return 1;
     }
 
+    int IssueAdoptPolicyOrder(const std::string& policy_name, const std::string& category, int slot) {
+        const Policy* policy = GetPolicy(policy_name);
+        if (!policy) {
+            ErrorLogger() << "IssueAdoptPolicyOrder : passed policy_name, " << policy_name << ", that is not the name of a policy.";
+            return 0;
+        }
+        if (!policy->Category().empty() && policy->Category() != category) {
+            ErrorLogger() << "IssueAdoptPolicyOrder : passed policy_name, " << policy_name
+                          << ",  and category, " << category << ",  name that are inconsistent";
+            return 0;
+        }
+
+        int empire_id = AIClientApp::GetApp()->EmpireID();
+        Empire* empire = AIClientApp::GetApp()->GetEmpire(empire_id);
+        if (!empire) {
+            ErrorLogger() << "IssueAdoptPolicyOrder : couldn't get empire with id " << empire_id;
+            return 0;
+        }
+        if (empire->PolicyAdopted(policy_name)) {
+            ErrorLogger() << "IssueAdoptPolicyOrder : policy with name " << policy_name << " was already adopted";
+            return 0;
+        }
+
+        AIClientApp::GetApp()->Orders().IssueOrder(
+            std::make_shared<PolicyOrder>(empire_id, policy_name, category, true, slot));
+        return 1;
+    }
+
+    int IssueDeadoptPolicyOrder(const std::string& policy_name) {
+        int empire_id = AIClientApp::GetApp()->EmpireID();
+        Empire* empire = AIClientApp::GetApp()->GetEmpire(empire_id);
+        if (!empire) {
+            ErrorLogger() << "IssueDeadoptPolicyOrder : couldn't get empire with id " << empire_id;
+            return 0;
+        }
+        if (!empire->PolicyAdopted(policy_name)) {
+            ErrorLogger() << "IssueDeadoptPolicyOrder : policy with name " << policy_name << " was not yet adopted, so can't be un-adopted";
+            return 0;
+        }
+
+        AIClientApp::GetApp()->Orders().IssueOrder(
+            std::make_shared<PolicyOrder>(empire_id, policy_name, "", false));  // category and slot ignored for de-adtopting
+        return 1;
+
+    }
+
     int IssueEnqueueBuildingProductionOrder(const std::string& item_name, int location_id) {
         int empire_id = AIClientApp::GetApp()->EmpireID();
         Empire* empire = AIClientApp::GetApp()->GetEmpire(empire_id);
@@ -357,8 +404,11 @@ namespace {
             return 0;
         }
 
+        auto item = ProductionQueue::ProductionItem(BT_BUILDING, item_name);
+
         AIClientApp::GetApp()->Orders().IssueOrder(
-            std::make_shared<ProductionQueueOrder>(empire_id, ProductionQueue::ProductionItem(BT_BUILDING, item_name), 1, location_id));
+            std::make_shared<ProductionQueueOrder>(ProductionQueueOrder::PLACE_IN_QUEUE,
+                                                   empire_id, item, 1, location_id));
 
         return 1;
     }
@@ -376,8 +426,11 @@ namespace {
             return 0;
         }
 
+        auto item = ProductionQueue::ProductionItem(BT_SHIP, design_id);
+
         AIClientApp::GetApp()->Orders().IssueOrder(
-            std::make_shared<ProductionQueueOrder>(empire_id, ProductionQueue::ProductionItem(BT_SHIP, design_id), 1, location_id));
+            std::make_shared<ProductionQueueOrder>(ProductionQueueOrder::PLACE_IN_QUEUE,
+                                                   empire_id, item, 1, location_id));
 
         return 1;
     }
@@ -400,8 +453,13 @@ namespace {
             return 0;
         }
 
-        AIClientApp::GetApp()->Orders().IssueOrder(
-            std::make_shared<ProductionQueueOrder>(empire_id, queue_index, new_quantity, new_blocksize));
+        auto queue_it = empire->GetProductionQueue().find(queue_index);
+
+        if (queue_it != empire->GetProductionQueue().end())
+            AIClientApp::GetApp()->Orders().IssueOrder(
+                std::make_shared<ProductionQueueOrder>(ProductionQueueOrder::SET_QUANTITY_AND_BLOCK_SIZE,
+                                                       empire_id, queue_it->uuid,
+                                                       new_quantity, new_blocksize));
 
         return 1;
     }
@@ -437,8 +495,12 @@ namespace {
             return 0;
         }
 
-        AIClientApp::GetApp()->Orders().IssueOrder(
-            std::make_shared<ProductionQueueOrder>(empire_id, old_queue_index, new_queue_index));
+        auto queue_it = empire->GetProductionQueue().find(old_queue_index);
+
+        if (queue_it != empire->GetProductionQueue().end())
+            AIClientApp::GetApp()->Orders().IssueOrder(
+            std::make_shared<ProductionQueueOrder>(ProductionQueueOrder::MOVE_ITEM_TO_INDEX,
+                                                   empire_id, queue_it->uuid, new_queue_index));
 
         return 1;
     }
@@ -457,8 +519,12 @@ namespace {
             return 0;
         }
 
-        AIClientApp::GetApp()->Orders().IssueOrder(
-            std::make_shared<ProductionQueueOrder>(empire_id, queue_index));
+        auto queue_it = empire->GetProductionQueue().find(queue_index);
+
+        if (queue_it != empire->GetProductionQueue().end())
+            AIClientApp::GetApp()->Orders().IssueOrder(
+                std::make_shared<ProductionQueueOrder>(ProductionQueueOrder::REMOVE_FROM_QUEUE,
+                                                       empire_id, queue_it->uuid));
 
         return 1;
     }
@@ -477,8 +543,12 @@ namespace {
             return 0;
         }
 
-        AIClientApp::GetApp()->Orders().IssueOrder(
-            std::make_shared<ProductionQueueOrder>(empire_id, queue_index, pause, 0.0f));
+        auto queue_it = empire->GetProductionQueue().find(queue_index);
+
+        if (queue_it != empire->GetProductionQueue().end())
+            AIClientApp::GetApp()->Orders().IssueOrder(
+                std::make_shared<ProductionQueueOrder>(ProductionQueueOrder::PAUSE_PRODUCTION,
+                                                       empire_id, queue_it->uuid));
 
         return 1;
     }
@@ -497,8 +567,12 @@ namespace {
             return 0;
         }
 
-        AIClientApp::GetApp()->Orders().IssueOrder(
-            std::make_shared<ProductionQueueOrder>(empire_id, queue_index, use_stockpile, 0.0f, 0.0f));
+        auto queue_it = empire->GetProductionQueue().find(queue_index);
+
+        if (queue_it != empire->GetProductionQueue().end())
+            AIClientApp::GetApp()->Orders().IssueOrder(
+                std::make_shared<ProductionQueueOrder>(ProductionQueueOrder::ALLOW_STOCKPILE_USE,
+                                                       empire_id, queue_it->uuid));
 
         return 1;
     }
@@ -646,6 +720,8 @@ namespace FreeOrionPython {
         def("issueChangeFocusOrder",                IssueChangeFocusOrder, "Orders the planet with ID planetID (int) to use focus setting focus (string). Returns 1 (int) on success or 0 (int) on failure if the planet can't be found or isn't owned by this player, or if the specified focus is not valid on the planet.");
         def("issueEnqueueTechOrder",                IssueEnqueueTechOrder, "Orders the tech with name techName (string) to be added to the tech queue at position (int) on the queue. Returns 1 (int) on success or 0 (int) on failure if the indicated tech can't be found. Will return 1 (int) but do nothing if the indicated tech can't be enqueued by this player's empire.");
         def("issueDequeueTechOrder",                IssueDequeueTechOrder, "Orders the tech with name techName (string) to be removed from the queue. Returns 1 (int) on success or 0 (int) on failure if the indicated tech can't be found. Will return 1 (int) but do nothing if the indicated tech isn't on this player's empire's tech queue.");
+        def("issueAdoptPolicyOrder",                IssueAdoptPolicyOrder, "Orders the policy with name policyName (string) to be adopted by the empire in the category categoryName (string) and slot slot (int). Returns 1 (int) on success or 0 (int) on failure if the indicated policy can't be found. Will return 1 (int) but do nothing if the indicated policy can't be enqueued by this player's empire in the requested category and slot.");
+        def("issueDeadoptPolicyOrder",              IssueDeadoptPolicyOrder, "Orders the policy with name policyName (string) to be de-adopted by the empire. Returns 1 (int) on success or 0 (int) on failure if the indicated policy was not already adopted.");
         def("issueEnqueueBuildingProductionOrder",  IssueEnqueueBuildingProductionOrder, "Orders the building with name (string) to be added to the production queue at the location of the planet with id locationID. Returns 1 (int) on success or 0 (int) on failure if there is no such building or it is not available to this player's empire, or if the building can't be produced at the specified location.");
         def("issueEnqueueShipProductionOrder",      IssueEnqueueShipProductionOrder, "Orders the ship design with ID designID (int) to be added to the production queue at the location of the planet with id locationID (int). Returns 1 (int) on success or 0 (int) on failure there is no such ship design or it not available to this player's empire, or if the design can't be produced at the specified location.");
         def("issueChangeProductionQuantityOrder",   IssueChangeProductionQuantityOrder);

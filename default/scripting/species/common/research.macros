@@ -1,5 +1,8 @@
+NO_RESEARCH
+'''[[DESCRIPTION_EFFECTSGROUP_MACRO(NO_RESEARCH_DESC)]]'''
+
 BASIC_RESEARCH
-'''EffectsGroup
+'''        EffectsGroup
             scope = Source
             activation = And [
                 Planet
@@ -21,8 +24,20 @@ BASIC_RESEARCH
             effects = SetTargetResearch value = Value * 2
 '''
 
-NO_RESEARCH
-'''[[DESCRIPTION_EFFECTSGROUP_MACRO(NO_RESEARCH_DESC)]]'''
+VERY_BAD_RESEARCH
+'''[[BASIC_RESEARCH]]
+
+        EffectsGroup
+            description = "VERY_BAD_RESEARCH_DESC"
+            scope = Source
+            activation = And [
+                Planet
+                Focus type = "FOCUS_RESEARCH"
+            ]
+            accountinglabel = "VERY_BAD_RESEARCH_LABEL"
+            priority = [[DEFAULT_PRIORITY]]
+            effects = SetTargetResearch value = Value*[[VERY_BAD_MULTIPLIER]]
+'''
 
 BAD_RESEARCH
 '''[[BASIC_RESEARCH]]
@@ -31,7 +46,6 @@ BAD_RESEARCH
             description = "BAD_RESEARCH_DESC"
             scope = Source
             activation = And [
-                Source
                 Planet
                 Focus type = "FOCUS_RESEARCH"
             ]
@@ -51,7 +65,6 @@ GOOD_RESEARCH
             description = "GOOD_RESEARCH_DESC"
             scope = Source
             activation = And [
-                Source
                 Planet
                 Focus type = "FOCUS_RESEARCH"
             ]
@@ -67,7 +80,6 @@ GREAT_RESEARCH
             description = "GREAT_RESEARCH_DESC"
             scope = Source
             activation = And [
-                Source
                 Planet
                 Focus type = "FOCUS_RESEARCH"
             ]
@@ -83,7 +95,6 @@ ULTIMATE_RESEARCH
             description = "ULTIMATE_RESEARCH_DESC"
             scope = Source
             activation = And [
-                Source
                 Planet
                 Focus type = "FOCUS_RESEARCH"
             ]

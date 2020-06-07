@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 from __future__ import print_function
 
@@ -60,7 +60,7 @@ class Generator(object):
         try:
             with open(self.infile) as template_file:
                 template = Template(template_file.read())
-        except:
+        except IOError:
             print("WARNING: Can't access %s, %s not updated!" % (self.infile, self.outfile))
             return
 
@@ -72,7 +72,7 @@ class Generator(object):
 class NsisInstScriptGenerator(Generator):
     def compile_dll_list(self):
         all_dll_files = glob("*.dll")
-        accepted_dll_files = set(["GiGi.dll", "GiGiSDL.dll"])
+        accepted_dll_files = set(["GiGi.dll"])
         for dll_file in all_dll_files:
             if dll_file.startswith("boost_"):
                 if dll_file.partition(".")[0] in required_boost_libraries:
@@ -90,7 +90,9 @@ class NsisInstScriptGenerator(Generator):
                 FreeOrion_BUILD_NO=build_no,
                 FreeOrion_BUILDSYS=build_sys,
                 FreeOrion_DLL_LIST_INSTALL="\n  ".join(['File "..\\' + fname + '"' for fname in dll_files]),
-                FreeOrion_DLL_LIST_UNINSTALL="\n  ".join(['Delete "$INSTDIR\\' + fname + '"' for fname in dll_files]))
+                FreeOrion_DLL_LIST_UNINSTALL="\n  ".join(['Delete "$INSTDIR\\' + fname + '"' for fname in dll_files]),
+                FreeOrion_PYTHON_VERSION="%d%d" % (sys.version_info.major, sys.version_info.minor))
+
         else:
             print("WARNING: no dll files for installer package found")
             return template.substitute(
@@ -99,7 +101,8 @@ class NsisInstScriptGenerator(Generator):
                 FreeOrion_BUILD_NO=build_no,
                 FreeOrion_BUILDSYS=build_sys,
                 FreeOrion_DLL_LIST_INSTALL="",
-                FreeOrion_DLL_LIST_UNINSTALL="")
+                FreeOrion_DLL_LIST_UNINSTALL="",
+                FreeOrion_PYTHON_VERSION="")
 
 
 if 3 != len(sys.argv):
@@ -120,7 +123,7 @@ if system() == 'Windows':
 if system() == 'Darwin':
     generators.append(Generator('packaging/Info.plist.in', 'packaging/Info.plist'))
 
-version = "0.4.9+"
+version = "0.4.10+"
 branch = ""
 build_no = INVALID_BUILD_NO
 
@@ -130,10 +133,10 @@ try:
         branch = ""
     else:
         branch += " "
-    commit = check_output(["git", "show", "-s", "--format=%h", "--abbrev=7", "HEAD"], universal_newlines=True).strip()
-    timestamp = float(check_output(["git", "show", "-s", "--format=%ct", "HEAD"], universal_newlines=True).strip())
+    commit = check_output(["git", "show", "--no-show-signature", "-s", "--format=%h", "--abbrev=7", "HEAD"], universal_newlines=True).strip()
+    timestamp = float(check_output(["git", "show", "--no-show-signature", "-s", "--format=%ct", "HEAD"], universal_newlines=True).strip())
     build_no = ".".join([datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%d"), commit])
-except:
+except IOError:
     print("WARNING: git not installed or not setup correctly")
 
 for generator in generators:

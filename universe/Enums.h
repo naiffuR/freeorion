@@ -1,13 +1,13 @@
 #ifndef _Enums_h_
 #define _Enums_h_
 
-#include <GG/Enum.h>
 
 #include <iostream>
 #include <string>
 #include <vector>
-
+#include <GG/Enum.h>
 #include "../util/Export.h"
+
 
 /* the various major subclasses of UniverseObject */
 GG_ENUM(UniverseObjectType,
@@ -89,7 +89,7 @@ GG_ENUM(MeterType,
     METER_TARGET_POPULATION,
     METER_TARGET_INDUSTRY,
     METER_TARGET_RESEARCH,
-    METER_TARGET_TRADE,
+    METER_TARGET_INFLUENCE,
     METER_TARGET_CONSTRUCTION,
     METER_TARGET_HAPPINESS,
 
@@ -107,7 +107,7 @@ GG_ENUM(MeterType,
     METER_POPULATION,
     METER_INDUSTRY,
     METER_RESEARCH,
-    METER_TRADE,
+    METER_INFLUENCE,
     METER_CONSTRUCTION,
     METER_HAPPINESS,
 
@@ -193,17 +193,6 @@ GG_ENUM(DiplomaticStatus,
     NUM_DIPLO_STATUSES
 )
 
-/** types of items that can be unlocked for empires */
-GG_ENUM(UnlockableItemType,
-    INVALID_UNLOCKABLE_ITEM_TYPE = -1,
-    UIT_BUILDING,               ///< a kind of Building
-    UIT_SHIP_PART,              ///< a kind of ship part (which are placed into hulls to make designs)
-    UIT_SHIP_HULL,              ///< a ship hull (into which parts are placed)
-    UIT_SHIP_DESIGN,            ///< a complete ship design
-    UIT_TECH,                   ///< a technology
-    NUM_UNLOCKABLE_ITEM_TYPES   ///< keep last, the number of types of unlockable item
-)
-
 /** Research status of techs, relating to whether they have been or can be researched */
 GG_ENUM(TechStatus,
     INVALID_TECH_STATUS = -1,
@@ -214,14 +203,15 @@ GG_ENUM(TechStatus,
     NUM_TECH_STATUSES
 )
 
-/** The general type of production being done at a ProdCenter.  Within each valid type, a specific kind 
-    of item is being built, e.g. under BUILDING a kind of building called "SuperFarm" might be built. */
+/** The general type of production being done at a ProdCenter.  Within each
+  * valid type, a specific kind of item is being built, e.g. under BT_BUILDING
+  * a kind of building called "SuperFarm" might be built. */
 GG_ENUM(BuildType,
     INVALID_BUILD_TYPE = -1,
     BT_NOT_BUILDING,        ///< no building is taking place
-    BT_BUILDING,            ///< a Building object is being built
-    BT_SHIP,                ///< a Ship object is being built
-    BT_PROJECT,             ///< a project may produce effects while on the queue, may or may not ever complete, and does not result in a ship or building being produced
+    BT_BUILDING,            ///< a Building object is being produced
+    BT_SHIP,                ///< a Ship object is being produced
+    BT_PROJECT,             ///< a project may generate effects while on the queue, may or may not ever complete, and does not result in a ship or building being produced
     BT_STOCKPILE,
     NUM_BUILD_TYPES
 )
@@ -230,33 +220,10 @@ GG_ENUM(BuildType,
 GG_ENUM(ResourceType,
     INVALID_RESOURCE_TYPE = -1,
     RE_INDUSTRY,
-    RE_TRADE,
+    RE_INFLUENCE,
     RE_RESEARCH,
     RE_STOCKPILE,
     NUM_RESOURCE_TYPES
-)
-
-/** Types "classes" of ship parts */
-GG_ENUM(ShipPartClass,
-    INVALID_SHIP_PART_CLASS = -1,
-    PC_DIRECT_WEAPON,       ///< direct-fire weapons
-    PC_FIGHTER_BAY,         ///< launch aparatus for fighters, which are self-propelled platforms that function independently of ships in combat, but don't exist on the main game map
-    PC_FIGHTER_HANGAR,      ///< storage for fighters, also determines their weapon strength stat
-    PC_SHIELD,              ///< energy-based defense
-    PC_ARMOUR,              ///< defensive material on hull of ship
-    PC_TROOPS,              ///< ground troops, used to conquer planets
-    PC_DETECTION,           ///< range of vision and seeing through stealth
-    PC_STEALTH,             ///< hiding from enemies
-    PC_FUEL,                ///< distance that can be traveled away from resupply
-    PC_COLONY,              ///< transports colonists and allows ships to make new colonies
-    PC_SPEED,               ///< affects ship speed on starlanes
-    PC_GENERAL,             ///< special purpose parts that don't fall into another class
-    PC_BOMBARD,             ///< permit orbital bombardment by ships against planets
-    PC_INDUSTRY,            ///< generates production points for owner at its location
-    PC_RESEARCH,            ///< generates research points for owner
-    PC_TRADE,               ///< generates trade points for owner
-    PC_PRODUCTION_LOCATION, ///< allows production items to be produced at its location
-    NUM_SHIP_PART_CLASSES
 )
 
 /* Types of slots in hulls.  Parts may be restricted to only certain slot types */
@@ -323,7 +290,8 @@ GG_ENUM(EffectsCauseType,
     ECT_SPECIAL,
     ECT_SPECIES,
     ECT_SHIP_PART,
-    ECT_SHIP_HULL
+    ECT_SHIP_HULL,
+    ECT_POLICY
 )
 
 /** Used for tracking what moderator action is set */

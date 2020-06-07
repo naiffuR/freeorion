@@ -114,7 +114,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_USRDLL;FREEORION_WIN32;_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../../../include/;../../GG/;../../;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../../include/;../../GG/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <PrecompiledHeaderFile>StdAfx.h</PrecompiledHeaderFile>
@@ -135,7 +135,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_USRDLL;FREEORION_WIN32;_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../../../include/;../../GG/;../../;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../../include/;../../GG/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <PrecompiledHeaderFile>StdAfx.h</PrecompiledHeaderFile>
@@ -161,14 +161,14 @@
     </None>
     <CustomBuild Include="..\..\util\Version.cpp.in">
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(SolutionDir)..\python2.7.exe" "$(SolutionDir)..\cmake\make_versioncpp.py" "$(SolutionDir).." "MSVC 2017"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(SolutionDir)..\python2.7.exe" "$(SolutionDir)..\cmake\make_versioncpp.py" "$(SolutionDir).." "MSVC 2017"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(SolutionDir)..\python3.5.exe" "$(SolutionDir)..\cmake\make_versioncpp.py" "$(SolutionDir).." "MSVC 2017"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(SolutionDir)..\python3.5.exe" "$(SolutionDir)..\cmake\make_versioncpp.py" "$(SolutionDir).." "MSVC 2017"</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\util\Version.cpp;%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\util\Version.cpp;%(Outputs)</Outputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\.git;%(AdditionalInputs)</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\.git;%(AdditionalInputs)</AdditionalInputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"$(SolutionDir)..\python2.7.exe" "$(SolutionDir)..\cmake\make_versioncpp.py" "$(SolutionDir).." "MSVC 2017 Debug"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(SolutionDir)..\python2.7.exe" "$(SolutionDir)..\cmake\make_versioncpp.py" "$(SolutionDir).." "MSVC 2017 Debug"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"$(SolutionDir)..\python3.5.exe" "$(SolutionDir)..\cmake\make_versioncpp.py" "$(SolutionDir).." "MSVC 2017 Debug"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(SolutionDir)..\python3.5.exe" "$(SolutionDir)..\cmake\make_versioncpp.py" "$(SolutionDir).." "MSVC 2017 Debug"</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\util\Version.cpp;%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\util\Version.cpp;%(Outputs)</Outputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\.git;%(AdditionalInputs)</AdditionalInputs>
@@ -186,6 +186,8 @@
     <ClInclude Include="..\..\combat\CombatSystem.h" />
     <ClInclude Include="..\..\Empire\Diplomacy.h" />
     <ClInclude Include="..\..\Empire\Empire.h" />
+    <ClInclude Include="..\..\Empire\Government.h" />
+    <ClInclude Include="..\..\Empire\InfluenceQueue.h" />
     <ClInclude Include="..\..\Empire\ResearchQueue.h" />
     <ClInclude Include="..\..\Empire\ProductionQueue.h" />
     <ClInclude Include="..\..\Empire\EmpireManager.h" />
@@ -196,16 +198,22 @@
     <ClInclude Include="..\..\network\MessageQueue.h" />
     <ClInclude Include="..\..\network\Networking.h" />
     <ClInclude Include="..\..\universe\Building.h" />
+    <ClInclude Include="..\..\universe\BuildingType.h" />
+    <ClInclude Include="..\..\universe\CommonParams.h" />
     <ClInclude Include="..\..\universe\Condition.h" />
+    <ClInclude Include="..\..\universe\ConditionAll.h" />
     <ClInclude Include="..\..\universe\Conditions.h" />
+    <ClInclude Include="..\..\universe\ConditionSource.h" />
     <ClInclude Include="..\..\universe\Effects.h" />
     <ClInclude Include="..\..\universe\Effect.h" />
     <ClInclude Include="..\..\universe\Encyclopedia.h" />
     <ClInclude Include="..\..\universe\Enums.h" />
     <ClInclude Include="..\..\universe\EnumsFwd.h" />
     <ClInclude Include="..\..\universe\Field.h" />
+    <ClInclude Include="..\..\universe\FieldType.h" />
     <ClInclude Include="..\..\universe\Fighter.h" />
     <ClInclude Include="..\..\universe\Fleet.h" />
+    <ClInclude Include="..\..\universe\FleetPlan.h" />
     <ClInclude Include="..\..\universe\IDAllocator.h" />
     <ClInclude Include="..\..\universe\ScriptingContext.h" />
     <ClInclude Include="..\..\universe\ValueRef.h" />
@@ -218,11 +226,14 @@
     <ClInclude Include="..\..\universe\ResourceCenter.h" />
     <ClInclude Include="..\..\universe\Ship.h" />
     <ClInclude Include="..\..\universe\ShipDesign.h" />
+    <ClInclude Include="..\..\universe\ShipHull.h" />
+    <ClInclude Include="..\..\universe\ShipPart.h" />
     <ClInclude Include="..\..\universe\Special.h" />
     <ClInclude Include="..\..\universe\Species.h" />
     <ClInclude Include="..\..\universe\System.h" />
     <ClInclude Include="..\..\universe\Tech.h" />
     <ClInclude Include="..\..\universe\Universe.h" />
+    <ClInclude Include="..\..\universe\UnlockableItem.h" />
     <ClInclude Include="..\..\universe\Pathfinder.h" />
     <ClInclude Include="..\..\universe\UniverseObject.h" />
     <ClInclude Include="..\..\universe\ValueRefs.h" />
@@ -257,6 +268,8 @@
     <ClCompile Include="..\..\combat\CombatLogManager.cpp" />
     <ClCompile Include="..\..\Empire\Diplomacy.cpp" />
     <ClCompile Include="..\..\Empire\Empire.cpp" />
+    <ClCompile Include="..\..\Empire\Government.cpp" />
+    <ClCompile Include="..\..\Empire\InfluenceQueue.cpp" />
     <ClCompile Include="..\..\Empire\ResearchQueue.cpp" />
     <ClCompile Include="..\..\Empire\ProductionQueue.cpp" />
     <ClCompile Include="..\..\Empire\EmpireManager.cpp" />
@@ -276,11 +289,14 @@
     <ClCompile Include="..\..\util\ScopedTimer.cpp" />
     <ClCompile Include="..\..\util\StringTable.cpp" />
     <ClCompile Include="..\..\universe\Building.cpp" />
+    <ClCompile Include="..\..\universe\BuildingType.cpp" />
     <ClCompile Include="..\..\universe\Effect.cpp" />
     <ClCompile Include="..\..\universe\Encyclopedia.cpp" />
     <ClCompile Include="..\..\universe\Enums.cpp" />
     <ClCompile Include="..\..\universe\Field.cpp" />
+    <ClCompile Include="..\..\universe\FieldType.cpp" />
     <ClCompile Include="..\..\universe\Fleet.cpp" />
+    <ClCompile Include="..\..\universe\FleetPlan.cpp" />
     <ClCompile Include="..\..\universe\IDAllocator.cpp" />
     <ClCompile Include="..\..\universe\Meter.cpp" />
     <ClCompile Include="..\..\universe\ObjectMap.cpp" />
@@ -290,11 +306,14 @@
     <ClCompile Include="..\..\universe\ResourceCenter.cpp" />
     <ClCompile Include="..\..\universe\Ship.cpp" />
     <ClCompile Include="..\..\universe\ShipDesign.cpp" />
+    <ClCompile Include="..\..\universe\ShipHull.cpp" />
+    <ClCompile Include="..\..\universe\ShipPart.cpp" />
     <ClCompile Include="..\..\universe\Special.cpp" />
     <ClCompile Include="..\..\universe\Species.cpp" />
     <ClCompile Include="..\..\universe\System.cpp" />
     <ClCompile Include="..\..\universe\Tech.cpp" />
     <ClCompile Include="..\..\universe\Universe.cpp" />
+    <ClCompile Include="..\..\universe\UnlockableItem.cpp" />
     <ClCompile Include="..\..\universe\Pathfinder.cpp" />
     <ClCompile Include="..\..\universe\UniverseObject.cpp" />
     <ClCompile Include="..\..\util\AppInterface.cpp" />

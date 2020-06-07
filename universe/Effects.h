@@ -1,25 +1,19 @@
 #ifndef _Effects_h_
 #define _Effects_h_
 
-#include "Effect.h"
 
+#include <boost/optional/optional.hpp>
+#include <boost/serialization/nvp.hpp>
+#include "Effect.h"
 #include "../util/Export.h"
 
-#include <boost/serialization/access.hpp>
-#include <boost/serialization/nvp.hpp>
-#include <boost/optional/optional.hpp>
-
-#include <vector>
-
-class UniverseObject;
 
 namespace Condition {
-    struct Condition;
     typedef std::vector<std::shared_ptr<const UniverseObject>> ObjectSet;
 }
 
 namespace ValueRef {
-    template <class T>
+    template <typename T>
     struct ValueRef;
 }
 
@@ -30,14 +24,14 @@ class FO_COMMON_API NoOp final : public Effect {
 public:
     NoOp();
 
-    void            Execute(const ScriptingContext& context) const override;
+    void            Execute(ScriptingContext& context) const override;
     std::string     Dump(unsigned short ntabs = 0) const override;
     void            SetTopLevelContent(const std::string& content_name) override {}
     unsigned int    GetCheckSum() const override;
 
 private:
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -47,16 +41,15 @@ private:
   * done. */
 class FO_COMMON_API SetMeter final : public Effect {
 public:
-
     SetMeter(MeterType meter,
              std::unique_ptr<ValueRef::ValueRef<double>>&& value,
-             const boost::optional<std::string>& accounting_label = boost::none);
+             boost::optional<std::string> accounting_label = boost::none);
 
-    void Execute(const ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context) const override;
 
-    void Execute(const ScriptingContext& context, const TargetSet& targets) const override;
+    void Execute(ScriptingContext& context, const TargetSet& targets) const override;
 
-    void Execute(const ScriptingContext& context,
+    void Execute(ScriptingContext& context,
                  const TargetSet& targets,
                  AccountingMap* accounting_map,
                  const EffectCause& effect_cause,
@@ -78,7 +71,7 @@ private:
     std::string m_accounting_label;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -96,9 +89,9 @@ public:
                      std::unique_ptr<ValueRef::ValueRef<std::string>>&& part_name,
                      std::unique_ptr<ValueRef::ValueRef<double>>&& value);
 
-    void Execute(const ScriptingContext& context) const override;
-    void Execute(const ScriptingContext& context, const TargetSet& targets) const override;
-    void Execute(const ScriptingContext& context,
+    void Execute(ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context, const TargetSet& targets) const override;
+    void Execute(ScriptingContext& context,
                  const TargetSet& targets,
                  AccountingMap* accounting_map,
                  const EffectCause& effect_cause,
@@ -116,11 +109,11 @@ public:
 
 private:
     std::unique_ptr<ValueRef::ValueRef<std::string>>    m_part_name;
-    MeterType                                               m_meter;
+    MeterType                                           m_meter;
     std::unique_ptr<ValueRef::ValueRef<double>>         m_value;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -129,14 +122,14 @@ private:
   * does nothing. */
 class FO_COMMON_API SetEmpireMeter final : public Effect {
 public:
-    SetEmpireMeter(const std::string& meter, std::unique_ptr<ValueRef::ValueRef<double>>&& value);
+    SetEmpireMeter(std::string& meter, std::unique_ptr<ValueRef::ValueRef<double>>&& value);
 
-    SetEmpireMeter(std::unique_ptr<ValueRef::ValueRef<int>>&& empire_id, const std::string& meter,
+    SetEmpireMeter(std::unique_ptr<ValueRef::ValueRef<int>>&& empire_id, std::string& meter,
                    std::unique_ptr<ValueRef::ValueRef<double>>&& value);
 
-    void Execute(const ScriptingContext& context) const override;
-    void Execute(const ScriptingContext& context, const TargetSet& targets) const override;
-    void Execute(const ScriptingContext& context,
+    void Execute(ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context, const TargetSet& targets) const override;
+    void Execute(ScriptingContext& context,
                  const TargetSet& targets,
                  AccountingMap* accounting_map,
                  const EffectCause& effect_cause,
@@ -153,11 +146,11 @@ public:
 
 private:
     std::unique_ptr<ValueRef::ValueRef<int>>    m_empire_id;
-    std::string                                     m_meter;
+    std::string                                 m_meter;
     std::unique_ptr<ValueRef::ValueRef<double>> m_value;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -171,18 +164,18 @@ public:
                        ResourceType stockpile,
                        std::unique_ptr<ValueRef::ValueRef<double>>&& value);
 
-    void Execute(const ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context) const override;
     std::string Dump(unsigned short ntabs = 0) const override;
     void SetTopLevelContent(const std::string& content_name) override;
     unsigned int GetCheckSum() const override;
 
 private:
     std::unique_ptr<ValueRef::ValueRef<int>>    m_empire_id;
-    ResourceType                                    m_stockpile;
+    ResourceType                                m_stockpile;
     std::unique_ptr<ValueRef::ValueRef<double>> m_value;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -194,7 +187,7 @@ public:
     explicit SetEmpireCapital();
     explicit SetEmpireCapital(std::unique_ptr<ValueRef::ValueRef<int>>&& empire_id);
 
-    void            Execute(const ScriptingContext& context) const override;
+    void            Execute(ScriptingContext& context) const override;
     std::string     Dump(unsigned short ntabs = 0) const override;
     void            SetTopLevelContent(const std::string& content_name) override;
     unsigned int    GetCheckSum() const override;
@@ -203,7 +196,7 @@ private:
     std::unique_ptr<ValueRef::ValueRef<int>> m_empire_id;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -215,7 +208,7 @@ class FO_COMMON_API SetPlanetType final : public Effect {
 public:
     explicit SetPlanetType(std::unique_ptr<ValueRef::ValueRef<PlanetType>>&& type);
 
-    void Execute(const ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context) const override;
     std::string Dump(unsigned short ntabs = 0) const override;
     void SetTopLevelContent(const std::string& content_name) override;
     unsigned int GetCheckSum() const override;
@@ -224,7 +217,7 @@ private:
     std::unique_ptr<ValueRef::ValueRef<PlanetType>> m_type;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -237,7 +230,7 @@ class FO_COMMON_API SetPlanetSize final : public Effect {
 public:
     explicit SetPlanetSize(std::unique_ptr<ValueRef::ValueRef<PlanetSize>>&& size);
 
-    void Execute(const ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context) const override;
     std::string Dump(unsigned short ntabs = 0) const override;
     void SetTopLevelContent(const std::string& content_name) override;
     unsigned int GetCheckSum() const override;
@@ -246,7 +239,7 @@ private:
     std::unique_ptr<ValueRef::ValueRef<PlanetSize>> m_size;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -256,7 +249,7 @@ class FO_COMMON_API SetSpecies final : public Effect {
 public:
     explicit SetSpecies(std::unique_ptr<ValueRef::ValueRef<std::string>>&& species);
 
-    void Execute(const ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context) const override;
     std::string Dump(unsigned short ntabs = 0) const override;
     void SetTopLevelContent(const std::string& content_name) override;
     unsigned int GetCheckSum() const override;
@@ -265,7 +258,7 @@ private:
     std::unique_ptr<ValueRef::ValueRef<std::string>> m_species_name;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -275,7 +268,7 @@ class FO_COMMON_API SetOwner final : public Effect {
 public:
     explicit SetOwner(std::unique_ptr<ValueRef::ValueRef<int>>&& empire_id);
 
-    void Execute(const ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context) const override;
     std::string Dump(unsigned short ntabs = 0) const override;
     void SetTopLevelContent(const std::string& content_name) override;
     unsigned int GetCheckSum() const override;
@@ -284,7 +277,7 @@ private:
     std::unique_ptr<ValueRef::ValueRef<int>> m_empire_id;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -296,7 +289,7 @@ public:
                             std::unique_ptr<ValueRef::ValueRef<int>>&& empire_id,
                             std::unique_ptr<ValueRef::ValueRef<double>>&& opinion);
 
-    void Execute(const ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context) const override;
     std::string Dump(unsigned short ntabs = 0) const override;
     void SetTopLevelContent(const std::string& content_name) override;
     unsigned int GetCheckSum() const override;
@@ -307,7 +300,7 @@ private:
     std::unique_ptr<ValueRef::ValueRef<double>>         m_opinion;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -319,7 +312,7 @@ public:
                              std::unique_ptr<ValueRef::ValueRef<std::string>>&& rated_species_name,
                              std::unique_ptr<ValueRef::ValueRef<double>>&& opinion);
 
-    void Execute(const ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context) const override;
     std::string Dump(unsigned short ntabs = 0) const override;
     void SetTopLevelContent(const std::string& content_name) override;
     unsigned int GetCheckSum() const override;
@@ -330,7 +323,7 @@ private:
     std::unique_ptr<ValueRef::ValueRef<double>>         m_opinion;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -343,7 +336,7 @@ public:
                  std::unique_ptr<ValueRef::ValueRef<std::string>>&& name,
                  std::vector<std::unique_ptr<Effect>>&& effects_to_apply_after);
 
-    void Execute(const ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context) const override;
     std::string Dump(unsigned short ntabs = 0) const override;
     void SetTopLevelContent(const std::string& content_name) override;
     unsigned int GetCheckSum() const override;
@@ -355,7 +348,7 @@ private:
     std::vector<std::unique_ptr<Effect>>                m_effects_to_apply_after;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -366,7 +359,7 @@ public:
                    std::unique_ptr<ValueRef::ValueRef<std::string>>&& name,
                    std::vector<std::unique_ptr<Effect>>&& effects_to_apply_after);
 
-    void Execute(const ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context) const override;
     std::string Dump(unsigned short ntabs = 0) const override;
     void SetTopLevelContent(const std::string& content_name) override;
     unsigned int GetCheckSum() const override;
@@ -377,7 +370,7 @@ private:
     std::vector<std::unique_ptr<Effect>>                m_effects_to_apply_after;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -398,7 +391,7 @@ public:
                std::unique_ptr<ValueRef::ValueRef<std::string>>&& ship_name,
                std::vector<std::unique_ptr<Effect>>&& effects_to_apply_after);
 
-    void Execute(const ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context) const override;
     std::string Dump(unsigned short ntabs = 0) const override;
     void SetTopLevelContent(const std::string& content_name) override;
     unsigned int GetCheckSum() const override;
@@ -412,7 +405,7 @@ private:
     std::vector<std::unique_ptr<Effect>>                m_effects_to_apply_after;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -421,9 +414,9 @@ private:
 class FO_COMMON_API CreateField final : public Effect {
 public:
     CreateField(std::unique_ptr<ValueRef::ValueRef<std::string>>&& field_type_name,
-                         std::unique_ptr<ValueRef::ValueRef<double>>&& size,
-                         std::unique_ptr<ValueRef::ValueRef<std::string>>&& name,
-                         std::vector<std::unique_ptr<Effect>>&& effects_to_apply_after);
+                std::unique_ptr<ValueRef::ValueRef<double>>&& size,
+                std::unique_ptr<ValueRef::ValueRef<std::string>>&& name,
+                std::vector<std::unique_ptr<Effect>>&& effects_to_apply_after);
 
     CreateField(std::unique_ptr<ValueRef::ValueRef<std::string>>&& field_type_name,
                 std::unique_ptr<ValueRef::ValueRef<double>>&& x,
@@ -432,7 +425,7 @@ public:
                 std::unique_ptr<ValueRef::ValueRef<std::string>>&& name,
                 std::vector<std::unique_ptr<Effect>>&& effects_to_apply_after);
 
-    void Execute(const ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context) const override;
     std::string Dump(unsigned short ntabs = 0) const override;
     void SetTopLevelContent(const std::string& content_name) override;
     unsigned int GetCheckSum() const override;
@@ -446,7 +439,7 @@ private:
     std::vector<std::unique_ptr<Effect>>                m_effects_to_apply_after;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -465,7 +458,7 @@ public:
                  std::unique_ptr<ValueRef::ValueRef<std::string>>&& name,
                  std::vector<std::unique_ptr<Effect>>&& effects_to_apply_after);
 
-    void Execute(const ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context) const override;
     std::string Dump(unsigned short ntabs = 0) const override;
     void SetTopLevelContent(const std::string& content_name) override;
     unsigned int GetCheckSum() const override;
@@ -478,7 +471,7 @@ private:
     std::vector<std::unique_ptr<Effect>>                m_effects_to_apply_after;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -491,25 +484,25 @@ class FO_COMMON_API Destroy final : public Effect {
 public:
     Destroy();
 
-    void Execute(const ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context) const override;
     std::string Dump(unsigned short ntabs = 0) const override;
     void SetTopLevelContent(const std::string& content_name) override {}
     unsigned int GetCheckSum() const override;
 
 private:
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
 /** Adds the Special with the name \a name to the target object. */
 class FO_COMMON_API AddSpecial final : public Effect {
 public:
-    explicit AddSpecial(const std::string& name, float capacity = 1.0f);
+    explicit AddSpecial(std::string& name, float capacity = 1.0f);
     explicit AddSpecial(std::unique_ptr<ValueRef::ValueRef<std::string>>&& name,
                         std::unique_ptr<ValueRef::ValueRef<double>>&& capacity = nullptr);
 
-    void Execute(const ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context) const override;
 
     std::string Dump(unsigned short ntabs = 0) const override;
     void SetTopLevelContent(const std::string& content_name) override;
@@ -521,7 +514,7 @@ private:
     std::unique_ptr<ValueRef::ValueRef<double>> m_capacity;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -529,10 +522,10 @@ private:
   * no effect if no such Special was already attached to the target object. */
 class FO_COMMON_API RemoveSpecial final : public Effect {
 public:
-    explicit RemoveSpecial(const std::string& name);
+    explicit RemoveSpecial(std::string& name);
     explicit RemoveSpecial(std::unique_ptr<ValueRef::ValueRef<std::string>>&& name);
 
-    void Execute(const ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context) const override;
     std::string Dump(unsigned short ntabs = 0) const override;
     void SetTopLevelContent(const std::string& content_name) override;
     unsigned int GetCheckSum() const override;
@@ -541,7 +534,7 @@ private:
     std::unique_ptr<ValueRef::ValueRef<std::string>> m_name;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -551,7 +544,7 @@ class FO_COMMON_API AddStarlanes final : public Effect {
 public:
     explicit AddStarlanes(std::unique_ptr<Condition::Condition>&& other_lane_endpoint_condition);
 
-    void Execute(const ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context) const override;
     std::string Dump(unsigned short ntabs = 0) const override;
     void SetTopLevelContent(const std::string& content_name) override;
     unsigned int GetCheckSum() const override;
@@ -560,7 +553,7 @@ private:
     std::unique_ptr<Condition::Condition> m_other_lane_endpoint_condition;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -570,7 +563,7 @@ class FO_COMMON_API RemoveStarlanes final : public Effect {
 public:
     explicit RemoveStarlanes(std::unique_ptr<Condition::Condition>&& other_lane_endpoint_condition);
 
-    void            Execute(const ScriptingContext& context) const override;
+    void            Execute(ScriptingContext& context) const override;
     std::string     Dump(unsigned short ntabs = 0) const override;
     void            SetTopLevelContent(const std::string& content_name) override;
     unsigned int    GetCheckSum() const override;
@@ -579,7 +572,7 @@ private:
     std::unique_ptr<Condition::Condition> m_other_lane_endpoint_condition;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -589,7 +582,7 @@ class FO_COMMON_API SetStarType final : public Effect {
 public:
     explicit SetStarType(std::unique_ptr<ValueRef::ValueRef<StarType>>&& type);
 
-    void            Execute(const ScriptingContext& context) const override;
+    void            Execute(ScriptingContext& context) const override;
     std::string     Dump(unsigned short ntabs = 0) const override;
     void            SetTopLevelContent(const std::string& content_name) override;
     unsigned int    GetCheckSum() const override;
@@ -598,7 +591,7 @@ private:
     std::unique_ptr<ValueRef::ValueRef<StarType>> m_type;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -610,7 +603,7 @@ class FO_COMMON_API MoveTo final : public Effect {
 public:
     explicit MoveTo(std::unique_ptr<Condition::Condition>&& location_condition);
 
-    void            Execute(const ScriptingContext& context) const override;
+    void            Execute(ScriptingContext& context) const override;
     std::string     Dump(unsigned short ntabs = 0) const override;
     void            SetTopLevelContent(const std::string& content_name) override;
     unsigned int    GetCheckSum() const override;
@@ -619,7 +612,7 @@ private:
     std::unique_ptr<Condition::Condition> m_location_condition;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -634,7 +627,7 @@ public:
                 std::unique_ptr<ValueRef::ValueRef<double>>&& focus_x = nullptr,
                 std::unique_ptr<ValueRef::ValueRef<double>>&& focus_y = nullptr);
 
-    void            Execute(const ScriptingContext& context) const override;
+    void            Execute(ScriptingContext& context) const override;
     std::string     Dump(unsigned short ntabs = 0) const override;
     void            SetTopLevelContent(const std::string& content_name) override;
     unsigned int    GetCheckSum() const override;
@@ -646,7 +639,7 @@ private:
     std::unique_ptr<ValueRef::ValueRef<double>> m_focus_y;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -660,7 +653,7 @@ public:
                 std::unique_ptr<ValueRef::ValueRef<double>>&& dest_x = nullptr,
                 std::unique_ptr<ValueRef::ValueRef<double>>&& dest_y = nullptr);
 
-    void            Execute(const ScriptingContext& context) const override;
+    void            Execute(ScriptingContext& context) const override;
     std::string     Dump(unsigned short ntabs = 0) const override;
     void            SetTopLevelContent(const std::string& content_name) override;
     unsigned int    GetCheckSum() const override;
@@ -672,7 +665,7 @@ private:
     std::unique_ptr<ValueRef::ValueRef<double>> m_dest_y;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -684,7 +677,7 @@ class FO_COMMON_API SetDestination final : public Effect {
 public:
     explicit SetDestination(std::unique_ptr<Condition::Condition>&& location_condition);
 
-    void            Execute(const ScriptingContext& context) const override;
+    void            Execute(ScriptingContext& context) const override;
     std::string     Dump(unsigned short ntabs = 0) const override;
     void            SetTopLevelContent(const std::string& content_name) override;
     unsigned int    GetCheckSum() const override;
@@ -693,7 +686,7 @@ private:
     std::unique_ptr<Condition::Condition> m_location_condition;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -702,7 +695,7 @@ class FO_COMMON_API SetAggression final : public Effect {
 public:
     explicit SetAggression(bool aggressive);
 
-    void            Execute(const ScriptingContext& context) const override;
+    void            Execute(ScriptingContext& context) const override;
     std::string     Dump(unsigned short ntabs = 0) const override;
     void            SetTopLevelContent(const std::string& content_name) override {}
     unsigned int    GetCheckSum() const override;
@@ -711,7 +704,7 @@ private:
     bool m_aggressive;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -719,9 +712,9 @@ private:
   * target object has multiple owners, nothing is done. */
 class FO_COMMON_API Victory final : public Effect {
 public:
-    explicit Victory(const std::string& reason_string); // TODO: Make this a ValueRef<std::string>*
+    explicit Victory(std::string& reason_string); // TODO: Make this a ValueRef<std::string>*
 
-    void            Execute(const ScriptingContext& context) const override;
+    void            Execute(ScriptingContext& context) const override;
     std::string     Dump(unsigned short ntabs = 0) const override;
     void            SetTopLevelContent(const std::string& content_name) override {}
     unsigned int    GetCheckSum() const override;
@@ -730,7 +723,7 @@ private:
     std::string m_reason_string;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -742,7 +735,7 @@ public:
                           std::unique_ptr<ValueRef::ValueRef<double>>&& research_progress,
                           std::unique_ptr<ValueRef::ValueRef<int>>&& empire_id = nullptr);
 
-    void            Execute(const ScriptingContext& context) const override;
+    void            Execute(ScriptingContext& context) const override;
     std::string     Dump(unsigned short ntabs = 0) const override;
     void            SetTopLevelContent(const std::string& content_name) override;
     unsigned int    GetCheckSum() const override;
@@ -753,7 +746,7 @@ private:
     std::unique_ptr<ValueRef::ValueRef<int>>            m_empire_id;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -762,7 +755,7 @@ public:
     explicit GiveEmpireTech(std::unique_ptr<ValueRef::ValueRef<std::string>>&& tech_name,
                             std::unique_ptr<ValueRef::ValueRef<int>>&& empire_id = nullptr);
 
-    void            Execute(const ScriptingContext& context) const override;
+    void            Execute(ScriptingContext& context) const override;
     std::string     Dump(unsigned short ntabs = 0) const override;
     void            SetTopLevelContent(const std::string& content_name) override;
     unsigned int    GetCheckSum() const override;
@@ -772,7 +765,7 @@ private:
     std::unique_ptr<ValueRef::ValueRef<int>>            m_empire_id;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -787,25 +780,25 @@ public:
     using MessageParams =  std::vector<std::pair<
         std::string, std::unique_ptr<ValueRef::ValueRef<std::string>>>>;
 
-    GenerateSitRepMessage(const std::string& message_string, const std::string& icon,
+    GenerateSitRepMessage(std::string& message_string, std::string& icon,
                           MessageParams&& message_parameters,
                           std::unique_ptr<ValueRef::ValueRef<int>>&& recipient_empire_id,
                           EmpireAffiliationType affiliation,
-                          const std::string label = "",
+                          std::string label = "",
                           bool stringtable_lookup = true);
-    GenerateSitRepMessage(const std::string& message_string, const std::string& icon,
+    GenerateSitRepMessage(std::string& message_string, std::string& icon,
                           MessageParams&& message_parameters,
                           EmpireAffiliationType affiliation,
                           std::unique_ptr<Condition::Condition>&& condition,
-                          const std::string label = "",
+                          std::string label = "",
                           bool stringtable_lookup = true);
-    GenerateSitRepMessage(const std::string& message_string, const std::string& icon,
+    GenerateSitRepMessage(std::string& message_string, std::string& icon,
                           MessageParams&& message_parameters,
                           EmpireAffiliationType affiliation,
-                          const std::string& label = "",
+                          std::string label = "",
                           bool stringtable_lookup = true);
 
-    void                Execute(const ScriptingContext& context) const override;
+    void                Execute(ScriptingContext& context) const override;
     bool                IsSitrepEffect() const override     { return true; }
     std::string         Dump(unsigned short ntabs = 0) const override;
     void                SetTopLevelContent(const std::string& content_name) override;
@@ -833,17 +826,17 @@ private:
     bool                    m_stringtable_lookup;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
 /** Applies an overlay texture to Systems. */
 class FO_COMMON_API SetOverlayTexture final : public Effect {
 public:
-    SetOverlayTexture(const std::string& texture, std::unique_ptr<ValueRef::ValueRef<double>>&& size);
-    SetOverlayTexture(const std::string& texture, ValueRef::ValueRef<double>* size);
+    SetOverlayTexture(std::string& texture, std::unique_ptr<ValueRef::ValueRef<double>>&& size);
+    SetOverlayTexture(std::string& texture, ValueRef::ValueRef<double>* size);
 
-    void Execute(const ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context) const override;
     std::string Dump(unsigned short ntabs = 0) const override;
     bool IsAppearanceEffect() const override { return true; }
     void SetTopLevelContent(const std::string& content_name) override;
@@ -854,16 +847,16 @@ private:
     std::unique_ptr<ValueRef::ValueRef<double>> m_size;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
 /** Applies a texture to Planets. */
 class FO_COMMON_API SetTexture final : public Effect {
 public:
-    explicit SetTexture(const std::string& texture);
+    explicit SetTexture(std::string& texture);
 
-    void Execute(const ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context) const override;
 
     std::string Dump(unsigned short ntabs = 0) const override;
     bool IsAppearanceEffect() const override { return true; }
@@ -874,7 +867,7 @@ private:
     std::string m_texture;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -887,7 +880,7 @@ public:
                   std::unique_ptr<ValueRef::ValueRef<int>>&& empire_id = nullptr,
                   std::unique_ptr<Condition::Condition>&& of_objects = nullptr);    // if not specified, acts on target. if specified, acts on all matching objects
 
-    void Execute(const ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context) const override;
     std::string Dump(unsigned short ntabs = 0) const override;
     void SetTopLevelContent(const std::string& content_name) override;
 
@@ -912,7 +905,7 @@ private:
     std::unique_ptr<Condition::Condition> m_condition;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -924,13 +917,13 @@ public:
                 std::vector<std::unique_ptr<Effect>>&& true_effects,
                 std::vector<std::unique_ptr<Effect>>&& false_effects);
 
-    void Execute(const ScriptingContext& context) const override;
+    void Execute(ScriptingContext& context) const override;
     /** Note: executes all of the true or all of the false effects on each
         target, without considering any of the only_* type flags. */
 
-    void Execute(const ScriptingContext& context, const TargetSet& targets) const override;
+    void Execute(ScriptingContext& context, const TargetSet& targets) const override;
 
-    void Execute(const ScriptingContext& context,
+    void Execute(ScriptingContext& context,
                  const TargetSet& targets,
                  AccountingMap* accounting_map,
                  const EffectCause& effect_cause,
@@ -956,13 +949,13 @@ private:
     std::vector<std::unique_ptr<Effect>> m_false_effects;     // effects to execute if m_target_condition does not match target object
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
 
 // template implementations
-template <class Archive>
+template <typename Archive>
 void EffectsGroup::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_NVP(m_scope)
@@ -973,17 +966,17 @@ void EffectsGroup::serialize(Archive& ar, const unsigned int version)
         & BOOST_SERIALIZATION_NVP(m_content_name);
 }
 
-template <class Archive>
+template <typename Archive>
 void Effect::serialize(Archive& ar, const unsigned int version)
 {}
 
-template <class Archive>
+template <typename Archive>
 void NoOp::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect);
 }
 
-template <class Archive>
+template <typename Archive>
 void SetMeter::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
@@ -992,7 +985,7 @@ void SetMeter::serialize(Archive& ar, const unsigned int version)
         & BOOST_SERIALIZATION_NVP(m_accounting_label);
 }
 
-template <class Archive>
+template <typename Archive>
 void SetShipPartMeter::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
@@ -1001,7 +994,7 @@ void SetShipPartMeter::serialize(Archive& ar, const unsigned int version)
         & BOOST_SERIALIZATION_NVP(m_value);
 }
 
-template <class Archive>
+template <typename Archive>
 void SetEmpireMeter::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
@@ -1010,7 +1003,7 @@ void SetEmpireMeter::serialize(Archive& ar, const unsigned int version)
         & BOOST_SERIALIZATION_NVP(m_value);
 }
 
-template <class Archive>
+template <typename Archive>
 void SetEmpireStockpile::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
@@ -1019,42 +1012,42 @@ void SetEmpireStockpile::serialize(Archive& ar, const unsigned int version)
         & BOOST_SERIALIZATION_NVP(m_value);
 }
 
-template <class Archive>
+template <typename Archive>
 void SetEmpireCapital::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
         & BOOST_SERIALIZATION_NVP(m_empire_id);
 }
 
-template <class Archive>
+template <typename Archive>
 void SetPlanetType::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
         & BOOST_SERIALIZATION_NVP(m_type);
 }
 
-template <class Archive>
+template <typename Archive>
 void SetPlanetSize::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
         & BOOST_SERIALIZATION_NVP(m_size);
 }
 
-template <class Archive>
+template <typename Archive>
 void SetSpecies::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
         & BOOST_SERIALIZATION_NVP(m_species_name);
 }
 
-template <class Archive>
+template <typename Archive>
 void SetOwner::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
         & BOOST_SERIALIZATION_NVP(m_empire_id);
 }
 
-template <class Archive>
+template <typename Archive>
 void CreatePlanet::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
@@ -1064,7 +1057,7 @@ void CreatePlanet::serialize(Archive& ar, const unsigned int version)
         & BOOST_SERIALIZATION_NVP(m_effects_to_apply_after);
 }
 
-template <class Archive>
+template <typename Archive>
 void CreateBuilding::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
@@ -1073,7 +1066,7 @@ void CreateBuilding::serialize(Archive& ar, const unsigned int version)
         & BOOST_SERIALIZATION_NVP(m_effects_to_apply_after);
 }
 
-template <class Archive>
+template <typename Archive>
 void CreateShip::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
@@ -1085,7 +1078,7 @@ void CreateShip::serialize(Archive& ar, const unsigned int version)
         & BOOST_SERIALIZATION_NVP(m_effects_to_apply_after);
 }
 
-template <class Archive>
+template <typename Archive>
 void CreateField::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
@@ -1097,7 +1090,7 @@ void CreateField::serialize(Archive& ar, const unsigned int version)
         & BOOST_SERIALIZATION_NVP(m_effects_to_apply_after);
 }
 
-template <class Archive>
+template <typename Archive>
 void CreateSystem::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
@@ -1108,13 +1101,13 @@ void CreateSystem::serialize(Archive& ar, const unsigned int version)
         & BOOST_SERIALIZATION_NVP(m_effects_to_apply_after);
 }
 
-template <class Archive>
+template <typename Archive>
 void Destroy::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect);
 }
 
-template <class Archive>
+template <typename Archive>
 void AddSpecial::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
@@ -1122,42 +1115,42 @@ void AddSpecial::serialize(Archive& ar, const unsigned int version)
         & BOOST_SERIALIZATION_NVP(m_capacity);
 }
 
-template <class Archive>
+template <typename Archive>
 void RemoveSpecial::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
         & BOOST_SERIALIZATION_NVP(m_name);
 }
 
-template <class Archive>
+template <typename Archive>
 void AddStarlanes::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
         & BOOST_SERIALIZATION_NVP(m_other_lane_endpoint_condition);
 }
 
-template <class Archive>
+template <typename Archive>
 void RemoveStarlanes::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
         & BOOST_SERIALIZATION_NVP(m_other_lane_endpoint_condition);
 }
 
-template <class Archive>
+template <typename Archive>
 void SetStarType::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
         & BOOST_SERIALIZATION_NVP(m_type);
 }
 
-template <class Archive>
+template <typename Archive>
 void MoveTo::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
         & BOOST_SERIALIZATION_NVP(m_location_condition);
 }
 
-template <class Archive>
+template <typename Archive>
 void MoveInOrbit::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
@@ -1167,7 +1160,7 @@ void MoveInOrbit::serialize(Archive& ar, const unsigned int version)
         & BOOST_SERIALIZATION_NVP(m_focus_y);
 }
 
-template <class Archive>
+template <typename Archive>
 void MoveTowards::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
@@ -1177,28 +1170,28 @@ void MoveTowards::serialize(Archive& ar, const unsigned int version)
         & BOOST_SERIALIZATION_NVP(m_dest_y);
 }
 
-template <class Archive>
+template <typename Archive>
 void SetDestination::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
         & BOOST_SERIALIZATION_NVP(m_location_condition);
 }
 
-template <class Archive>
+template <typename Archive>
 void SetAggression::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
         & BOOST_SERIALIZATION_NVP(m_aggressive);
 }
 
-template <class Archive>
+template <typename Archive>
 void Victory::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
         & BOOST_SERIALIZATION_NVP(m_reason_string);
 }
 
-template <class Archive>
+template <typename Archive>
 void SetEmpireTechProgress::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
@@ -1207,7 +1200,7 @@ void SetEmpireTechProgress::serialize(Archive& ar, const unsigned int version)
         & BOOST_SERIALIZATION_NVP(m_empire_id);
 }
 
-template <class Archive>
+template <typename Archive>
 void GiveEmpireTech::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
@@ -1215,7 +1208,7 @@ void GiveEmpireTech::serialize(Archive& ar, const unsigned int version)
         & BOOST_SERIALIZATION_NVP(m_empire_id);
 }
 
-template <class Archive>
+template <typename Archive>
 void GenerateSitRepMessage::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
@@ -1229,7 +1222,7 @@ void GenerateSitRepMessage::serialize(Archive& ar, const unsigned int version)
         & BOOST_SERIALIZATION_NVP(m_stringtable_lookup);
 }
 
-template <class Archive>
+template <typename Archive>
 void SetOverlayTexture::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
@@ -1237,14 +1230,14 @@ void SetOverlayTexture::serialize(Archive& ar, const unsigned int version)
         & BOOST_SERIALIZATION_NVP(m_size);
 }
 
-template <class Archive>
+template <typename Archive>
 void SetTexture::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
         & BOOST_SERIALIZATION_NVP(m_texture);
 }
 
-template <class Archive>
+template <typename Archive>
 void SetVisibility::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)
@@ -1254,7 +1247,7 @@ void SetVisibility::serialize(Archive& ar, const unsigned int version)
         & BOOST_SERIALIZATION_NVP(m_condition);
 }
 
-template <class Archive>
+template <typename Archive>
 void Conditional::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Effect)

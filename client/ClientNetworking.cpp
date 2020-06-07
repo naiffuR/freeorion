@@ -23,7 +23,6 @@
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/erase.hpp>
-#include <boost/bind.hpp>
 #include <boost/thread/condition.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/optional/optional.hpp>
@@ -89,6 +88,7 @@ namespace {
                                 this,
                                 boost::asio::placeholders::error,
                                 boost::asio::placeholders::bytes_transferred));
+
 #if BOOST_VERSION >= 106600
                 m_timer.expires_after(std::chrono::seconds(2));
 #else
@@ -118,6 +118,7 @@ namespace {
                                 this,
                                 boost::asio::placeholders::error,
                                 boost::asio::placeholders::bytes_transferred));
+
             } else if (!error) {
                 std::string buffer_string(m_recv_buf.begin(), m_recv_buf.begin() + length);
                 if (boost::algorithm::starts_with(buffer_string, DISCOVERY_ANSWER)) {

@@ -8,7 +8,7 @@ Français
 # any stringtable keys beginning with "FUNCTIONAL_".
 # New Sitreps priorities should be added to
 # `default/customizations/common_user_customizations.txt`.
-
+#
 # semi-randomly collected characters to force font code page loading
 # 肛門オーガズム
 # åřžßąłżęЗыдШит
@@ -828,7 +828,7 @@ SM_DAMPENING_CLOUD
 Nuage Siphonnant
 
 SM_DAMPENING_CLOUD_DESC
-Un nuage cosmique de particules de haute énergie ayant développé une forme de sensibilité. Repoussé par les signatures énergétiques des colonies habitées, il est cependant irrésistiblement attiré par les réserves d'énergie potentielle, et dérobera le [[metertype METER_FUEL]] de tous les astronefs présents dans un système.
+Un nuage cosmique de particules de haute énergie ayant développé une forme de sentience. Repoussé par les signatures énergétiques des colonies habitées, il est cependant irrésistiblement attiré par les réserves d'énergie potentielle, et dérobera le [[metertype METER_FUEL]] de tous les astronefs présents dans un système.
 
 SM_ACIREMA_GUARD
 Astrogarde Acirema
@@ -1052,6 +1052,7 @@ Le serveur ne peut pas lire correctement les messages de votre client, probablem
 ERROR_CHECKSUM_MISMATCH
 Le contenu de contrôle entre le serveur et le client diffère.
 
+
 ##
 ## Game Rules
 ##
@@ -1114,7 +1115,19 @@ RULE_SHIP_STRUCTURE_FACTOR
 Ajustement Résistance des Astronefs
 
 RULE_SHIP_STRUCTURE_FACTOR_DESC
-Définit les résistances des coques et blindages d'astronef
+Définit les résistances des coques et blindages d'astronef. Définit l'évolution de la résistance des équipements, le contrôle des dommages et s'applique également aux boucliers planétaires.
+
+RULE_SHIP_WEAPON_DAMAGE_FACTOR
+Ajustement Dommages des Armements d'astronefs
+
+RULE_SHIP_WEAPON_DAMAGE_FACTOR_DESC
+Définit les dommages et boucliers des armements principaux des astronefs. S'applique également à la défense planétaire.
+
+RULE_FIGHTER_DAMAGE_FACTOR
+Ajustement Dommages des Chasseurs
+
+RULE_FIGHTER_DAMAGE_FACTOR_DESC
+Définit les dommages des chasseurs
 
 RULE_SHIP_HULL_COST_FACTOR
 Ajustement Coût des Coques
@@ -1254,24 +1267,25 @@ Toutes autorisées
 RULE_DIPLOMACY_FORBIDDEN_FOR_ALL
 Toutes interdites
 
+
 ##
 ## Command-line and options database entries
 ##
 
 COMMAND_LINE_NOT_FOUND
-'''Aucune option ou section correspondante trouvée'''
+Aucune option ou section correspondante trouvée
 
 COMMAND_LINE_USAGE
-'''Usage: -h | --help [nom groupe | nom option]'''
+Usage: -h | --help [nom groupe | nom option]
 
 COMMAND_LINE_DEFAULT
-'''Défaut'''
+Défaut
 
 COMMAND_LINE_SECTIONS
-'''Groupes d'Options'''
+Groupes d'Options
 
 COMMAND_LINE_OPTIONS  # translated
-'''Options'''
+Options
 
 OPTIONS_DB_HELP
 '''Afficher ce message d'aide.
@@ -1430,19 +1444,25 @@ OPTIONS_DB_COOKIES_EXPIRE
 Valeur en minutes au-delà de laquelle le cookie enregistré sera considéré comme expiré.
 
 OPTIONS_DB_PUBLISH_STATISTICS
-Activer l'envoi des statistiques d'empire au joueur.
+Autoriser l'envoi des statistiques d'empire au joueur.
+
+OPTIONS_DB_PUBLISH_SEED
+Autoriser l'envoi de la Graine de galaxie au joueur.
 
 OPTIONS_DB_FIRST_TURN_TIME
 Référence de temps absolu au format "2019-01-20 11:59:59" UTC. Si vide, la fin du premier tour interviendra après l'intervalle d'expiration. Nécessite l'activation de l'intervalle fixe.
 
 OPTIONS_DB_TIMEOUT_INTERVAL
-Intervalle maximum en secondes entre la validation de chaque tour. Si 0, la fin du tour par temps limite est désactivée, et le passage au tour suivant interviendra seulement une fois que tous les joueurs auront terminé leur tour.
+Intervalle maximum en secondes entre la validation automatique de chaque tour. Si 0, la fin du tour par temps limite est désactivée, et le passage au tour suivant interviendra seulement une fois que tous les joueurs auront terminé leur tour. La validation automatique d'un tour est également désactivée après qu'un joueur ait gagné la partie.
 
 OPTIONS_DB_TIMEOUT_FIXED_INTERVAL
 Le passage au tour suivant est exécuté à intervalle fixe, indépendamment du fait que les joueurs aient envoyé ou non leurs ordres pour le tour en cours.
 
 OPTIONS_DB_CLIENT_MESSAGE_SIZE_MAX
 Limite de taille en octets des messages client.
+
+OPTIONS_DB_DROP_EMPIRE_READY
+Annuler la lecture du statut de l'empire en rejoignant une partie en cours.
 
 OPTIONS_DB_UI_MAIN_MENU_X
 Position horizontale du centre du menu principal de l'écran d'introduction, en pourcentage de la largeur totale de la fenêtre de jeu ou du plein écran.
@@ -1664,7 +1684,7 @@ OPTIONS_DB_UI_PLANET_STATUS_CONQUERED
 La planète %1% vient d'être conquise. Le Bonheur sera probablement réduit.
 
 OPTIONS_DB_UI_PLANET_STATUS_UNHAPPY
-La Population sur la planète %1% est très mécontente. Elle ne peut donc entreprendre aucune colonisation.
+La Population sur la planète %1% est très mécontente. Ni l'[[metertype METER_INDUSTRY]] ni la [[metertype METER_RESEARCH]] n'augmenteront. Cette population ne peut entreprendre aucune colonisation.
 
 OPTIONS_DB_UI_PLANET_STATUS_NO_SUPPLY
 La planète %1% est déconnectée des lignes d'Approvisionnement. L'Industrie générée sur cette planète ne peut être utilisée que localement.
@@ -1730,7 +1750,7 @@ OPTIONS_DB_UI_TOOLTIP_LONG_DELAY
 Fixe le délai d'apparition dans l'interface utilisateur des bulles d'information alternatives, en millisecondes.
 
 OPTIONS_DB_UI_ENC_SEARCH_ARTICLE
-Lors d'une recherche dans l'Encyclopédie, vérifier les correspondances dans le contenu des articles.
+Lors d'une recherche dans l'Encyclopédie, vérifier les correspondances dans le contenu des articles. La recherche sera plus lente, mais peut retourner davantage de résultats.
 
 # Section title for options window logging
 OPTIONS_DB_UI_LOGGER_THRESHOLDS
@@ -1802,7 +1822,7 @@ OPTIONS_DB_GAMESETUP_SEED
 Les galaxies générées avec les mêmes options et la même Graine de hasard seront identiques.'''
 
 OPTIONS_DB_GAMESETUP_UID
-'''L'UID de la partie pour les nouvelles parties. L'option serveur-seul peut être utilisée pour obtenir un nom de partie prévisible sur les serveurs sans hôte.'''
+L'UID de la partie pour les nouvelles parties. L'option serveur-seul peut être utilisée pour obtenir un nom de partie prévisible sur les serveurs sans hôte.
 
 OPTIONS_DB_GAMESETUP_STARS
 '''Le nombre approximatif de systèmes stellaires à générer dans la galaxie.
@@ -1953,6 +1973,9 @@ Active une sauvegarde automatique lors d'un abandon ou de la fermeture du jeu. E
 
 OPTIONS_DB_AUTOSAVE_HOSTLESS
 Active la sauvegarde automatique en mode sans hôte.
+
+OPTIONS_DB_AUTOSAVE_HOSTLESS_EACH_PLAYER
+Active la sauvegarde automatique en mode sans hôte chaque fois qu'un joueur envoie ses ordres définitifs. Évite la perte des ordres transmis dans l'éventualité d'un crash de serveur.
 
 OPTIONS_DB_AUTOSAVE_INTERVAL
 Délai en secondes après le tour le plus récent ou dernière sauvegarde automatique, jusqu'à la prochaine sauvegarde automatique. Évite la perte des ordres du joueurs lors d'un crash de serveur. 0 si désactivé.
@@ -2391,6 +2414,7 @@ PLAYER_ENTERED_GAME
 PLAYER_LEFT_GAME
 %1% a quitté la partie
 
+
 ##
 ## Galaxy Setup Screen
 ##
@@ -2574,7 +2598,7 @@ GAME_MENU_LOAD
 Charger
 
 GAME_MENU_RESIGN
-Quitter
+Quitter vers Menu
 
 GAME_MENU_CONCEDE
 Capituler
@@ -2696,6 +2720,9 @@ SAVE_REALLY_OVERRIDE
 
 OPTIONS_TITLE  # translated
 Options
+
+OPTIONS_PEDIA_SEARCH_ARTICLE_TEXT
+Rechercher dans contenu article Encyclopédie
 
 OPTIONS_MULTIPLE_FLEET_WNDS
 Fenêtres Flottes multiples
@@ -3194,8 +3221,11 @@ Créer Configuration Persistante (Option Avancée)
 
 OPTIONS_CREATE_PERSISTENT_CONFIG_TOOLTIP_DESC
 '''Sauvegarde les réglages actuels de configuration comme réglages persistants par défaut.
+
 Ces réglages sont prioritaires sur tout réglage du fichier config.xml, mais pas sur la ligne de commande.
+
 N'enregistre que les réglages dont la valeur par défaut a été modifiée.
+
 Tout fichier de configuration persistante déjà existant est remplacé.
 
 Les réglages peuvent ne plus être valides d'une version à l'autre de Freeorion.
@@ -3208,6 +3238,23 @@ Fichier persistent_config.xml (re)créé avec succès.
 
 OPTIONS_CREATE_PERSISTENT_CONFIG_FAILURE
 Impossible de créer le fichier persistent_config.xml, consultez le fichier log pour plus de détails.
+
+OPTIONS_CREATE_ALL_CONFIG_SUCCESS
+Fichier config.xml créé avec succès.
+
+OPTIONS_CREATE_ALL_CONFIG_FAILURE
+Impossible de créer le fichier config.xml, consultez le fichier log pour plus de détails.
+
+OPTIONS_WRITE_ALL_CONFIG
+Écrire Fichier de Configuration Complète
+
+OPTIONS_CREATE_ALL_CONFIG_TOOLTIP_TITLE
+Créer Configuration Complète (Option Intermédiaire)
+
+OPTIONS_CREATE_ALL_CONFIG_TOOLTIP_DESC
+'''Sauvegarde les réglages actuels dans le fichier config.xml en incluant tous les réglages, même ceux dont les valeurs par défaut n'ont pas été modifiées.
+
+Le fichier options.xml existant est remplacé, mais peut être recréé (avec seulement les réglages modifiés) si une nouvelle option est modifiée, y compris le repositionnement de certaines fenêtres de jeu ou via le Menu Options.'''
 
 
 ##
@@ -3591,6 +3638,7 @@ Ajouter Structure en tête de file d'attente
 
 MENUITEM_ENQUEUE_BUILDING
 Ajouter Structure en file d'attente
+
 
 ##
 ## Side panel/Resources panel
@@ -4474,7 +4522,6 @@ Déplacer en tête de liste
 MOVE_DOWN_LIST_ITEM
 Déplacer en fin de liste
 
-
 SPLIT_INCOMPLETE
 Dissocier Répétition actuelle
 
@@ -4484,8 +4531,17 @@ Dupliquer
 PRODUCTION_WND_TOOLTIP_PROD_COST
 Coût production: %1%
 
+PRODUCTION_WND_TOOLTIP_PROD_TIME_MINIMUM
+Tours minimum production: %1%
+
+PRODUCTION_WND_TOOLTIP_LOCATION_DEPENDENT
+Dépend du lieu de production
+
 PRODUCTION_WND_TOOLTIP_PROD_TIME
-Temps production: %1%
+Tours de production entièrement financée sur %2%: %1%
+
+NO_PRODUCTION_HERE_CANT_PRODUCE
+Production insuffisante sur %1%
 
 PRODUCTION_WND_TOOLTIP_PARTS
 Équipements Astronef
@@ -4765,7 +4821,7 @@ Population
 
 # %1% name of the species.
 ENC_SPECIES_PLANET_TYPE_SUITABILITY_COLUMN1
-'''%1%:'''
+%1%:
 
 # %1% content of ENC_SPECIES_PLANET_TYPE_SUITABILITY_COLUMN1 expanded to match
 #     column width.
@@ -4794,6 +4850,30 @@ L'Habitabilité est définie par la distance au type d'[[encyclopedia ENVIRONMEN
 # types of things that can be shown in encyclopedia
 ENC_GRAPH
 [Partie - Graphiques]
+
+USE_LINEAR_SCALE
+Échelle Linéaire
+
+USE_LOG_SCALE
+Échelle Logarithmique
+
+SHOW_SCALE
+Afficher Échelle
+
+HIDE_SCALE
+Cacher Échelle
+
+SHOW_LINES
+Tracer Lignes
+
+SHOW_POINTS
+Tracer Points
+
+SCALE_TO_ZERO
+Échelle sur Zéro
+
+SCALE_FREE
+Sans Échelle
 
 ENC_GALAXY_SETUP
 [Partie - Galaxie]
@@ -5074,7 +5154,7 @@ ENC_AUTO_TIME_COST_INVARIANT_STR
 
 <u>Temps et Coût</u>
 
-Le temps et le coût pour %1% cet objet ne varient pas selon le lieu.'''
+Le temps et le coût pour %1% cet objet ne varient pas selon le lieu de production.'''
 
 # %1% content of ENC_VERB_PRODUCE_STR.
 ENC_AUTO_TIME_COST_VARIABLE_STR
@@ -5082,7 +5162,7 @@ ENC_AUTO_TIME_COST_VARIABLE_STR
 
 <u>Temps et Coût</u>
 
-Le temps et/ou le coût pour %1% cet objet varient selon le lieu.
+Le temps et/ou le coût pour %1% cet objet varient selon le lieu de production.
 Dans les expressions décrivant ces variations, le terme Source correspond à la Capitale de l'empire en question, et le terme Cible correspond au lieu pris en considération.
 '''
 
@@ -5462,10 +5542,8 @@ Gestion
 
 
 ##
-## Encyclopedia subcategories
+## Encyclopedia articles in Guides category
 ##
-
-# In Guides category
 
 INTERFACE_TITLE
 *Interface*
@@ -5473,7 +5551,10 @@ INTERFACE_TITLE
 INTERFACE_TEXT
 Liste non-exhaustive des fonctionnalités de l'Interface de FreeOrion :
 
-# In Game Concepts category
+
+##
+## Encyclopedia articles in Game Concepts category
+##
 
 DIPLOMACY_TITLE
 Diplomatie
@@ -5675,7 +5756,7 @@ METER_HAPPINESS_VALUE_LABEL
 Bonheur
 
 METER_HAPPINESS_VALUE_DESC
-'''Le Bonheur de la [[metertype METER_POPULATION]] d'une colonie est initialement faible suite au succès d'une colonisation ou d'une invasion, et peut également dépendre d'autres facteurs. Un Bonheur minimum de 5 est requis pour qu'une colonie puisse lancer la colonisation d'autres planètes.
+'''Le Bonheur de la [[metertype METER_POPULATION]] d'une colonie débute entre 1 et 5 suite à la colonisation initiale, et dépend de l'adaptation de l'[[encyclopedia ENC_SPECIES]] à l'[[encyclopedia ENVIRONMENT_TITLE]] de la planète. Le Bonheur est réduit à 0 suite à une invasion, et peut également dépendre d'autres facteurs. Un Bonheur minimum de 5 est requis pour qu'une colonie puisse entreprendre la colonisation d'autres planètes. L'[[metertype METER_INDUSTRY]] et la [[metertype METER_RESEARCH]] ne commenceront à croître que si le Bonheur est au moins égal à 5.
 
 La Projection Bonheur est le niveau optimal de Bonheur que la Population d'une planète tend à approcher, compte tenu des différents facteurs influençant le Bonheur planétaire. Sa valeur est liée aux <encyclopedia ENC_BUILDING_TYPE>Types de Structures</encyclopedia> bâtis sur la planète, aux [[encyclopedia ENC_TECH]] recherchées par l'empire, aux <encyclopedia ENC_SPECIAL>Particularités</encyclopedia> liées à la planète, ainsi que divers effets de jeu. Si ces facteurs changent, alors la valeur de Projection Bonheur est susceptible de fluctuer à son tour.'''
 
@@ -5755,7 +5836,11 @@ Infanterie
 METER_TROOPS_VALUE_DESC
 '''Le terme 'Infanterie' désigne toutes sortes de forces militaires capables d'opérer à la surface d'une planète.
 
-L'indicateur 'Infanterie' d'une planète représente la puissance des troupes terrestres de défense. L'empire envahisseur doit envoyer une infanterie supérieure en force (c-à-d un plus grand nombre) pour parvenir à conquérir la planète. Les astronefs doivent être dotés d'équipements spécifiques permettant le transport de l'Infanterie, et les troupes en question ne peuvent envahir une planète tant que cette dernière dispose de [[metertype METER_SHIELD]] actifs.'''
+L'indicateur 'Infanterie' d'une planète représente la puissance des troupes terrestres de défense. L'empire envahisseur doit envoyer une infanterie supérieure en force (c-à-d un plus grand nombre) pour parvenir à conquérir la planète.
+
+Les astronefs doivent être dotés d'équipements d'[[encyclopedia PC_TROOPS]] permettant le transport de troupes en vue d'une invasion.
+
+Les astronefs ne peuvent pas envahir une planète tant que cette dernière dispose de [[metertype METER_SHIELD]] actifs.'''
 
 METER_REBEL_TROOPS_VALUE_LABEL
 Infanterie Rebelle
@@ -5827,7 +5912,7 @@ OUTPOSTS_TITLE
 Avant-Poste
 
 OUTPOSTS_TEXT
-Les Avant-Postes sont des stations inhabitées pouvant être implantées en des lieux trop hostiles pour la survie d'une colonie. Ils n'ont pas de [[metertype METER_POPULATION]] et ne produisent en principe aucune ressource, mais peuvent cependant contribuer aux lignes d'[[metertype METER_SUPPLY]] de l'empire (à l'aide de la technologie appropriée) et augmenter sa zone de détection. Des colonies peuvent être fondées sur les planètes déjà pourvues d'un Avant-Poste. Pour construire un Avant-Poste, il suffit de placer un [[shippart CO_OUTPOST_POD]] sur un astronef. Des Avant-Postes sont également créés lorsque la Population d'une colonie tombe à zéro, quelle qu'en soit la raison.
+Les Avant-Postes sont des stations inhabitées pouvant être implantées en des lieux trop hostiles pour la survie d'une colonie. Ils n'ont pas de [[metertype METER_POPULATION]] et ne produisent en principe aucune ressource, mais peuvent cependant contribuer aux lignes d'[[metertype METER_SUPPLY]] de l'empire (à l'aide de la technologie appropriée), augmenter sa zone de détection et fournir du carburant. Des colonies peuvent être fondées sur les planètes déjà pourvues d'un Avant-Poste. Pour construire un Avant-Poste, il suffit de placer un [[shippart CO_OUTPOST_POD]] sur un astronef. Des Avant-Postes sont également créés lorsque la Population d'une colonie tombe à zéro, quelle qu'en soit la raison.
 
 HOMEWORLDS_TITLE
 Planète Natale
@@ -6330,6 +6415,7 @@ MESSAGES_WHISPER
 MESSAGES_INVALID
 Joueur invalide ou aucun message saisi.
 
+
 ##
 ## Players list
 ##
@@ -6476,6 +6562,9 @@ Dern. Tour Bataille
 LAST_TURN_RESUPPLIED
 Dern. Tour Approvisionnement
 
+LAST_TURN_COLONIZED
+Dern. Tour Colonisation
+
 LAST_TURN_CONQUERED
 Dern. Tour Conquête
 
@@ -6609,6 +6698,7 @@ Tout
 ## Situation report
 ##
 ## Format: Ideally always start with Location: with ship/fleet names near the end.
+##
 
 SITREP_PANEL_TITLE
 Rapport de Situation - Tour initial
@@ -6870,6 +6960,18 @@ Sur %planet% : une nouvelle colonie %species% s'est établie.
 SITREP_NEW_COLONY_ESTABLISHED_LABEL
 Nouvelle colonie établie
 
+SITREP_FLEET_GIFTED
+La flotte %fleet% a été offerte par %empire%.
+
+SITREP_FLEET_GIFTED_LABEL
+Flotte offerte
+
+SITREP_PLANET_GIFTED
+La planète %planet% a été offerte par %empire%.
+
+SITREP_PLANET_GIFTED_LABEL
+Planète offerte
+
 SITREP_FLEET_ARRIVED_AT_DESTINATION
 La flotte %fleet% (%rawtext% astronefs) a atteint le système %system%.
 
@@ -6913,7 +7015,7 @@ SITREP_FOREIGN_FLEET_ARRIVED_AT_DESTINATION_LABEL
 Flotte étrangère arrivée à destination
 
 SITREP_POP_THRESHOLD
-Sur %planet% : la colonie a atteint la taille et le [[metertype METER_HAPPINESS]] prérequis pour entreprendre la colonisation d'autres planètes.
+Sur %planet% : la colonie a atteint la taille et le [[metertype METER_HAPPINESS]] prérequis pour entreprendre la colonisation d'autres planètes. L'[[metertype METER_INDUSTRY]] et la [[metertype METER_RESEARCH]] peuvent commencer à croître.
 
 SITREP_POP_THRESHOLD_LABEL
 Seuil de Colonisation
@@ -7271,6 +7373,7 @@ Victoire
 
 SITREP_EMPIRE_ELIMINATED
 L'empire %empire% a été vaincu!
+
 SITREP_EMPIRE_ELIMINATED_LABEL
 Empire vaincu
 
@@ -7378,7 +7481,7 @@ BEGINNER_HINT_14
 14: Recherchez les technologies améliorant l'[[metertype METER_SUPPLY]], telle la [[tech CON_ORBITAL_CON]], afin d'accroître la distance que vos lignes d'approvisonnement peuvent atteindre à partir de vos systèmes.
 
 BEGINNER_HINT_15
-15: La plupart des espèces se retrouvent avec un indicateur [[metertype METER_HAPPINESS]] de 1 lorsque vous capturez leur planète, puis ce dernier augmente normalement de 1 à chaque tour. Faites cependant attention aux espèces [[encyclopedia XENOPHOBIC_SPECIES_TITLE]]s! Elles n'apprécient guère la proximité d'autres espèces et cela aura un effet négatif sur le Bonheur ainsi que d'autres indicateurs, à la fois pour l'espèce xénophobe et les autres espèces à proximité.
+15: La plupart des espèces se retrouvent avec un indicateur [[metertype METER_HAPPINESS]] de 0 lorsque vous capturez leur planète, puis ce dernier augmente normalement de 1 à chaque tour. Faites cependant attention aux espèces [[encyclopedia XENOPHOBIC_SPECIES_TITLE]]s! Elles n'apprécient guère la proximité d'autres espèces et cela aura un effet négatif sur le Bonheur ainsi que d'autres indicateurs, à la fois pour l'espèce xénophobe et les autres espèces à proximité.
 
 BEGINNER_HINT_16
 16: Il est plus judicieux de ne pas développer la technologie [[tech LRN_PSIONICS]] tant que votre empire n'abrite pas une espèce maîtrisant la [[encyclopedia TELEPATHIC_TITLE]].
@@ -7442,7 +7545,10 @@ Opinions des Empires :
 OPINIONS_OF_OTHER_SPECIES
 Opinions des autres Espèces :
 
-# Species Pedia Categories
+
+##
+## Encyclopedia articles in Species Types category
+##
 
 LITHIC_SPECIES_CLASS
 Lithique
@@ -7480,7 +7586,10 @@ Gazeux
 GASEOUS_SPECIES_CLASS_DESC
 Liste des espèces à [[encyclopedia GASEOUS_SPECIES_TITLE]]:
 
-# Species Pedia Articles
+
+##
+## Encyclopedia articles in Species category
+##
 
 SP_HUMAN
 Humain
@@ -7608,7 +7717,7 @@ Planète Natale: Foreveralone.
 Une planète abritant un vaste et profond océan. La rumeur veut que la création des Happybirthdays eût pour but originel de sonder la planète en vue d'une colonisation potentielle. La raison pour laquelle ils furent abandonnés reste un mystère, les théories à ce sujet divergeant grandement: leurs créateurs auraient décidé que la planète ne fût pas propice à la colonisation, ou bien ces derniers auraient été exterminés par une cause inconnue. Bien que ce vaste océan présente des particularités intéressantes ainsi que des formes de vie, rien de vraiment spécial n'indique ce qui aurait pu susciter un intérêt potentiel envers cette planète.
 
 Structure sociale: Codépendance.
-Un Happybirthday isolé a pour principal but de s'attacher psychologiquement au plus proche être sensible (de préférence étranger) et de déclarer leur amitié comme éternelle. Un seul objectif: soulager leur solitude en trouvant un autre être qui devienne leur ami, pour toujours...
+Un Happybirthday isolé a pour principal but de s'attacher psychologiquement au plus proche être sentient (de préférence étranger) et de déclarer leur amitié comme éternelle. Un seul objectif: soulager leur solitude en trouvant un autre être qui devienne leur ami, pour toujours...
 
 Le processus de colonisation est lent et l'industrie peu efficace, en raison du caractère dépressif de cette espèce, menant parfois à des auto-destructions de masse. Cependant, leur propension à ne pas avoir d'ennemis et la recherche obsessionnelle de toute forme d'amitié, font des Happybirthdays des êtres très ouverts aux échanges et au commerce.
 
@@ -7683,7 +7792,7 @@ Laenfa
 
 SP_LAENFA_GAMEPLAY_DESC
 '''<img src="species/preview/laenfa.png"></img>
-Vignes sensibles, télépathes, et insidieuses.
+Vignes sentientes, télépathes, et insidieuses.
 Préfèrent les Planètes [[PT_OCEAN]]s.
 [[encyclopedia PHOTOTROPHIC_SPECIES_TITLE]], [[encyclopedia TELEPATHIC_TITLE]]
 '''
@@ -7718,6 +7827,7 @@ Les Sly ont une espérance de vie très importante et transmettent de générati
 
 SP_LEMBALALAM  # translated
 Lembala'Lam
+
 SP_LEMBALALAM_GAMEPLAY_DESC
 '''Reptiles ancestraux égocentriques et dégénérescents, ne pouvant plus se reproduire.
 Préfèrent les Planètes [[PT_DESERT]]s.
@@ -7822,7 +7932,7 @@ SP_CYNOS  # translated
 Cynos
 
 SP_CYNOS_GAMEPLAY_DESC
-'''Végétaux mobiles entretenus par une plante-mère géante non-sensible.
+'''Végétaux mobiles entretenus par une plante-mère géante non-sentiente.
 [[encyclopedia PHOTOTROPHIC_SPECIES_TITLE]]
 '''
 
@@ -7853,7 +7963,7 @@ SP_PHINNERT_DESC
 Les Phinnerts sont des mammifères arboricoles d'une taille variant entre 1 et 2 mètres. Leurs longs bras peuvent atteindre une envergure d'environ 2 fois leur taille. Ils sont munis d'une membrane de peau rétractable de chaque côté du corps, s'étendant du poignet à la cheville, et qui permet un vol totalement fonctionnel à faible gravité. Leur vol très agile leur rend possible la chasse de créatures insectoïdes, qu'ils attrapent à l'aide d'un appendice nasal préhensile. Tout comme les chauves-souris, les Phinnerts utilisent l'écholocalisation, même si leur sens est bien moins développé.
 
 Structure sociale:
-La vie est bien plus courte pour les Phinnerts que pour la majorité des espèces sensibles, en raison des nombreux dangers d'un marais. Tous les Phinnerts sont considérés comme les membres d'une grande famille et les différends ne durent jamais très longtemps. Il n'y aucune autorité centrale, seulement une vague hiérarchie. Du fait de leur mortalité élevée, l'équilibre des forces chez les Phinnerts peut varier très rapidement. En compensation, leur société est très peu individualiste, et bien plus centrée sur le groupe.
+La vie est bien plus courte pour les Phinnerts que pour la majorité des espèces sentientes, en raison des nombreux dangers d'un marais. Tous les Phinnerts sont considérés comme les membres d'une grande famille et les différends ne durent jamais très longtemps. Il n'y aucune autorité centrale, seulement une vague hiérarchie. Du fait de leur mortalité élevée, l'équilibre des forces chez les Phinnerts peut varier très rapidement. En compensation, leur société est très peu individualiste, et bien plus centrée sur le groupe.
 
 Planète Natale:
 Leur planète possède une faible gravité et une atmosphère très épaisse. Sa composition géologique est unique du fait de la faible proportion de métaux lourds, mais de la bien plus forte présence d'autres éléments lourds, particulièrement les gaz nobles. De son activité tectonique très stable, résulte une croûte terrestre très plate, qui par conséquent est principalement recouverte d'eaux stagnantes et peu profondes. La totalité de leur monde s'apparente à une zone marécageuse géante.
@@ -7864,7 +7974,7 @@ SP_REPLICON  # translated
 Replicon
 
 SP_REPLICON_GAMEPLAY_DESC
-'''Robots auto-réplicants à peine sensibles.
+'''Robots auto-réplicants à peine sentients.
 Préfèrent les Planètes [[PT_RADIATED]]s.
 [[encyclopedia ROBOTIC_SPECIES_TITLE]]
 '''
@@ -7943,14 +8053,14 @@ SP_SETINON  # translated
 Setinon
 
 SP_SETINON_GAMEPLAY_DESC
-'''Cellules microscopiques sensibles et individualistes.
+'''Cellules microscopiques sentientes et individualistes.
 Préfèrent les Planètes [[PT_SWAMP]]s.
 [[encyclopedia ORGANIC_SPECIES_TITLE]]
 '''
 
 SP_SETINON_DESC
 '''Description:
-Les Setinon sont l'évolution génétique de cellules immunitaires protégeant les plus grands organismes des parasites et autres virus. Mesurant 1mm, ils sont constitués de multiples compartiments nucléiques. Les protéines et les acides aminés s'organisent en réseau neuronal semblable au système rachidien des organismes sensibles communément répandus. Les Setinon utilisent des constructions biologiques (nécessitant des milliers de spécimens Setinon) pour exécuter les tâches que leur taille microscopique devrait normalement rendre impossibles.
+Les Setinon sont l'évolution génétique de cellules immunitaires protégeant les plus grands organismes des parasites et autres virus. Mesurant 1mm, ils sont constitués de multiples compartiments nucléiques. Les protéines et les acides aminés s'organisent en réseau neuronal semblable au système rachidien des organismes sentients communément répandus. Les Setinon utilisent des constructions biologiques (nécessitant des milliers de spécimens Setinon) pour exécuter les tâches que leur taille microscopique devrait normalement rendre impossibles.
 
 Structure sociale:
 La société Setinon est fondée sur deux facteurs opposés: leur nature fortement individualiste et défensive, contrastant avec leur besoin vital de coopérer afin d'interagir avec le monde extérieur. Par conséquent, la société Setinon apparaît hautement complexe, basée sur plusieurs niveaux de pouvoir et de décision, en constante recherche d'équilibre.
@@ -7981,8 +8091,8 @@ Préfèrent les Planètes [[PT_BARREN]]s.
 [[encyclopedia ROBOTIC_SPECIES_TITLE]]
 '''
 
-#SP_TRENCHERS_DESC
-#'''<img src="species/trenchers.png"></img>'''
+SP_TRENCHERS_DESC  # translated
+<img src="species/trenchers.png"></img>
 
 SP_RAAAGH  # translated
 Raaagh
@@ -8046,7 +8156,7 @@ SP_KOBUNTURA  # translated
 Kobuntura
 
 SP_KOBUNTURA_GAMEPLAY_DESC
-'''Formes sensibles de poussière magnétique, fascinées par la construction et l'infrastructure.
+'''Formes sentientes de poussière magnétique, fascinées par la construction et l'infrastructure.
 Préfèrent les Planètes [[PT_BARREN]]s.
 [[encyclopedia SELF_SUSTAINING_SPECIES_TITLE]]
 '''
@@ -8070,7 +8180,7 @@ Préfèrent les Planètes [[PT_INFERNO]]s.
 '''
 
 SP_UGMORS_DESC
-'''Les Ugmors sont une forme d'écume magmatique utilisant les roches et les minéraux pour fabriquer des entités temporaires, chacune conçue pour accomplir des tâches spécifiques.
+'''Les Ugmors sont une race sentiente d'écume magmatique utilisant les roches et les minéraux pour fabriquer des entités temporaires, chacune conçue pour accomplir des tâches spécifiques.
 
 Structure sociale:
 Les Trappes de Larar sont le cœur biologique de l'espèce. Ces amas d'écume magmatique se trouvent sur la surface la plus chaude des mers de lave et en absorbe l'énergie. Lorsque suffisamment d'énergie est accumulée, ces masses de magma énergétiques commencent à rassembler des roches imposantes sur tout le pourtour des mers de lave, puis les imbriquent entre elles pour former un Ugmor. Les Ugmors furent à la base simplement conçus pour passer d'une mer de lave à l'autre, mais une société complexe s'est développée au fil du temps. Les Trappes de Larar ne peuvent pas être considérées comme un organisme intelligent, mais plutôt comme une mémoire centrale, lieu de convergence et d'activité de tous les Ugmors, pour lesquels réintégrer les Trappes de Larar est un privilège.
@@ -8133,7 +8243,7 @@ Les Abaddoni ont une forme ovoïde d'environ 0.8 mètres de diamètre, arborent 
 À l'extrémité de chacune de leurs 6 pattes ressemblant à celles de crustacés, se trouve une sorte de sac gonflable qui leur permet de s'accrocher par effet de ventouse à n'importe quelle surface, quelle que soit son inclinaison. Comme les Abaddoni se développent en milieu souterrain, ils ne possèdent pas d'organe de vision, se référant ainsi principalement à leur odorat, et dans une moindre proportion, à l'ouïe et au toucher pour se déplacer.
 
 Structure sociale:
-L'espèce entière des Abaddonni vit sous le joug d'une intelligence artificielle sensible appelée Mère. Cette IA fut créée par les Abaddoni comme une assistante gouvernementale, mais elle prit lentement le dessus sur ses créateurs. À présent, chaque nouveau-né Abaddoni se voit implanter un transmetteur dans le cerveau, pour que Mère puisse connaître les pensées de chacun de ses sujets et pouvoir contrôler leurs fonctions vitales au besoin. Il n'y aucun semblant de structure sociale chez les Abaddoni: ils sont tous semblables, c'est-à-dire esclaves.
+L'espèce entière des Abaddonni vit sous le joug d'une intelligence artificielle sentiente appelée Mère. Cette IA fut créée par les Abaddoni comme une assistante gouvernementale, mais elle prit lentement le dessus sur ses créateurs. À présent, chaque nouveau-né Abaddoni se voit implanter un transmetteur dans le cerveau, pour que Mère puisse connaître les pensées de chacun de ses sujets et pouvoir contrôler leurs fonctions vitales au besoin. Il n'y aucun semblant de structure sociale chez les Abaddoni: ils sont tous semblables, c'est-à-dire esclaves.
 <img src="species/abaddoni.png"></img>
 '''
 
@@ -8324,7 +8434,7 @@ SP_EXOBOT  # translated
 Exobot
 
 SP_EXOBOT_GAMEPLAY_DESC
-'''Robots semi-autonomes, conçus pour la production industrielle sur les Planètes [[PT_BARREN]]s, [[PT_RADIATED]]s et [[PT_INFERNO]]s.
+'''Robots semi-autonomes, conçus pour travailler sur les Planètes de tout type d'[[encyclopedia ENVIRONMENT_TITLE]].
 [[encyclopedia ROBOTIC_SPECIES_TITLE]]
 '''
 
@@ -8334,6 +8444,7 @@ SP_EXOBOT_DESC
 
 SP_ANCIENT_GUARDIANS
 Gardiens Ancestraux
+
 SP_ANCIENT_GUARDIANS_GAMEPLAY_DESC
 '''Robots gardiens conçus en des temps immémoriaux par une civilisation de Précurseurs.
 [[encyclopedia ROBOTIC_SPECIES_TITLE]]
@@ -8524,7 +8635,7 @@ COMPUTRONIUM_SPECIAL
 Lune Ordinatrice
 
 COMPUTRONIUM_SPECIAL_DESC
-'''Lorsqu'une Lune Ordinatrice orbite autour d'une planète privilégiant la [[metertype METER_RESEARCH]], toutes les planètes de l'empire réglées sur le même Focus améliorent leur [[metertype METER_TARGET_RESEARCH]] de 0.2 par [[metertype METER_POPULATION]].
+'''Lorsqu'une Lune Ordinatrice orbite autour d'une planète privilégiant la [[metertype METER_RESEARCH]], toutes les planètes de l'empire réglées sur le même Focus améliorent leur [[metertype METER_TARGET_RESEARCH]] de 0.1 par [[metertype METER_POPULATION]].
 
 Abandonnée par une civilisation dont le souvenir s'est effacé avec le temps, cette lune est en réalité un ordinateur d'une puissance de calcul inouïe. Elle peut effectuer des simulations et résoudre les équations les plus complexes en moins de temps qu'il ne faut pour les lui proposer.'''
 
@@ -8532,7 +8643,7 @@ HONEYCOMB_SPECIAL
 Réserve Alvéolaire
 
 HONEYCOMB_SPECIAL_DESC
-'''Lorsqu'une planète dotée d'une Réserve Alvéolaire privilégie l'[[metertype METER_INDUSTRY]], toutes les planètes de l'empire réglées sur le même Focus et lui étant reliées par ligne d'[[metertype METER_SUPPLY]], améliorent leur [[metertype METER_TARGET_INDUSTRY]] de 0.5 par [[metertype METER_POPULATION]].
+'''Lorsqu'une planète dotée d'une Réserve Alvéolaire privilégie l'[[metertype METER_INDUSTRY]], toutes les planètes de l'empire réglées sur le même Focus et lui étant reliées par ligne d'[[metertype METER_SUPPLY]], améliorent leur [[metertype METER_TARGET_INDUSTRY]] de 0.2 par [[metertype METER_POPULATION]].
 
 La Réserve Alvéolaire est une planète qui fut utilisée comme telle par les Constructeurs dans les temps ancestraux. Quasiment la totalité des planètes aux alentours furent dépouillées de l'ensemble de leurs ressources puis détruites. Les matériaux récupérés furent triés et stockés séparément dans de gigantesques tubes creusés dans la croûte terrestre. Ces réserves abritent des éléments rares et de grande valeur, des molécules difficiles à synthétiser, et une vaste gamme de sources d'énergie. Ce que les Constructeurs désiraient créer à partir de ce trésor et la raison pour laquelle ils ne l'ont finalement pas utilisé, restent à ce jour un mystère.'''
 
@@ -9187,7 +9298,7 @@ ALIGN_MECHANIZATION
 Mécanisation
 
 ALIGN_MECHANIZATION_DESC
-Usage de sens artificiels et de l'automatisation
+Usage de la sentience artificielle et de l'automatisation
 
 # Empire affiliation types
 AFFIL_SELF
@@ -9329,7 +9440,10 @@ PC_TROOPS_DESC
 '''Les équipements d'Infanterie permettent d'augmenter les effectifs d'[[metertype METER_TROOPS]] à bord d'un astronef, ces derniers pouvant être utilisés pour envahir les planètes ennemies.
 
 Pour envahir une planète avec succès, l'effectif total d'[[metertype METER_TROOPS]] de tous les astronefs prenant part à l'invasion doit être supérieur à l'effectif total de défense (les égalités sont en faveur du défenseur).
-Un astronef d'invasion devient définitivement inutilisable suite à l'opération d'atterrissage (tout équipement additionnel sur l'astronef est également perdu).'''
+
+Lors de l'invasion d'une planète, les astronefs d'Infanterie sélectionnés dans la Fenêtre Flottes seront utilisés pour l'opération d'invasion. Si aucun astronef d'Infanterie n'est sélectionné, les astronefs d'Infanterie seront automatiquement sélectionnés parmi les astronefs disponibles et en fonction du nombre de troupes défensives.
+
+Un astronef d'invasion devient définitivement inutilisable suite à l'opération d'atterrissage. Tous les équipements de l'astronef sont également perdus.'''
 
 # Ship part classes
 PC_DETECTION
@@ -9476,7 +9590,10 @@ PATH_SAVE
 PATH_TEMP
 ''''''
 
-# Ship hull categories
+
+##
+## Ship hull categories
+##
 
 HULL_LINE_GENERIC
 Classe Coque: Générique
@@ -10418,7 +10535,7 @@ DESC_AND_BEFORE_OPERANDS
 ''' ['''
 
 DESC_AND_BETWEEN_OPERANDS
-''', et'''
+, et
 
 DESC_AND_AFTER_OPERANDS
 ''' ]'''
@@ -10433,30 +10550,28 @@ DESC_AND_AFTER_SINGLE_OPERAND
 # We actually describe the the logically equivalent expression ( (not A) or (not B) or (not C) )
 # Note: the operands (not A), (not B).. are handled in the descriptions of A, B.. respectively
 DESC_NOT_AND_BEFORE_OPERANDS
-'''[[DESC_NOT_OR_BEFORE_OPERANDS]]'''
+[[DESC_NOT_OR_BEFORE_OPERANDS]]
 
 DESC_NOT_AND_BETWEEN_OPERANDS
-'''[[DESC_NOT_OR_BETWEEN_OPERANDS]]'''
+[[DESC_NOT_OR_BETWEEN_OPERANDS]]
 
 DESC_NOT_AND_AFTER_OPERANDS
-'''[[DESC_NOT_OR_AFTER_OPERANDS]]'''
-
+[[DESC_NOT_OR_AFTER_OPERANDS]]
 
 # Description for 'not ( AND [ A ] )' expressions
 # Actually instead we describe 'OR [ not A ]' and leave the description of negation to A
 DESC_NOT_AND_BEFORE_SINGLE_OPERAND
-'''[[DESC_OR_BEFORE_SINGLE_OPERAND]]'''
+[[DESC_OR_BEFORE_SINGLE_OPERAND]]
 
 DESC_NOT_AND_AFTER_SINGLE_OPERAND
-'''[[DESC_OR_AFTER_SINGLE_OPERAND]]'''
-
+[[DESC_OR_AFTER_SINGLE_OPERAND]]
 
 # OR Descriptions: for expressions of the form ( A or B or C )
 DESC_OR_BEFORE_OPERANDS
 ''' (soit'''
 
 DESC_OR_BETWEEN_OPERANDS
-''', ou'''
+, ou
 
 DESC_OR_AFTER_OPERANDS
 ''' )'''
@@ -10467,62 +10582,58 @@ DESC_OR_BEFORE_SINGLE_OPERAND
 DESC_OR_AFTER_SINGLE_OPERAND
 ''''''
 
-
 # NOT OR Descriptions; for expressions of the form 'NOT OR [ A B C ]'
 # We actually describe the logically equivalent expression 'AND [ (NOT A) (NOT B) (NOT C) ]'
 # Note: (NOT A), (NOT B).. are handled in the descriptions of A, B.. respectively
 DESC_NOT_OR_BEFORE_OPERANDS
-'''[[DESC_AND_BEFORE_OPERANDS]]'''
+[[DESC_AND_BEFORE_OPERANDS]]
 
 DESC_NOT_OR_BETWEEN_OPERANDS
-'''[[DESC_AND_BETWEEN_OPERANDS]]'''
+[[DESC_AND_BETWEEN_OPERANDS]]
 
 DESC_NOT_OR_AFTER_OPERANDS
-'''[[DESC_AND_AFTER_OPERANDS]]'''
+[[DESC_AND_AFTER_OPERANDS]]
 
 # for expressions of the form 'NOT OR [ A ]' we describe instead 'AND [ NOT A ]'
 # Note: (NOT A) is handled in the description of A
 DESC_NOT_OR_BEFORE_SINGLE_OPERAND
-'''[[DESC_AND_BEFORE_SINGLE_OPERAND]]'''
+[[DESC_AND_BEFORE_SINGLE_OPERAND]]
 
 DESC_NOT_OR_AFTER_SINGLE_OPERAND
-'''[[DESC_AND_AFTER_SINGLE_OPERAND]]'''
-
-
+[[DESC_AND_AFTER_SINGLE_OPERAND]]
 
 # OrderedAlternativesOf Descriptions for expressions 'OrderedAlternativesOf [ A B C ]'
 DESC_ORDERED_ALTERNATIVES_BEFORE_OPERANDS
-'''qui correspond à la première condition d'éligibilité {'''
+qui correspond à la première condition d'éligibilité {
 
 DESC_ORDERED_ALTERNATIVES_BETWEEN_OPERANDS
-''', soit'''
+, soit
 
 DESC_ORDERED_ALTERNATIVES_AFTER_OPERANDS
 ''' }'''
 
 DESC_ORDERED_ALTERNATIVES_BEFORE_SINGLE_OPERAND
-'''{'''
+{
 
 DESC_ORDERED_ALTERNATIVES_AFTER_SINGLE_OPERAND
-'''(si également des non-correspondances)}'''
+(si également des non-correspondances)}
 
 # Expressions like  'NOT OrderedAlternativesOf [ A B C ]'
 # Note: returned matches rely on (NOT A), (NOT B).. and are handled in the descriptions of A, B.. respectively
 DESC_NOT_ORDERED_ALTERNATIVES_BEFORE_OPERANDS
-'''qui correspond à la première condition d'éligibilité pour les candidats non-éligibles: {'''
+qui correspond à la première condition d'éligibilité pour les candidats non-éligibles: {
 
 DESC_NOT_ORDERED_ALTERNATIVES_BETWEEN_OPERANDS
-''', soit'''
+, soit
 
 DESC_NOT_ORDERED_ALTERNATIVES_AFTER_OPERANDS
 ''' }'''
 
 DESC_NOT_ORDERED_ALTERNATIVES_BEFORE_SINGLE_OPERAND
-'''{'''
+{
 
 DESC_NOT_ORDERED_ALTERNATIVES_AFTER_SINGLE_OPERAND
-'''(si également des non-correspondances)}'''
-
+(si également des non-correspondances)}
 
 # %1% textual description of the lower turn limit.
 # %2% textual description of the upper turn limit.
@@ -10618,11 +10729,11 @@ DESC_CONTAINED_BY
 DESC_CONTAINED_BY_NOT
 ''' ne se situant pas dans un lieu%1%'''
 
-# %1% FIXME
+# %1% text description of what system's ID the candidate object should be in
 DESC_IN_SYSTEM
 ''' étant dans un système avec un id %1%'''
 
-# %1% FIXME
+# %1% text description of what system's ID the candidate object should not be in
 DESC_IN_SYSTEM_NOT
 ''' n'étant pas dans un système avec un id %1%'''
 
@@ -10631,6 +10742,20 @@ DESC_IN_SYSTEM_SIMPLE
 
 DESC_IN_SYSTEM_SIMPLE_NOT
 ''' n'étant pas dans un système'''
+
+# %1% text description of what planet's ID the candidate object should be on
+DESC_ON_PLANET
+''' étant sur la planète avec un id %1%'''
+
+# %1% text description of what planet's ID the candidate object should not be on
+DESC_ON_PLANET_NOT
+''' n'étant pas sur la planète avec un id %1%'''
+
+DESC_ON_PLANET_SIMPLE
+''' étant sur la planète'''
+
+DESC_ON_PLANET_SIMPLE_NOT
+''' n'étant pas sur la planète'''
 
 # %1% FIXME
 DESC_OBJECT_ID
@@ -10850,7 +10975,7 @@ LRN_ALGO_ELEGANCE
 Élégance Algorithmique
 
 LRN_ALGO_ELEGANCE_DESC
-'''Augmente la [[metertype METER_TARGET_RESEARCH]] de 0.1 par [[metertype METER_POPULATION]] sur toutes les planètes en Focus Recherche.
+'''Augmente la [[metertype METER_TARGET_RESEARCH]] de 0.05 par [[metertype METER_POPULATION]] sur toutes les planètes en Focus Recherche.
 
 Avec une difficulté grandissante des problèmes d'analyse de données, les démarches traditionnelles des performances algorithmiques deviennent moins efficaces, en raison des limitations de la complexité irréductible. À ce stade, de nouvelles formes et fonctions algorithmiques deviennent significatives: esthétiquement et métaphoriquement, l'élégance de la solution doit être optimisée.'''
 
@@ -10870,15 +10995,23 @@ LRN_PSIONICS_DESC
 
 Via une introspection profonde ou une augmentation artificielle, le cerveau peut développer les capacités d'interagir directement avec l'univers qui l'entoure, en s'affranchissant des limitations physiques du corps. Des facultés cérébrales telles que la télépathie, l'empathie, la clairvoyance, la prescience, la psychokinésie et la psychoénergie peuvent remplacer ou dépasser les possibilités biologiques ou technologiques classiques. Les applications de ces pouvoirs, y compris le contrôle de l'esprit, la possession et la modification de personnalité, ont un fort impact sur la relation entre les êtres maîtrisant ces facultés et les autres.'''
 
-LRN_ARTIF_MINDS
+LRN_NASCENT_AI
 Intelligences Artificielles
 
+LRN_NASCENT_AI_DESC
+'''Augmente la [[metertype METER_TARGET_RESEARCH]] de 1 sur toutes les planètes.
+
+Alors que les ordinateurs traditionnels ont des capacités de calcul presque infinies, ils leur manquent cependant une qualité essentielle: la conscience. Bien que la définition complète du concept de conscience reste insaisissable, cette qualité peut être toutefois synthétisée et reproduite de manière plutôt convaincante. Ces recherches peuvent ouvrir de nouvelles voies en matière de sciences cognitives et de métaparadigmes.
+
+Des IA sont à même de compiler toutes les données découvertes par la Recherche en un seul réseau de traitement automatique, ces données pouvant être analysées afin d'en faire émerger de nouvelles, le tout via un centre de recherche entièrement automatisé. Chaque planète peut héberger de telles structures, indépendamment des activités de la population, procurant ainsi un bonus de Recherche dans tout l'empire.'''
+
+LRN_ARTIF_MINDS
+Consciences Artificielles
+
 LRN_ARTIF_MINDS_DESC
-'''Augmente la [[metertype METER_TARGET_RESEARCH]] de 2 sur toutes les planètes.
+'''Augmente la [[metertype METER_TARGET_RESEARCH]] de 3 sur toutes les planètes.
 
-Alors que les ordinateurs traditionnels ont des capacités de calcul presque infinies, ils leur manquent cependant une qualité essentielle: la conscience. Bien que la définition complète du concept de conscience reste insaisissable, cette qualité peut être toutefois synthétisée et modifiée de manière convaincante. Ces recherches ouvrent de nouvelles voies en matière de sciences cognitives et de métaparadigmes.
-
-Des IA sont à même de compiler toutes les données découvertes par la Recherche en un seul réseau de traitement automatique, ces données pouvant être analysées afin d'en faire émerger de nouvelles, le tout via un centre de recherche entièrement automatisé. Chaque planète peut héberger de telles structures, indépendamment des professions de la population, donnant ainsi un bonus de Recherche dans tout l'empire.'''
+Les consciences artificielles constituent la quête ultime des recherches en sciences cognitives. Elles dépassent le stade prédéfini des intelligences artificielles, pour atteindre celui de conscience de soi et de sentience au sein d'un être artificiel. Ces systèmes sentients peuvent élargir de leur proche chef les limites de la science et de la recherche, identifiant par eux-mêmes de nouvelles manières de traiter les données et d'en déduire de nouvelles connaissances. Chaque planète peut héberger de telles structures, indépendamment des activités de la population, procurant ainsi un bonus de Recherche dans tout l'empire.'''
 
 LRN_XENOARCH
 Xénoarchéologie
@@ -10943,7 +11076,7 @@ LRN_QUANT_NET
 Réseau Quantique
 
 LRN_QUANT_NET_DESC
-'''Augmente la [[metertype METER_TARGET_RESEARCH]] de 0.5 par [[metertype METER_POPULATION]] sur toutes les planètes en Focus Recherche.
+'''Augmente la [[metertype METER_TARGET_RESEARCH]] de 0.1 par [[metertype METER_POPULATION]] sur toutes les planètes en Focus Recherche.
 
 Un réseau massif de donnés, à l'échelle de l'empire, capable de transférer instantanément des informations entre deux lieux, plutôt que par le système lent et indirect des voies spatiales. Ce progrès facilite grandement la Recherche dans tout l'empire.
 
@@ -11050,16 +11183,16 @@ GRO_NANO_CYBERNET_DESC
 Après avoir utilisé les nanotechnologies pour corriger les défauts ou soigner les traumas, l'étape suivante consiste à améliorer ou remplacer les systèmes naturels biochimiques par des systèmes artificiels supérieurs. Plutôt que la simple repousse de membres perdus ou la réparation d'organes endommagés, ces améliorations permettent à l'envi la croissance rapide de nouveaux membres ou organes. Les systèmes biologiques archaïques, comme les muscles et les tendons, jusqu'aux organites et enzymes, peuvent aussi être remplacés, permettant ainsi une amélioration considérable de la force, de l'endurance et de la flexibilité.
 
 GRO_TRANSORG_SENT
-Sensibilité Trans-Organique
+Sentience Trans-Organique
 
 GRO_TRANSORG_SENT_DESC
-La sensibilité telle que nous la connaissons a toujours été inextricablement liée à la vie biologique. En comprenant la vraie nature et l'origine de la sensibilité elle-même, il deviendrait alors possible de créer des entités conscientes qui ne pourraient être cataloguées en tant que vie biologique telle que nous la connaissons.
+La sentience telle que nous la connaissons a toujours été inextricablement liée à la vie biologique. En comprenant la vraie nature et l'origine de la sentience elle-même, il deviendrait alors possible de créer des entités conscientes qui ne pourraient être cataloguées en tant que vie biologique telle que nous la connaissons.
 
 GRO_ENERGY_META
 Métabolisme d'Énergie Pure
 
 GRO_ENERGY_META_DESC
-'''Augmente le [[metertype METER_FUEL]] max de 1 sur tous les astronefs (avant mise à l'échelle selon le [[encyclopedia FUEL_EFFICIENCY_TITLE]]), la [[metertype METER_DEFENSE]] max de 5 sur toutes les planètes, les [[metertype METER_SHIELD]] max de 5 sur toutes les planètes, la [[metertype METER_TARGET_INDUSTRY]] de 0.2 par [[metertype METER_POPULATION]] sur toutes les planètes en Focus Industrie, et la [[metertype METER_TARGET_RESEARCH]] de 0.5 par [[metertype METER_POPULATION]] sur toutes les planètes en Focus Recherche.
+'''Augmente le [[metertype METER_FUEL]] max de 1 sur tous les astronefs (avant mise à l'échelle selon le [[encyclopedia FUEL_EFFICIENCY_TITLE]]), la [[metertype METER_DEFENSE]] max de 5 sur toutes les planètes, les [[metertype METER_SHIELD]] max de 5 sur toutes les planètes, la [[metertype METER_TARGET_INDUSTRY]] de 0.1 par [[metertype METER_POPULATION]] sur toutes les planètes en Focus Industrie, et la [[metertype METER_TARGET_RESEARCH]] de 0.2 par [[metertype METER_POPULATION]] sur toutes les planètes en Focus Recherche.
 
 Tandis que la transformation d'une population entière en êtres de pure énergie s'avérerait peu pertinente, certaines tâches conviennent mieux à des individus dénués de corporalité. L'équipage d'un astronef par exemple, n'aurait plus besoin d'optimiser l'espace disponible pour les quartiers d'équipage ou le stockage des rations. Des êtres dotés d'une capacité de canalisation de l'énergie seraient en mesure d'améliorer les défenses et boucliers planétaires, ainsi que la production de ressources.
 
@@ -11102,7 +11235,7 @@ En atteignant ce degré de sophistication, les Stocks Génériques peuvent être
 Cela exempte le service du Stock Impérial de connaître à l'avance quels biens seront exactement demandés. Prévoir le lieu de la demande et les quantités s'avère désormais suffisant.
 
 Il s'agit donc d'une technologie d'amélioration du Stock Impérial. Le [[metertype METER_STOCKPILE]] augmente de 2, plus un supplément de 0.01 par [[metertype METER_POPULATION]], plus un supplément de 3 pour chaque planète réglée sur le [[encyclopedia STOCKPILE_FOCUS_TITLE]].
-Ces amélioriations sont cumulables avec le bonus de la technologie [[tech PRO_PREDICTIVE_STOCKPILING]].'''
+Ces améliorations sont cumulables avec le bonus de la technologie [[tech PRO_PREDICTIVE_STOCKPILING]].'''
 
 PRO_INTERSTELLAR_ENTANGLEMENT_FACTORY
 Complexe d'Intrication Interstellaire
@@ -11112,9 +11245,9 @@ PRO_INTERSTELLAR_ENTANGLEMENT_FACTORY_DESC
 Dissocier le personnel et les moyens de production favorise un procédé optimal de conception et augmente l'efficience du service de Stock Impérial.
 
 Il s'agit donc d'une technologie d'amélioration du Stock Impérial. Le [[metertype METER_STOCKPILE]] augmente de 6, plus un supplément de 0.02 par [[metertype METER_POPULATION]].
-Ces amélioriations sont cumulables avec les bonus des technologies [[tech PRO_PREDICTIVE_STOCKPILING]], [[tech PRO_GENERIC_SUPPLIES]] et [[tech PRO_VOID_PREDICTION]].
+Ces améliorations sont cumulables avec les bonus des technologies [[tech PRO_PREDICTIVE_STOCKPILING]], [[tech PRO_GENERIC_SUPPLIES]] et [[tech PRO_VOID_PREDICTION]].
 
-Débloque également la structure [[building BLD_STOCKPILING_CENTER]], augmentant additionnellement le [[metertype METER_STOCKPILE]] de 0.1 par [[metertype METER_INDUSTRY]].'''
+Débloque également la structure [[buildingtype BLD_STOCKPILING_CENTER]], augmentant additionnellement le [[metertype METER_STOCKPILE]] de 0.1 par [[metertype METER_INDUSTRY]].'''
 
 PRO_VOID_PREDICTION
 Prédiction du Vide
@@ -11124,13 +11257,13 @@ PRO_VOID_PREDICTION_DESC
 Pour le service du Stock Impérial, la Prédiction du Vide est l'instrument par excellence permettant de fournir les bons matériaux avant même que le besoin ne se manifeste.
 
 Il s'agit donc d'une technologie d'amélioration du Stock Impérial. Le [[metertype METER_STOCKPILE]] augmente de 0.2 par [[metertype METER_POPULATION]].
-Ces amélioriations sont cumulables avec les bonus des technologies [[tech PRO_PREDICTIVE_STOCKPILING]], [[tech PRO_GENERIC_SUPPLIES]] et [[tech PRO_INTERSTELLAR_ENTANGLEMENT_FACTORY]].'''
+Ces améliorations sont cumulables avec les bonus des technologies [[tech PRO_PREDICTIVE_STOCKPILING]], [[tech PRO_GENERIC_SUPPLIES]] et [[tech PRO_INTERSTELLAR_ENTANGLEMENT_FACTORY]].'''
 
 PRO_MICROGRAV_MAN
 Production en Microgravité
 
 PRO_MICROGRAV_MAN_DESC
-'''Augmente la [[metertype METER_TARGET_INDUSTRY]] de 5 sur toutes les colonies en Focus Recherche situées dans des systèmes abritant des colonies ou avant-postes sur une Ceinture d'Astéroïdes. Plusieurs Ceintures d'Astéroïdes n'engendrent pas de bénéfices additionnels.
+'''Augmente la [[metertype METER_TARGET_INDUSTRY]] de 2 sur toutes les colonies en Focus Recherche situées dans des systèmes abritant des colonies ou avant-postes sur une Ceinture d'Astéroïdes. Plusieurs Ceintures d'Astéroïdes n'engendrent pas de bénéfices additionnels.
 
 L'extraction de ressources minières sur des planétoïdes implique de nombreux challenges mais aussi de réelles opportunités en comparaison d'une exploitation planétaire classique. Ne disposant pas de la masse nécessaire pour la liquéfaction et la différenciation, les astéroïdes permettent un accès bien plus aisé à certains éléments lourds, tandis que l'absence de gravité rend l'extraction en vue d'une utilisation directe dans l'espace bien plus efficace. Par contre, la taille généralement limitée des astéroïdes requiert des infrastructures d'extraction auto-suffisantes et d'une grande mobilité. Par conséquent, les défis relatifs à un environnement en microgravité doivent être surmontés, nécessitant une refonte totale des méthodes traditionnelles.
 
@@ -11140,14 +11273,15 @@ PRO_ROBOTIC_PROD
 Production Robotisée
 
 PRO_ROBOTIC_PROD_DESC
-'''Augmente la [[metertype METER_TARGET_INDUSTRY]] de 0.1 par [[metertype METER_POPULATION]] sur toutes les planètes en Focus Industrie.
+'''Augmente la [[metertype METER_TARGET_INDUSTRY]] de 0.05 par [[metertype METER_POPULATION]] sur toutes les planètes en Focus Industrie.
 
-Les Exobots, désignation sous laquelle ils sont communément connus, constituent l'aboutissement du design allié à la fonctionnalité. Robots conçus pour effectuer n'importe quelle tâche de production, de l'électronique microscopique à la construction à grande échelle, leur production de masse est aisée, tandis que leur utilisation reste la plus avantageuse dans les colonies assignant une haute priorité à l'industrie. Chaque monde privilégiant l'industrie se voit gratifiée d'une équipe d'Exobots, améliorant ainsi considérablement sa production industrielle.
+Robots conçus pour effectuer n'importe quelle tâche, de l'électronique microscopique à la construction à grande échelle, améliorant ainsi considérablement la performance des mondes privilégiant l'industrie.
 
-Bien qu'un haut niveau en conception et en configuration d'usine requiert toujours une supervision permanente, la suppression de la main d'œuvre classique des processus de production résout bon nombre de problèmes. Les robots peuvent travailler continuellement, sans demander ni compensation financière ni amélioration des conditions de travail. Les robots sont bien plus adaptés à des environnements industriels dangereux, et n'ont pas besoin d'un espace habitable hors-site. Ils exécutent parfaitement leurs tâches, toutefois plus ou moins bien selon la qualité des instructions.'''
+Bien qu'un haut niveau en conception et en configuration d'usine requiert toujours une supervision permanente, la suppression de la main d'œuvre classique des processus de production résout bon nombre de problèmes. Les robots peuvent travailler continuellement, sont bien plus adaptés à des environnements industriels dangereux, et n'ont pas besoin d'un espace habitable hors-site. Ils exécutent parfaitement leurs tâches, toutefois plus ou moins bien selon la qualité des instructions.'''
 
 PRO_EXOBOTS  # translated
 Exobots
+
 PRO_EXOBOTS_DESC
 Permet la construction de colonies d'[[species SP_EXOBOT]]s optimisés pour l'industrie sur les Planètes [[PE_HOSTILE]]s.
 
@@ -11155,7 +11289,7 @@ PRO_FUSION_GEN
 Génération par Fusion
 
 PRO_FUSION_GEN_DESC
-'''Augmente la [[metertype METER_TARGET_INDUSTRY]] de 0.2 par [[metertype METER_POPULATION]] sur toutes les planètes en Focus Industrie.
+'''Augmente la [[metertype METER_TARGET_INDUSTRY]] de 0.05 par [[metertype METER_POPULATION]] sur toutes les planètes en Focus Industrie.
 
 Les réacteurs de fusion nucléaire, bien que coûteux à produire et à entretenir, s'avèrent rentables pour les mondes industrialisés à forte consommation énergétique. La dépendance aux réacteurs basés sur la fission nucléaire deviendra peu à peu une relique du passé.
 
@@ -11175,15 +11309,23 @@ PRO_ORBITAL_GEN_DESC
 
 L'orbite basse autour de corps planétaires présente de nombreux avantages pour la production d'énergie en comparaison des surfaces planétaires. L'exposition directe aux radiations solaires sans atténuation atmosphérique, ainsi que les structures imposantes pouvant être assemblées en condition de microgravité afin de collecter cette énergie, font partie de ces nombreux avantages. L'énergie résultante peut être utilisée en orbite, ou bien redirigée vers la surface pour alimenter l'industrie. D'autre part, de nouveaux mécanismes de conversion de l'énergie deviennent possibles en orbite, incluant le couplage du champ magnétique planétaire, l'échange du moment cinétique orbital, ainsi que la chaleur du frottement atmosphérique, chacun étant bénéfiques à la mise en œuvre d'applications spécialisées.'''
 
-PRO_SENTIENT_AUTOMATION
+PRO_ADAPTIVE_AUTOMATION
 Automates Adaptatifs
 
-PRO_SENTIENT_AUTOMATION_DESC
-'''Augmente la [[metertype METER_TARGET_INDUSTRY]] de 5 sur toutes les planètes.
+PRO_ADAPTIVE_AUTOMATION_DESC
+'''Augmente la [[metertype METER_TARGET_INDUSTRY]] de 2 sur toutes les planètes.
 
 En concevant des usines automatisées ne nécessitant aucune supervision directe, il devient alors possible d'accroître la production industrielle via un processus totalement autonome. Ces usines peuvent être construites et entretenues sur n'importe quelle planète, quel que soit son Focus, engendrant un bonus industriel dans tout l'empire.
 
-Alors que les équipements deviennent de plus en plus autonomes, ces derniers développent également la capacité de se répliquer et de se réparer sans aucune intervention externe, si ce n'est l'apport de matériaux bruts et, si exigées ou suggerées, les spécifications du produit final. Lorsqu'un esprit artificiel est aux commandes, le système entier peut apprendre, planifier, réagir et s'adapter de manière autonome, sans l'intervention généralement lente et peu efficace des ouvriers traditionnels.'''
+Alors que les équipements deviennent de plus en plus autonomes, ces derniers développent également la capacité de se répliquer et de se réparer sans aucune intervention externe, si ce n'est l'apport de matériaux bruts ainsi que le produit final, exigé ou suggeré, à concevoir. Lorsqu'un esprit artificiel est aux commandes, le système entier peut apprendre, planifier, réagir et s'adapter de manière autonome, sans l'intervention généralement lente et peu efficace des ouvriers traditionnels.'''
+
+PRO_SENTIENT_AUTOMATION
+Automates Conscients
+
+PRO_SENTIENT_AUTOMATION_DESC
+'''Augmente la [[metertype METER_TARGET_INDUSTRY]] de 6 sur toutes les planètes.
+
+L'évolution naturelle des usines automatisées s'accomplit en attribuant aux consciences artificielles qui dirigent de telles structures, le pouvoir de déduire et décider par elles-mêmes des meilleurs processus afin d'atteindre les buts de leurs propriétaires, avant même que ces derniers n'aient commencé à y réfléchir. Cette amélioration décisionnelle augmente grandement la performance des installations autonomes de production dans tout l'empire.'''
 
 PRO_NDIM_ASSMB
 Assemblage Multidimensionnel
@@ -11217,6 +11359,12 @@ Extraction Neutronium
 PRO_NEUTRONIUM_EXTRACTION_DESC
 Le cœur d'une Étoile [[STAR_NEUTRON]] est constitué de matière dégénérée, comprimée par la gravité et d'une densité infiniment plus importante que la matière normale la plus lourde. Ce matériau exotique présente de nombreuses applications une fois extrait de l'étoile, permettant ainsi la production de structures et d'équipements d'astronef inédits et performants.
 
+CON_OUTPOST
+Avant-Poste
+
+CON_OUTPOST_DESC
+La technologie nécessaire pour établir un [[encyclopedia OUTPOSTS_TITLE]] sur toute planète ou ceinture d'astéroïdes.
+
 CON_ARCH_PSYCH
 Psychologie Architecturale
 
@@ -11247,7 +11395,7 @@ CON_FRC_ENRG_STRC
 Structures Synergiques
 
 CON_FRC_ENRG_STRC_DESC
-'''Accroît la progression des indicateurs de ressources et d'infrastructure inférieurs à la valeur projetée de 3 par tour, et la diminution des indicateurs de ressources supérieurs à la valeur projetée de 5 par tour.
+'''Accroît la progression des indicateurs de ressources et d'infrastructure inférieurs à la valeur projetée de 3 par tour, et la diminution des indicateurs de ressources supérieurs à la valeur projetée de 5 par tour. L'[[metertype METER_INDUSTRY]] et la [[metertype METER_RESEARCH]] n'augmentent que si le [[metertype METER_HAPPINESS]] est au moins égal à 5.
 
 La flexibilité et la versatilité des structures synergiques permettent de redéfinir plus facilement le rôle des infrastructures des colonies en vue de nouvelles applications, augmentant ainsi la rapidité et le taux d'une modification de Focus.
 
@@ -11476,11 +11624,13 @@ Une coque constituée d'énergie pure, bien que plus efficiente que n'importe qu
 
 SHP_KRILL_SPAWN
 Génération de Krill
+
 SHP_KRILL_SPAWN_DESC
 Débloque l'équipement [[shippart SP_KRILL_SPAWNER]] pour les astronefs, qui provoque l'apparition de krill sauvage dans les systèmes abritant des Ceintures d'Astéroïdes.
 
 SPY_ROOT_DECEPTION
 Tromperie
+
 SPY_ROOT_DECEPTION_DESC
 L'art de la tromperie n’est pas naturel à toutes les espèces, mais la possibilité de dissimuler la vérité peut s'avérer bien utile.
 
@@ -11670,7 +11820,7 @@ GRO_GAIA_TRANS
 Transformation Gaia
 
 GRO_GAIA_TRANS_DESC
-En théorie, il est possible de prédire en totalité l'évolution écologique d'une planète via l'étude du réseau complet des interdépendances biologiques, à la fois sensibles et non-sensibles, au moyen de fractales et d'algorithmes. Mais en pratique, ceci ne peut être réalisé qu'à condition d'édifier un vaste réseau planétaire, exécutant un programme informatique analysant la biosphère entière d'une planète. Cet ordinateur deviendrait par la force des choses le système cérébral d'un nouveau type de vie - un organisme planétaire unique, constitué d'êtres intelligents œuvrant dans l'intérêt de cette entité supérieure, celle-ci agissant d'une manière réciproque.
+En théorie, il est possible de prédire en totalité l'évolution écologique d'une planète via l'étude du réseau complet des interdépendances biologiques, à la fois sentients et non-sentients, au moyen de fractales et d'algorithmes. Mais en pratique, ceci ne peut être réalisé qu'à condition d'édifier un vaste réseau planétaire, exécutant un programme informatique analysant la biosphère entière d'une planète. Cet ordinateur deviendrait par la force des choses le système cérébral d'un nouveau type de vie - un organisme planétaire unique, constitué d'êtres intelligents œuvrant dans l'intérêt de cette entité supérieure, celle-ci agissant d'une manière réciproque.
 
 GRO_GAIA_TRANS_SHORT_DESC
 Permet la Transformation Gaia
@@ -11709,10 +11859,10 @@ Tomographie Stellaire
 
 LRN_STELLAR_TOMOGRAPHY_DESC
 '''Augmente la [[metertype METER_TARGET_RESEARCH]] des planètes réglées sur le Focus Recherche, par [[metertype METER_POPULATION]] et selon le type d'étoile :
-* [[STAR_BLACK]] (x1)
-* [[STAR_NEUTRON]] (x0.75)
-* [[STAR_BLUE]] ou [[STAR_WHITE]] (x0.5)
-* [[STAR_YELLOW]], [[STAR_ORANGE]] ou [[STAR_RED]] (x0.2)
+* [[STAR_BLACK]] (x0.2)
+* [[STAR_NEUTRON]] (x0.15)
+* [[STAR_BLUE]] ou [[STAR_WHITE]] (x0.1)
+* [[STAR_YELLOW]], [[STAR_ORANGE]] ou [[STAR_RED]] (x0.05)
 
 Un réseau de satellites spécialisés peut utiliser des méthodes tomographiques pour cartographier et reconstituer les différentes activités se produisant dans les profondeurs d'une étoile. Ces conditions expérimentales, habituellement coûteuses à mettre en place, sont ici idéales pour une multitude de projets de recherche, les plus grands bénéfices scientifiques découlant de l'étude des types d'étoiles les plus exotiques.'''
 
@@ -11940,7 +12090,11 @@ Bombardement
 SHP_BOMBARD_DESC
 Permet le développement d'armes de bombardement planétaire.
 
-##Fighter explanation, needs improving and a Pedia article writing
+
+##
+## Fighter explanation, needs improving and a Pedia article writing
+##
+
 SHP_FIGHTERS_1
 Chasseurs et Rampes de Lancement
 
@@ -11949,25 +12103,28 @@ SHP_FIGHTERS_1_DESC
 
 Une <encyclopedia PC_FIGHTER_BAY>Rampe de Lancement</encyclopedia> peut faire décoller un nombre défini de chasseurs lors de chaque passe de combat. Ces chasseurs deviennent des cibles valides et peuvent attaquer les astronefs et chasseurs ennemis lors de chaque passe suivante de combat. Toutefois, un unique tir de n'importe quelle nature subi par un chasseur détruira ce dernier. Contrairement aux [[encyclopedia DAMAGE_TITLE]] qu'infligent les armements traditionnels, les dommages résultant d'un tir de chasseur ne sont pas minorés par les [[metertype METER_SHIELD]] d'astronef (les chasseurs faisant feu une fois à l'intérieur de la zone de protection d'un bouclier).
 
+L'attribut "Pilotes" affecte les chasseurs issus d'un [[shippart FT_HANGAR_2]], d'un [[shippart FT_HANGAR_3]], ou d'un [[shippart FT_HANGAR_4]]: "Mauvais Pilotes" réduit les dommages de 1 par chasseur; "Bons Pilotes" augmente les dommages de 1, "Excellents Pilotes" de 2, et "Parfaits Pilotes" de 3 par tir de chasseur.
+L'attribut "Pilotes" n'affecte pas les chasseurs provenant d'un [[shippart FT_HANGAR_1]].
+
 Au terme d'un combat, les astronefs transporteurs récupèreront automatiquement les chasseurs non-détruits. Si un transporteur est stationnaire dans une zone d'[[metertype METER_SUPPLY]], ses hangars seront rééquipés à leur capacité maximale.'''
 
 SHP_FIGHTERS_2
 Chasseurs Laser
 
 SHP_FIGHTERS_2_DESC
-Améliore les chasseurs de tous les transporteurs à portée d'[[metertype METER_SUPPLY]] en les dotant d'un armement Laser. Les [[encyclopedia DAMAGE_TITLE]] infligés par les chasseurs d'un [[shippart FT_HANGAR_1]] augmentent de 1, augmentent de 2 pour un [[shippart FT_HANGAR_2]] et de 3 pour un [[shippart FT_HANGAR_3]].
+Améliore les chasseurs de tous les transporteurs à portée d'[[metertype METER_SUPPLY]] en les dotant d'un armement Laser. Les [[encyclopedia DAMAGE_TITLE]] infligés par les chasseurs d'un [[shippart FT_HANGAR_2]] augmentent de 2, augmentent de 3 pour un [[shippart FT_HANGAR_3]] et de 6 pour un [[shippart FT_HANGAR_4]]. Pour les chasseurs d'un [[shippart FT_HANGAR_1]], la capacité ainsi que la cadence de lancement de la [[shippart FT_BAY_1]] augmentent de 1.
 
 SHP_FIGHTERS_3
 Chasseurs Plasma
 
 SHP_FIGHTERS_3_DESC
-Améliore les chasseurs de tous les transporteurs à portée d'[[metertype METER_SUPPLY]] en les dotant d'un armement Plasma. Les [[encyclopedia DAMAGE_TITLE]] infligés par les chasseurs d'un [[shippart FT_HANGAR_1]] augmentent de 1, augmentent de 3 pour un [[shippart FT_HANGAR_2]] et de 4 pour un [[shippart FT_HANGAR_3]].
+Améliore les chasseurs de tous les transporteurs à portée d'[[metertype METER_SUPPLY]] en les dotant d'un armement Plasma. Les [[encyclopedia DAMAGE_TITLE]] infligés par les chasseurs d'un [[shippart FT_HANGAR_2]] augmentent de 2, augmentent de 3 pour un [[shippart FT_HANGAR_3]] et de 6 pour un [[shippart FT_HANGAR_4]]. Pour les chasseurs d'un [[shippart FT_HANGAR_1]], la capacité ainsi que la cadence de lancement de la [[shippart FT_BAY_1]] augmentent de 1.
 
 SHP_FIGHTERS_4
 Chasseurs Gamma
 
 SHP_FIGHTERS_4_DESC
-Améliore les chasseurs de tous les transporteurs à portée d'[[metertype METER_SUPPLY]] en les dotant d'un armement Gamma. Les [[encyclopedia DAMAGE_TITLE]] infligés par les chasseurs d'un [[shippart FT_HANGAR_1]] augmentent de 1, augmentent de 5 pour un [[shippart FT_HANGAR_2]] et de 7 pour un [[shippart FT_HANGAR_3]].
+Améliore les chasseurs de tous les transporteurs à portée d'[[metertype METER_SUPPLY]] en les dotant d'un armement Gamma. Les [[encyclopedia DAMAGE_TITLE]] infligés par les chasseurs d'un [[shippart FT_HANGAR_2]] augmentent de 2, augmentent de 3 pour un [[shippart FT_HANGAR_3]] et de 6 pour un [[shippart FT_HANGAR_4]]. Pour les chasseurs d'un [[shippart FT_HANGAR_1]], la capacité ainsi que la cadence de lancement de la [[shippart FT_BAY_1]] augmentent de 1.
 
 SHP_WEAPON_1_2
 Canon Mitrailleur 2
@@ -12058,6 +12215,24 @@ Rayon Gamma 4
 
 SHP_WEAPON_4_4_DESC
 Améliore l'équipement [[shippart SR_WEAPON_4_1]] de tous les astronefs situés en zone d'[[metertype METER_SUPPLY]] (ou s'ils s'y rendent ultérieurement). Les [[encyclopedia DAMAGE_TITLE]] par tir sont de 30 une fois l'équipement amélioré.
+
+SHP_WEAPON_ARC_DISRUPTOR_1
+Perturbateurs Électro-Conducteurs
+
+SHP_WEAPON_ARC_DISRUPTOR_1_DESC
+Débloque l'équipement [[shippart SR_ARC_DISRUPTOR]], un système automatique d'armement infligeant de faibles dommages à de multiples cibles simultanément. Les [[encyclopedia DAMAGE_TITLE]] de l'équipement de base sont de 2 par tir.
+
+SHP_WEAPON_ARC_DISRUPTOR_2
+Perturbateurs Électro-Conducteurs 2
+
+SHP_WEAPON_ARC_DISRUPTOR_2_DESC
+Améliore l'équipement [[shippart SR_ARC_DISRUPTOR]] de tous les astronefs situés en zone d'[[metertype METER_SUPPLY]] (ou s'ils s'y rendent ultérieurement). Les [[encyclopedia DAMAGE_TITLE]] par tir sont de 4 une fois l'équipement amélioré.
+
+SHP_WEAPON_ARC_DISRUPTOR_3
+Perturbateurs Électro-Conducteurs 3
+
+SHP_WEAPON_ARC_DISRUPTOR_3_DESC
+Améliore l'équipement [[shippart SR_ARC_DISRUPTOR]] de tous les astronefs situés en zone d'[[metertype METER_SUPPLY]] (ou s'ils s'y rendent ultérieurement). Les [[encyclopedia DAMAGE_TITLE]] par tir sont de 7 une fois l'équipement amélioré.
 
 SHP_ION_CANNON
 Canon Ionique
@@ -12683,7 +12858,7 @@ BLD_INDUSTRY_CENTER
 Centre Industriel
 
 BLD_INDUSTRY_CENTER_DESC
-'''Augmente la [[metertype METER_TARGET_INDUSTRY]] de 0.2 par [[metertype METER_POPULATION]] sur toutes les planètes lui étant reliées par ligne d'[[metertype METER_SUPPLY]] et étant réglées sur le Focus Industrie.
+'''Augmente la [[metertype METER_TARGET_INDUSTRY]] de 0.05 par [[metertype METER_POPULATION]] sur toutes les planètes lui étant reliées par ligne d'[[metertype METER_SUPPLY]] et étant réglées sur le Focus Industrie.
 [[NO_STACK_SUPPLY_CONNECTION_TEXT]]
 
 L'amélioration [[tech PRO_INDUSTRY_CENTER_II]] double le bonus de base.
@@ -12751,7 +12926,7 @@ BLD_COLLECTIVE_NET
 Réseau de Pensée Collective
 
 BLD_COLLECTIVE_NET_DESC
-'''Augmente la [[metertype METER_TARGET_INDUSTRY]] de 0.5 par [[metertype METER_POPULATION]] sur toutes les planètes en Focus Industrie, et la [[metertype METER_TARGET_RESEARCH]] de 0.5 par [[metertype METER_POPULATION]] sur toutes les planètes en Focus Recherche. Tout voyage sur Voies spatiales dans un périmètre de 200 uu affaiblira l'efficacité de cette structure et supprimera tout bonus.
+'''Augmente la [[metertype METER_TARGET_INDUSTRY]] de 0.1 par [[metertype METER_POPULATION]] sur toutes les planètes en Focus Industrie, et la [[metertype METER_TARGET_RESEARCH]] de 0.1 par [[metertype METER_POPULATION]] sur toutes les planètes en Focus Recherche. Tout voyage sur Voies spatiales dans un périmètre de 200 uu affaiblira l'efficacité de cette structure et supprimera tout bonus.
 [[NO_STACK_SUPPLY_CONNECTION_TEXT]]
 
 En transférant l'esprit dans le cyberespace, des milliers d'esprits peuvent agir comme un seul, résolvant des problèmes et faisant des découvertes qui s'avéreraient hors de portée pour un unique esprit, aussi brillant soit-il.'''
@@ -12768,7 +12943,7 @@ BLD_ENCLAVE_VOID
 Enclave Du Vide
 
 BLD_ENCLAVE_VOID_DESC
-'''Augmente la [[metertype METER_TARGET_RESEARCH]] de 0.75 par [[metertype METER_POPULATION]] sur toutes les planètes en Focus Recherche.
+'''Augmente la [[metertype METER_TARGET_RESEARCH]] de 0.15 par [[metertype METER_POPULATION]] sur toutes les planètes en Focus Recherche.
 Les bonus de plusieurs exemplaires ne s'additionnent pas.
 
 La population entière d'une planète est modifiée génétiquement afin de l'harmoniser avec l'Esprit du Vide, et ainsi diffuser sa sagesse dans tout l'empire. Les habitants de l'Enclave du Vide sont considérés comme des prêtres, prophètes d'une pensée supérieure et d'un savoir suprême. Dans tous les domaines de grande importance pour la bonne marche de l'empire, leurs conseils et avis s'avèrent d'une grande valeur. Des émissaires de l'Enclave peuvent donc prendre part à tout projet impérial de Recherche et apporter ainsi une aide précieuse.'''
@@ -12789,7 +12964,7 @@ BLD_HYPER_DAM
 Barrage Hyperspatial
 
 BLD_HYPER_DAM_DESC
-'''Pour les planètes non-reliées à un [[buildingtype BLD_BLACK_HOLE_POW_GEN]], augmente la [[metertype METER_TARGET_INDUSTRY]] de 1 par [[metertype METER_POPULATION]] sur toutes les planètes reliées par lignes d'[[metertype METER_SUPPLY]] et réglées sur le Focus Industrie, mais diminue la [[metertype METER_TARGET_POPULATION]] de ces planètes selon leur taille : ([[SZ_TINY]] -1) ([[SZ_SMALL]] -2) ([[SZ_MEDIUM]] -3) ([[SZ_LARGE]] -4) ([[SZ_HUGE]] -5).
+'''Pour les planètes non-reliées à un [[buildingtype BLD_BLACK_HOLE_POW_GEN]], augmente la [[metertype METER_TARGET_INDUSTRY]] de 0.2 par [[metertype METER_POPULATION]] sur toutes les planètes reliées par lignes d'[[metertype METER_SUPPLY]] et réglées sur le Focus Industrie, mais diminue la [[metertype METER_TARGET_POPULATION]] de ces planètes selon leur taille : ([[SZ_TINY]] -1) ([[SZ_SMALL]] -2) ([[SZ_MEDIUM]] -3) ([[SZ_LARGE]] -4) ([[SZ_HUGE]] -5).
 [[NO_STACK_SUPPLY_CONNECTION_TEXT]]
 
 Une déchirure dans le tissu de l'univers, contrôlée et manipulée en toute sécurité. Chaque planète peut construire son propre barrage hyperspatial, mais un seul centre de contrôle est requis pour s'assurer que le continuum de l'espace-temps n'est pas endommagé. Par contre, toutes les planètes ayant recours à un barrage hyperspatial voient leur population souffrir de différents problèmes de santé, à moins que les planètes en question n'orbitent autour d'un [[STAR_BLACK]].
@@ -12807,9 +12982,9 @@ Générateur Orbital Solaire
 
 BLD_SOL_ORB_GEN_DESC
 '''Augmente la [[metertype METER_TARGET_INDUSTRY]] sur toutes les planètes lui étant reliées par ligne d'[[metertype METER_SUPPLY]], par [[metertype METER_POPULATION]] et selon le type d'étoile :
-* [[STAR_BLUE]] ou [[STAR_WHITE]] (x0.4)
-* [[STAR_YELLOW]] ou [[STAR_ORANGE]] (x0.2)
-* [[STAR_RED]] (x0.1)
+* [[STAR_BLUE]] ou [[STAR_WHITE]] (x0.15)
+* [[STAR_YELLOW]] ou [[STAR_ORANGE]] (x0.1)
+* [[STAR_RED]] (x0.05)
 [[NO_STACK_SUPPLY_CONNECTION_TEXT]] Le meilleur bonus s'applique.
 
 Un puissant générateur situé en orbite stellaire basse, conçu pour puiser directement l'énergie d'une étoile. Étant donné que différents types d'étoiles produisent différentes quantités d'énergie, le bonus industriel à l'échelle du système est tributaire du type d'étoile. [[BUILDING_AVAILABLE_ON_OUTPOSTS]].'''
@@ -12890,7 +13065,7 @@ BLD_BLACK_HOLE_POW_GEN
 Générateur de Singularité
 
 BLD_BLACK_HOLE_POW_GEN_DESC
-'''Augmente la [[metertype METER_TARGET_INDUSTRY]] de 1 par [[metertype METER_POPULATION]] sur toutes les planètes lui étant reliées par ligne d'[[metertype METER_SUPPLY]] et étant réglées sur le Focus Industrie.
+'''Augmente la [[metertype METER_TARGET_INDUSTRY]] de 0.2 par [[metertype METER_POPULATION]] sur toutes les planètes lui étant reliées par ligne d'[[metertype METER_SUPPLY]] et étant réglées sur le Focus Industrie.
 [[NO_STACK_SUPPLY_CONNECTION_TEXT]]
 
 [[BUILDING_AVAILABLE_ON_OUTPOSTS]], mais doit se trouver dans un système abritant un [[STAR_BLACK]].'''
@@ -12979,7 +13154,7 @@ BLD_GAS_GIANT_GEN
 Convertisseur de Géante Gazeuse
 
 BLD_GAS_GIANT_GEN_DESC
-'''Cette structure ne peut être construite que sur une [[PT_GASGIANT]] et augmente de 10 la [[metertype METER_TARGET_INDUSTRY]] sur les planètes du même système réglées sur le Focus Industrie. Si le [[BLD_GAS_GIANT_GEN]] est construit sur une [[PT_GASGIANT]] inhabitée, le bonus de [[metertype METER_TARGET_INDUSTRY]] n'est que de 5.
+'''Cette structure ne peut être construite que sur une [[PT_GASGIANT]] et augmente de 5 la [[metertype METER_TARGET_INDUSTRY]] sur les planètes du même système réglées sur le Focus Industrie. Si le [[BLD_GAS_GIANT_GEN]] est construit sur une [[PT_GASGIANT]] inhabitée, le bonus de [[metertype METER_TARGET_INDUSTRY]] n'est que de 3.
 Les bonus de plusieurs exemplaires dans le même système ne s'additionnent pas.
 
 Un puissant générateur conçu pour puiser l'énergie des Géantes Gazeuses.'''
@@ -13218,6 +13393,7 @@ Colonie Super-Testeurs
 BLD_COL_SUPER_TEST_DESC
 [[BLD_COL_PART_1]] colonie Super-Testeurs. [[BLD_COL_PART_2]] colonie Super-Testeurs [[BLD_COL_PART_3]].
 
+
 ##
 ## Hull and ship part description templates
 ##
@@ -13278,7 +13454,7 @@ FT_BAY_1
 Rampe de Lancement
 
 FT_BAY_1_DESC
-Système de lancement pour chasseurs.
+Système de lancement pour chasseurs. Lancement plus rapide des [[FT_HANGAR_1_FIGHTER]]s: peut lancer simultanément tous les chasseurs d'un [[shippart FT_HANGAR_1]].
 
 FT_HANGAR_0
 Hangar Leurre
@@ -13296,16 +13472,16 @@ FT_HANGAR_1_FIGHTER
 Intercepteur
 
 FT_HANGAR_1_DESC
-Système de stockage pour chasseurs faiblement armés.
+Système de stockage pour chasseurs faiblement armés. Peut seulement attaquer les chasseurs ennemis. Lancement plus rapide: une [[shippart FT_BAY_1]] peut lancer simultanément tous les chasseurs d'un [[shippart FT_HANGAR_1]].
 
 FT_HANGAR_2
-Hangar Chasseur
+Hangar Chasseur d'Attaque
 
 FT_HANGAR_2_FIGHTER
-Chasseur
+Chasseur d'Attaque
 
 FT_HANGAR_2_DESC
-Système de stockage pour chasseurs moyennement armés.
+Système de stockage pour chasseurs moyennement armés. Peut attaquer les astronefs et chasseurs ennemis.
 
 FT_HANGAR_3
 Hangar Bombardier
@@ -13314,7 +13490,7 @@ FT_HANGAR_3_FIGHTER
 Bombardier
 
 FT_HANGAR_3_DESC
-Système de stockage pour chasseurs correctement armés.
+Système de stockage pour chasseurs correctement armés. Peut seulement attaquer les astronefs ennemis.
 
 FT_HANGAR_4
 Hangar Bombardier Lourd
@@ -13323,7 +13499,7 @@ FT_HANGAR_4_FIGHTER
 Bombardier Lourd
 
 FT_HANGAR_4_DESC
-Système de stockage pour chasseurs lourdement armés.
+Système de stockage pour chasseurs lourdement armés. Peut attaquer les astonefs ennemis ainsi que les planètes.
 
 FT_HANGAR_KRILL
 Essaim Krill
@@ -13349,47 +13525,59 @@ SR_WEAPON_1_1
 Canon Mitrailleur
 
 SR_WEAPON_1_1_DESC
-'''Le Canon Mitrailleur, une arme de base.
+'''Le Canon Mitrailleur, une arme de base. Attaque astronefs et planètes.
 
 Améliorer la technologie de cet armement augmentera la valeur des dommages par tir.
 
-Les [[encyclopedia DAMAGE_TITLE]] d'un armement combinent la valeur des dommages par tir et celle de tout modificateur actif. Chaque Canon Mitrailleur monté sur un astronef construit par une espèce présentant l'attribut "Pilotes", infligera des dommages additionnels de 1 par rang de Pilotes (-1 pour "Mauvais Pilotes").'''
+Les [[encyclopedia DAMAGE_TITLE]] de cet armement combinent la valeur des dommages par tir et celle de tout modificateur actif. Chaque Canon Mitrailleur monté sur un astronef construit par une espèce présentant l'attribut "Pilotes", infligera des dommages additionnels de 1 par rang de Pilotes (-1 pour "Mauvais Pilotes").'''
 
 SR_WEAPON_2_1
 Canon Laser
 
 SR_WEAPON_2_1_DESC
-'''Le Canon Laser, un armement d'astronef plus puissant que le Canon Mitrailleur.
+'''Le Canon Laser, un armement d'astronef plus puissant que le Canon Mitrailleur. Attaque astronefs et planètes.
 
 Améliorer la technologie de cet armement augmentera la valeur des dommages par tir.
 
-Les [[encyclopedia DAMAGE_TITLE]] d'un armement combinent la valeur des dommages par tir et celle de tout modificateur actif. Chaque Canon Laser monté sur un astronef construit par une espèce présentant l'attribut "Pilotes", infligera des dommages additionnels de 2 par rang de Pilotes (-2 pour "Mauvais Pilotes"). Les dommages du Canon Laser peuvent également être améliorés sur les astronefs dotés d'une [[shiphull SH_ORGANIC]] couplée à un [[shippart SP_SOLAR_CONCENTRATOR]].'''
+Les [[encyclopedia DAMAGE_TITLE]] de cet armement combinent la valeur des dommages par tir et celle de tout modificateur actif. Chaque Canon Laser monté sur un astronef construit par une espèce présentant l'attribut "Pilotes", infligera des dommages additionnels de 2 par rang de Pilotes (-2 pour "Mauvais Pilotes"). Les dommages du Canon Laser peuvent également être améliorés sur les astronefs dotés d'une [[shiphull SH_ORGANIC]] couplée à un [[shippart SP_SOLAR_CONCENTRATOR]].'''
 
 SR_WEAPON_3_1
 Canon Plasma
 
 SR_WEAPON_3_1_DESC
-'''Le Canon Plasma, un armement d'astronef plus puissant que le Canon Laser.
+'''Le Canon Plasma, un armement d'astronef plus puissant que le Canon Laser. Attaque astronefs et planètes.
 
 Améliorer la technologie de cet armement augmentera la valeur des dommages par tir.
 
-Les [[encyclopedia DAMAGE_TITLE]] d'un armement combinent la valeur des dommages par tir et celle de tout modificateur actif. Chaque Canon Plasma monté sur un astronef construit par une espèce présentant l'attribut "Pilotes", infligera des dommages additionnels de 3 par rang de Pilotes (-3 pour "Mauvais Pilotes").'''
+Les [[encyclopedia DAMAGE_TITLE]] de cet armement combinent la valeur des dommages par tir et celle de tout modificateur actif. Chaque Canon Plasma monté sur un astronef construit par une espèce présentant l'attribut "Pilotes", infligera des dommages additionnels de 3 par rang de Pilotes (-3 pour "Mauvais Pilotes").'''
 
 SR_WEAPON_4_1
 Rayon Gamma
 
 SR_WEAPON_4_1_DESC
-'''Le Rayon Gamma, un armement d'astronef plus puissant que le Canon Plasma.
+'''Le Rayon Gamma, un armement d'astronef plus puissant que le Canon Plasma. Attaque astronefs et planètes.
 
 Améliorer la technologie de cet armement augmentera la valeur des dommages par tir.
 
-Les [[encyclopedia DAMAGE_TITLE]] d'un armement combinent la valeur des dommages par tir et celle de tout modificateur actif. Chaque Rayon Gamma monté sur un astronef construit par une espèce présentant l'attribut "Pilotes", infligera des dommages additionnels de 5 par rang de Pilotes (-5 pour "Mauvais Pilotes").'''
+Les [[encyclopedia DAMAGE_TITLE]] de cet armement combinent la valeur des dommages par tir et celle de tout modificateur actif. Chaque Rayon Gamma monté sur un astronef construit par une espèce présentant l'attribut "Pilotes", infligera des dommages additionnels de 5 par rang de Pilotes (-5 pour "Mauvais Pilotes").'''
+
+SR_ARC_DISRUPTOR
+Perturbateur Électro-Conducteur
+
+SR_ARC_DISRUPTOR_DESC
+'''Le Perturbateur Électro-Conducteur, un armement d'astronef multi-tir proposant des options avantageuses de recherche à long terme.
+
+Des condensateurs de polaron chargés génèrent une perturbation moléculaire sous forme d'ondes se propageant à travers l'espace et frappant plusieurs astronefs avant de se disperser. Le flux perturbateur peut être fortement dévié par les boucliers d'astronef.
+
+Améliorer la technologie de cet armement augmentera la valeur des dommages par tir.
+
+Les [[encyclopedia DAMAGE_TITLE]] de cet armement combinent la valeur des dommages par tir et celle de tout modificateur actif. Les attributs "Pilotes" n'affectent pas les dommages de cet armement.'''
 
 SR_SPINAL_ANTIMATTER
 Canon Anti-Matière
 
 SR_SPINAL_ANTIMATTER_DESC
-Un gigantesque canon automatique propulsant de lourdes charges explosives faites d'anti-matière.
+Un gigantesque canon automatique propulsant de lourdes charges explosives faites d'anti-matière. Attaque astronefs et planètes.
 
 SR_JAWS
 Mâchoires
@@ -14540,17 +14728,16 @@ BLD_COL_PART_3
 appartenant à l'empire, et augmentera proportionnellement à son éloignement; ce délai sera réduit si l'empire recherche des technologies permettant la production d'astronefs colonisateurs plus rapides, grâce à des équipements de motorisation plus performants et des coques d'astronefs de qualité supérieure
 
 
-# Macro keys formatting for ship designs, hulls or parts:
-# BLD_SHIPYARD_TYPE1_TYPE2_REQUIRED (required building type(s) owned by
-#                                    empire only in the same system)
-# ANY_SYSTEM (building owned in any system by empire or ally)
-# Any other key formatting is self-explanatory (e.g. LIVING_HULL_AUTO_REGEN)
-
 ##
 ## Ship design/hull macros
 ##
-
-# Keys used in Predefined Ship Designs and Ship Hulls sections
+## Macro keys formatting for ship designs, hulls or parts:
+## BLD_SHIPYARD_TYPE1_TYPE2_REQUIRED (required building type(s) owned by
+##                                    empire only in the same system)
+## ANY_SYSTEM (building owned in any system by empire or ally)
+## Any other key formatting is self-explanatory (e.g. LIVING_HULL_AUTO_REGEN)
+## Keys used in Predefined Ship Designs and Ship Hulls sections
+##
 
 BLD_SHIPYARD_BASE_REQUIRED
 Ne peut être construit qu'en un lieu disposant d'un [[buildingtype BLD_SHIPYARD_BASE]].
@@ -14594,7 +14781,10 @@ Ne peut être construit qu'en un lieu disposant d'un [[buildingtype BLD_SHIPYARD
 BLD_SHIPYARD_BASE_ORG_ORB_INC_ORG_XENO_FAC_ORG_CELL_GRO_CHAMB_REQUIRED
 Ne peut être construit qu'en un lieu disposant d'un [[buildingtype BLD_SHIPYARD_BASE]], d'un [[buildingtype BLD_SHIPYARD_ORG_ORB_INC]], d'une [[buildingtype BLD_SHIPYARD_ORG_XENO_FAC]], et d'une [[buildingtype BLD_SHIPYARD_ORG_CELL_GRO_CHAMB]].
 
-# Other than Requirements
+
+##
+## Other than Requirements
+##
 
 SHIPDESIGN_DETECTION_RESEARCH_TIPS
 La [[metertype METER_RESEARCH]] visant à améliorer le [[metertype METER_DETECTION]] permettra la conception de meilleurs modèles.
@@ -14621,8 +14811,8 @@ SHIPDESIGN_PLANET_INVASION
 ##
 ## Ship part/tech application macros
 ##
-
-# Keys used in Ship Parts and Technology Application sections
+## Keys used in Ship Parts and Technology Application sections
+##
 
 BLD_SHIPYARD_ORG_XENO_FAC_ORG_CELL_GRO_CHAMB_REQUIRED_ANY_SYSTEM
 Cet équipement ne peut être produit que si l'empire ou un empire allié dispose d'une [[buildingtype BLD_SHIPYARD_ORG_XENO_FAC]] et d'une [[buildingtype BLD_SHIPYARD_ORG_CELL_GRO_CHAMB]].
@@ -14732,6 +14922,9 @@ Planète <i>%1%</i> [[TT_SPECIAL]]
 NO_INDUSTRY_DESC
 −−−	Pas d'[[metertype METER_INDUSTRY]]
 
+VERY_BAD_INDUSTRY_DESC
+−−	Très Mauvais en [[metertype METER_INDUSTRY]]: 50%
+
 BAD_INDUSTRY_DESC
 −	Mauvais en [[metertype METER_INDUSTRY]] : 75%
 
@@ -14749,6 +14942,9 @@ ULTIMATE_INDUSTRY_DESC
 
 NO_RESEARCH_DESC
 −−−	Pas de [[metertype METER_RESEARCH]]
+
+VERY_BAD_RESEARCH_DESC
+−−	Très Mauvais en [[metertype METER_RESEARCH]]: 50%
 
 BAD_RESEARCH_DESC
 −	Mauvais en [[metertype METER_RESEARCH]] : 75%
@@ -15028,6 +15224,11 @@ FOCUS_INDUSTRY_LABEL
 
 # %1% FIXME
 # %2% FIXME
+VERY_BAD_INDUSTRY_LABEL
+%2% Très Mauvais en Industrie
+
+# %1% FIXME
+# %2% FIXME
 BAD_INDUSTRY_LABEL
 %2% Mauvais en Industrie
 
@@ -15050,6 +15251,11 @@ ULTIMATE_INDUSTRY_LABEL
 # %2% FIXME
 FOCUS_RESEARCH_LABEL
 %2% Focus Recherche
+
+# %1% FIXME
+# %2% FIXME
+VERY_BAD_RESEARCH_LABEL
+%2% Très Mauvais en Recherche
 
 # %1% FIXME
 # %2% FIXME
@@ -15539,7 +15745,6 @@ Modèle Invalide
 ##
 ## AI diplomacy strings and lists
 ##
-
 
 # Newline separated list of polite alliance proposal acknowlegements.
 AI_ALLIANCE_PROPOSAL_ACKNOWLEDGEMENTS_MILD_LIST

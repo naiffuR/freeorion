@@ -4,11 +4,12 @@
 #include "../network/Message.h"
 
 #include <boost/asio.hpp>
-#include <boost/function.hpp>
 #include <boost/iterator/filter_iterator.hpp>
 #include <boost/signals2/signal.hpp>
 #include <boost/functional/hash.hpp>
+#include <boost/optional.hpp>
 
+#include <functional>
 #include <memory>
 #include <queue>
 #include <set>
@@ -18,9 +19,9 @@ class DiscoveryServer;
 class PlayerConnection;
 
 typedef std::shared_ptr<PlayerConnection> PlayerConnectionPtr;
-typedef boost::function<void (Message, PlayerConnectionPtr)> MessageAndConnectionFn;
-typedef boost::function<void (PlayerConnectionPtr)> ConnectionFn;
-typedef boost::function<void ()> NullaryFn;
+typedef std::function<void (Message, PlayerConnectionPtr)> MessageAndConnectionFn;
+typedef std::function<void (PlayerConnectionPtr)> ConnectionFn;
+typedef std::function<void ()> NullaryFn;
 
 /** Data associated with cookie */
 struct CookieData {
@@ -322,7 +323,7 @@ private:
     static void AsyncErrorHandler(PlayerConnectionPtr self, boost::system::error_code handled_error, boost::system::error_code error);
 
     boost::asio::io_context&        m_service;
-    boost::asio::ip::tcp::socket    m_socket;
+    boost::optional<boost::asio::ip::tcp::socket> m_socket;
     Message::HeaderBuffer           m_incoming_header_buffer;
     Message                         m_incoming_message;
     Message::HeaderBuffer           m_outgoing_header;

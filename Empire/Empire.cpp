@@ -6,15 +6,20 @@
 #include "../util/AppInterface.h"
 #include "../util/SitRepEntry.h"
 #include "../universe/Building.h"
+#include "../universe/BuildingType.h"
 #include "../universe/Fleet.h"
 #include "../universe/Ship.h"
 #include "../universe/ShipDesign.h"
+#include "../universe/ShipHull.h"
+#include "../universe/ShipPart.h"
 #include "../universe/Planet.h"
 #include "../universe/System.h"
 #include "../universe/Tech.h"
 #include "../universe/UniverseObject.h"
+#include "../universe/UnlockableItem.h"
 #include "EmpireManager.h"
 #include "Supply.h"
+#include "Government.h"
 
 #include <unordered_set>
 
@@ -22,9 +27,32 @@
 namespace {
     const float EPSILON = 0.01f;
     const std::string EMPTY_STRING;
+    const int INVALID_SLOT_INDEX = -1;
+
+    std::vector<std::pair<std::string, std::string>> PolicyCategoriesSlotsMeters() {
+        std::vector<std::pair<std::string, std::string>> retval;
+
+        // derive meters from PolicyManager parsed policies' categories
+        for (const auto cat : GetPolicyManager().PolicyCategories())
+            retval.push_back({cat, cat + "_NUM_POLICY_SLOTS"});
+        return retval;
+    }
 
     DeclareThreadSafeLogger(supply);
 }
+
+////////////////////////////////
+// Empire::PolicyAdoptionInfo //
+////////////////////////////////
+Empire::PolicyAdoptionInfo::PolicyAdoptionInfo() :
+    PolicyAdoptionInfo(INVALID_GAME_TURN, EMPTY_STRING, INVALID_SLOT_INDEX)
+{}
+
+Empire::PolicyAdoptionInfo::PolicyAdoptionInfo(int turn, const std::string& cat, int slot) :
+    adoption_turn(turn),
+    category(cat),
+    slot_in_category(slot)
+{}
 
 
 ////////////
@@ -33,7 +61,8 @@ namespace {
 Empire::Empire() :
     m_authenticated(false),
     m_research_queue(m_id),
-    m_production_queue(m_id)
+    m_production_queue(m_id),
+    m_influence_queue(m_id)
 { Init(); }
 
 Empire::Empire(const std::string& name, const std::string& player_name,
@@ -44,7 +73,8 @@ Empire::Empire(const std::string& name, const std::string& player_name,
     m_authenticated(authenticated),
     m_color(color),
     m_research_queue(m_id),
-    m_production_queue(m_id)
+    m_production_queue(m_id),
+    m_influence_queue(m_id)
 {
     DebugLogger() << "Empire::Empire(" << name << ", " << player_name << ", " << empire_id << ", colour)";
     Init();
@@ -53,14 +83,16 @@ Empire::Empire(const std::string& name, const std::string& player_name,
 void Empire::Init() {
     m_resource_pools[RE_RESEARCH] = std::make_shared<ResourcePool>(RE_RESEARCH);
     m_resource_pools[RE_INDUSTRY] = std::make_shared<ResourcePool>(RE_INDUSTRY);
-    m_resource_pools[RE_TRADE] = std::make_shared<ResourcePool>(RE_TRADE);
+    m_resource_pools[RE_INFLUENCE]= std::make_shared<ResourcePool>(RE_INFLUENCE);
 
     m_eliminated = false;
 
     m_meters[UserStringNop("METER_DETECTION_STRENGTH")];
-    m_meters[UserStringNop("METER_BUILDING_COST_FACTOR")];
-    m_meters[UserStringNop("METER_SHIP_COST_FACTOR")];
-    m_meters[UserStringNop("METER_TECH_COST_FACTOR")];
+    //m_meters[UserStringNop("METER_BUILDING_COST_FACTOR")];
+    //m_meters[UserStringNop("METER_SHIP_COST_FACTOR")];
+    //m_meters[UserStringNop("METER_TECH_COST_FACTOR")];
+    for (auto entry : PolicyCategoriesSlotsMeters())
+        m_meters[entry.second];
 }
 
 Empire::~Empire()
@@ -145,6 +177,290 @@ void Empire::SetCapitalID(int id) {
     auto possible_source = Objects().get(id);
     if (possible_source && possible_source->OwnedBy(m_id))
         m_source_id = id;
+}
+
+void Empire::AdoptPolicy(const std::string& name, const std::string& category,
+                         bool adopt, int slot)
+{   // todo: add error message if passed empty policy name or category
+    if (name.empty()) {
+        ErrorLogger() << "Empire::AdoptPolicy given empty policy name";
+        return;
+    }
+
+    if (!adopt) {
+        // revoke policy
+        if (m_adopted_policies.count(name))
+            m_adopted_policies.erase(name);
+        return;
+    }
+
+    // check that policy is available
+    if (!m_available_policies.count(name)) {
+        DebugLogger() << "Policy name: " << name << "  not available to empire with id: " << m_id;
+        return;
+    }
+
+    // does policy exist?
+    const auto policy = GetPolicy(name);
+    if (!policy) {
+        ErrorLogger() << "Empire::AdoptPolicy can't find policy with name: " << name;
+        return;
+    }
+
+    // is category appropriate?
+    if (!policy->Category().empty() && policy->Category() != category) {
+        ErrorLogger() << "Empire::AdoptPolicy asked to handle policy " << name << " in category " << category
+                      << " but that policy has category " << policy->Category();
+        return;
+    }
+
+    // check that empire has sufficient influence to adopt policy, after
+    // also adopting any other policies that were first adopted this turn
+    // add up all other policy adoption costs for this turn
+    double other_this_turn_adopted_policies_cost = 0.0;
+    for (const auto& policy_entry : m_adopted_policies) {
+        if (policy_entry.second.adoption_turn != CurrentTurn())
+            continue;
+        auto pre_adptd_policy = GetPolicy(policy_entry.first);
+        if (!pre_adptd_policy) {
+            ErrorLogger() << "Empire::AdoptPolicy couldn't find policy named " << policy_entry.first << " that was supposedly already adopted this turn (" << CurrentTurn() << ")";
+            continue;
+        }
+        DebugLogger() << "Empire::AdoptPolicy : Already adopted policy this turn: " << policy_entry.first << " with cost " << pre_adptd_policy->AdoptionCost(m_id);
+        other_this_turn_adopted_policies_cost += pre_adptd_policy->AdoptionCost(m_id);
+    }
+    DebugLogger() << "Empire::AdoptPolicy : Combined already adopted policies this turn cost " << other_this_turn_adopted_policies_cost;
+
+    // if policy not already adopted at start of this turn, it costs its adoption cost to adopt on this turn
+    // if it was adopted at the start of this turn, it doens't cost anything to re-adopt this turn.
+    double adoption_cost = 0.0;
+    if (m_initial_adopted_policies.find(name) == m_initial_adopted_policies.end())
+        adoption_cost = policy->AdoptionCost(m_id);
+    double total_this_turn_policy_adoption_cost = adoption_cost + other_this_turn_adopted_policies_cost;
+    double available_ip = ResourceStockpile(RE_INFLUENCE);
+    DebugLogger() << "Empire::AdoptPolicy : Want to adopt policy " << name << " with cost to (re)adopt this turn " << adoption_cost
+                  << " and total this-turn adoption cost " << total_this_turn_policy_adoption_cost
+                  << " and have " << available_ip << " IP available";
+
+    if (available_ip < total_this_turn_policy_adoption_cost) {
+        ErrorLogger() << "Empire::AdoptPolicy insufficient ip: " << available_ip << " / " << total_this_turn_policy_adoption_cost << " to adopt additional policy this turn";
+        return;
+    }
+    DebugLogger() << "Empire::AdoptPolicy sufficient IP: " << available_ip << " / " << total_this_turn_policy_adoption_cost << " to adopt additional policy this turn";
+
+    // check that policy is not already adopted
+    if (m_adopted_policies.count(name)) {
+        ErrorLogger() << "Empire::AdoptPolicy policy " << name << "  already adopted in category "
+                      << m_adopted_policies[name].category << "  in slot "
+                      << m_adopted_policies[name].slot_in_category << "  on turn "
+                      << m_adopted_policies[name].adoption_turn;
+        return;
+    }
+
+    // get slots for category requested for policy to be adopted in
+    auto total_slots = TotalPolicySlots();
+    auto total_slots_in_category = total_slots[category];
+    if (total_slots_in_category < 1 || slot >= total_slots_in_category) {
+        ErrorLogger() << "Empire::AdoptPolicy can't adopt policy: " << name
+                      << "  into category: " << category << "  in slot: " << slot
+                      << " because category has only " << total_slots_in_category
+                      << " slots total";
+        return;
+    }
+
+    // collect already-adopted policies in category
+    std::map<int, std::string> adopted_policies_in_category_map;
+    for (const auto& policy_entry : m_adopted_policies) {
+        if (policy_entry.second.category != category)
+            continue;
+        if (policy_entry.second.slot_in_category >= total_slots_in_category) {
+            ErrorLogger() << "Empire::AdoptPolicy found adopted policy: "
+                          << policy_entry.first << "  in category: " << category
+                          << "  in slot: " << policy_entry.second.slot_in_category
+                          << "  which is higher than max slot in category: "
+                          << (total_slots_in_category - 1);
+        }
+        if (slot != INVALID_SLOT_INDEX && policy_entry.second.slot_in_category == slot) {
+            ErrorLogger() << "Empire::AdoptPolicy found adopted policy: "
+                          << policy_entry.first << "  in category: " << category
+                          << "  in slot: " << slot
+                          << "  so cannot adopt another policy in that slot";
+            return;
+        }
+
+        adopted_policies_in_category_map[policy_entry.second.slot_in_category] = policy_entry.first;
+    }
+    // convert to vector;
+    std::vector<std::string> adopted_policies_in_category;
+
+    // if no particular slot was specified, try to find a suitable slot in category
+    if (slot == INVALID_SLOT_INDEX) {
+        // search for any suitable empty slot
+        for (int i = adopted_policies_in_category.size();
+             i < static_cast<int>(adopted_policies_in_category.size());
+             ++i)
+        {
+            if (adopted_policies_in_category[i].empty()) {
+                slot = i;
+                break;
+            }
+        }
+
+        if (slot == INVALID_SLOT_INDEX) {
+            ErrorLogger() << "Couldn't find empty slot for policy in category: " << category;
+            return;
+        }
+    }
+
+    // adopt policy in requested category on this turn, unless it was already
+    // adopted at the start of this turn, in which case restore / keep its
+    // previous adtoption turn
+    int adoption_turn = CurrentTurn();
+    auto it = m_initial_adopted_policies.find(name);
+    if (it != m_initial_adopted_policies.end())
+        adoption_turn = it->second.adoption_turn;
+    m_adopted_policies[name] = {adoption_turn, category, slot};
+
+    DebugLogger() << "Empire::AdoptPolicy policy " << name << "  adopted in category "
+                  << m_adopted_policies[name].category << "  in slot "
+                  << m_adopted_policies[name].slot_in_category << "  on turn "
+                  << m_adopted_policies[name].adoption_turn;
+}
+
+void Empire::UpdatePolicies() {
+    // remove any unrecognized policies and uncategorized policies
+    auto policies_temp = m_adopted_policies;
+    for (auto policy_pair : policies_temp) {
+        const auto* policy = GetPolicy(policy_pair.first);
+        if (!policy) {
+            ErrorLogger() << "UpdatePolicies couldn't find policy with name: " << policy_pair.first;
+            m_adopted_policies.erase(policy_pair.first);
+            continue;
+        }
+
+        if (policy_pair.second.category.empty()) {
+            ErrorLogger() << "UpdatePolicies found policy " << policy_pair.first << " in empty category?";
+            m_adopted_policies.erase(policy_pair.first);
+        }
+    }
+
+    // check that there are enough slots for adopted policies in their current slots
+    std::map<std::string, int> total_category_slot_counts = TotalPolicySlots(); // how many slots in each category
+    std::set<std::string> categories_needing_rearrangement;                     // which categories have a problem
+    std::map<std::string, std::map<int, int>> category_slot_policy_counts;      // how many policies in each slot of each category
+    for (auto policy_pair : m_adopted_policies) {
+        const auto& cat = policy_pair.second.category;
+        const auto& slot = policy_pair.second.slot_in_category;
+        const auto& slot_count = category_slot_policy_counts[cat][slot]++;
+        if (slot_count > 1 || policy_pair.second.slot_in_category >= total_category_slot_counts[cat])
+        { categories_needing_rearrangement.insert(cat); }
+    }
+
+    // if a category has too many policies or a slot number conflict, rearrange it
+    // and remove the excess policies
+    for (const auto& cat : categories_needing_rearrangement) {
+        policies_temp = m_adopted_policies;
+
+        // all adopted policies in this category, sorted by slot and adoption turn (lower first)
+        std::multimap<std::pair<int, int>, std::string> slots_turns_policies;
+        for (auto policy_pair : policies_temp) {
+            if (policy_pair.second.category != cat)
+                continue;
+            auto slot = policy_pair.second.slot_in_category;
+            auto turn = policy_pair.second.adoption_turn;
+            slots_turns_policies.insert(std::make_pair(std::make_pair(slot, turn), policy_pair.first));
+            m_adopted_policies.erase(policy_pair.first);    // remove everything from adopted policies in this category...
+        }
+        // re-add in category up to limit, ordered priority by original slot and adoption turn
+        int added = 0;
+        for (auto slot_turn_policy_pair : slots_turns_policies) {
+            if (added >= total_category_slot_counts[cat])
+                break;  // can't add more...
+            m_adopted_policies[slot_turn_policy_pair.second] = {
+                slot_turn_policy_pair.first.second, cat, slot_turn_policy_pair.first.first};
+        }
+    }
+
+    // update counters of how many turns each policy has been adopted
+    for (auto policy_pair : m_adopted_policies)
+        m_policy_adoption_total_duration[policy_pair.first]++;  // assumes default initialization to 0
+
+    // update initial adopted policies for next turn
+    m_initial_adopted_policies = m_adopted_policies;
+}
+
+bool Empire::PolicyAdopted(const std::string& name) const
+{ return m_adopted_policies.count(name); }
+
+int Empire::TurnPolicyAdopted(const std::string& name) const {
+    if (!PolicyAdopted(name))
+        return INVALID_GAME_TURN;
+    auto it = m_adopted_policies.find(name);
+    return it->second.adoption_turn;
+}
+
+int Empire::SlotPolicyAdoptedIn(const std::string& name) const {
+    if (!PolicyAdopted(name))
+        return INVALID_SLOT_INDEX;
+    auto it = m_adopted_policies.find(name);
+    return it->second.slot_in_category;
+}
+
+std::vector<std::string> Empire::AdoptedPolicies() const {
+    std::vector<std::string> retval;
+    retval.reserve(m_adopted_policies.size());
+    for (const auto& entry : m_adopted_policies)
+        retval.push_back(entry.first);
+    return retval;
+}
+
+std::map<std::string, std::map<int, std::string>>
+Empire::CategoriesSlotsPoliciesAdopted() const {
+    std::map<std::string, std::map<int, std::string>> retval;
+    for (const auto& entry : m_adopted_policies)
+        retval[entry.second.category][entry.second.slot_in_category] = entry.first;
+    return retval;
+}
+
+std::map<std::string, int> Empire::TurnsPoliciesAdopted() const {
+    std::map<std::string, int> retval;
+    for (const auto& entry : m_adopted_policies)
+        retval.emplace_hint(retval.end(), entry.first, entry.second.adoption_turn);
+    return retval;
+}
+
+const std::set<std::string>& Empire::AvailablePolicies() const
+{ return m_available_policies; }
+
+bool Empire::PolicyAvailable(const std::string& name) const
+{ return m_available_policies.count(name); }
+
+std::map<std::string, int> Empire::TotalPolicySlots() const {
+    std::map<std::string, int> retval;
+    // collect policy slot category meter values and return
+    for (const auto& cat_meter_pair : PolicyCategoriesSlotsMeters()) {
+        if (!m_meters.count(cat_meter_pair.second))
+            continue;
+        auto it = m_meters.find(cat_meter_pair.second);
+        if (it == m_meters.end()) {
+            ErrorLogger() << "Empire doesn't have policy category slot meter with name: " << cat_meter_pair.second;
+            continue;
+        }
+        retval[cat_meter_pair.first] = it->second.Initial();
+    }
+    return retval;
+}
+
+std::map<std::string, int> Empire::EmptyPolicySlots() const {
+    // get total slots empire has available
+    std::map<std::string, int> retval = TotalPolicySlots();
+
+    // subtract used policy categories
+    for (const auto& policy_cat_pair : m_adopted_policies)
+        retval[policy_cat_pair.second.category]--;
+
+    // return difference
+    return retval;
 }
 
 Meter* Empire::GetMeter(const std::string& name) {
@@ -395,19 +711,22 @@ bool Empire::ShipDesignKept(int ship_design_id) const
 { return m_known_ship_designs.count(ship_design_id); }
 
 const std::set<std::string>& Empire::AvailableShipParts() const
-{ return m_available_part_types; }
+{ return m_available_ship_parts; }
 
 bool Empire::ShipPartAvailable(const std::string& name) const
-{ return m_available_part_types.count(name); }
+{ return m_available_ship_parts.count(name); }
 
 const std::set<std::string>& Empire::AvailableShipHulls() const
-{ return m_available_hull_types; }
+{ return m_available_ship_hulls; }
 
 bool Empire::ShipHullAvailable(const std::string& name) const
-{ return m_available_hull_types.count(name); }
+{ return m_available_ship_hulls.count(name); }
 
 const ProductionQueue& Empire::GetProductionQueue() const
 { return m_production_queue; }
+
+const InfluenceQueue& Empire::GetInfluenceQueue() const
+{ return m_influence_queue; }
 
 float Empire::ProductionStatus(int i) const {
     if (0 > i || i >= static_cast<int>(m_production_queue.size()))
@@ -431,12 +750,14 @@ std::pair<float, int> Empire::ProductionCostAndTime(const ProductionQueue::Produ
             return std::make_pair(-1.0, -1);
         return std::make_pair(type->ProductionCost(m_id, location_id),
                               type->ProductionTime(m_id, location_id));
+
     } else if (item.build_type == BT_SHIP) {
         const ShipDesign* design = GetShipDesign(item.design_id);
         if (design)
             return std::make_pair(design->ProductionCost(m_id, location_id),
                                   design->ProductionTime(m_id, location_id));
         return std::make_pair(-1.0, -1);
+
     } else if (item.build_type == BT_STOCKPILE) {
         return std::make_pair(1.0, 1);
     }
@@ -578,7 +899,6 @@ bool Empire::EnqueuableItem(const ProductionQueue::ProductionItem& item, int loc
     return false;
 }
 
-
 int Empire::NumSitRepEntries(int turn/* = INVALID_GAME_TURN*/) const {
     if (turn == INVALID_GAME_TURN)
         return m_sitrep_entries.size();
@@ -610,9 +930,11 @@ void Empire::Eliminate() {
     m_research_queue.clear();
     m_research_progress.clear();
     m_production_queue.clear();
+    m_influence_queue.clear();
+
     // m_available_building_types;
-    // m_available_part_types;
-    // m_available_hull_types;
+    // m_available_ship_parts;
+    // m_available_ship_hulls;
     // m_explored_systems;
     // m_known_ship_designs;
     m_sitrep_entries.clear();
@@ -668,7 +990,7 @@ void Empire::UpdateSystemSupplyRanges(const std::set<int>& known_objects) {
         // check if object has a supply meter
         if (obj->GetMeter(METER_SUPPLY)) {
             // get resource supply range for next turn for this object
-            float supply_range = obj->InitialMeterValue(METER_SUPPLY);
+            float supply_range = obj->GetMeter(METER_SUPPLY)->Initial();
 
             // if this object can provide more supply range than the best previously checked object in this system, record its range as the new best for the system
             auto system_it = m_supply_system_ranges.find(system_id);  // try to find a previous entry for this system's supply range
@@ -988,7 +1310,7 @@ Empire::SitRepItr Empire::SitRepEnd() const
 { return m_sitrep_entries.end(); }
 
 float Empire::ProductionPoints() const
-{ return GetResourcePool(RE_INDUSTRY)->TotalOutput(); }
+{ return ResourceOutput(RE_INDUSTRY); }
 
 const std::shared_ptr<ResourcePool> Empire::GetResourcePool(ResourceType resource_type) const {
     auto it = m_resource_pools.find(resource_type);
@@ -1103,96 +1425,51 @@ void Empire::SetTechResearchProgress(const std::string& name, float progress) {
 
 const unsigned int MAX_PROD_QUEUE_SIZE = 500;
 
-void Empire::PlaceProductionOnQueue(BuildType build_type, const std::string& name, int number,
+void Empire::PlaceProductionOnQueue(const ProductionQueue::ProductionItem& item,
+                                    boost::uuids::uuid uuid, int number,
                                     int blocksize, int location, int pos/* = -1*/)
 {
-    if (!EnqueuableItem(build_type, name, location)) {
-        ErrorLogger() << "Empire::PlaceProductionOnQueue() : Attempted to place non-enqueuable item in queue: build_type: "
-                      << boost::lexical_cast<std::string>(build_type) << "  name: " << name << "  location: " << location;
-        return;
-    }
-
     if (m_production_queue.size() >= MAX_PROD_QUEUE_SIZE) {
         ErrorLogger() << "Empire::PlaceProductionOnQueue() : Maximum queue size reached. Aborting enqueue";
         return;
     }
 
-    if (!ProducibleItem(build_type, name, location)) {
-        ErrorLogger() << "Empire::PlaceProductionOnQueue() : Placed a non-buildable item in queue: build_type: "
-                      << boost::lexical_cast<std::string>(build_type) << "  name: " << name << "  location: " << location;
-        return;
+    if (item.build_type == BT_BUILDING) {
+        // only buildings have a distinction between enqueuable and producible...
+        if (!EnqueuableItem(BT_BUILDING, item.name, location)) {
+            ErrorLogger() << "Empire::PlaceProductionOnQueue() : Attempted to place non-enqueuable item in queue: build_type: Building"
+                          << "  name: " << item.name << "  location: " << location;
+            return;
+        }
+        if (!ProducibleItem(BT_BUILDING, item.name, location)) {
+            ErrorLogger() << "Empire::PlaceProductionOnQueue() : Placed a non-buildable item in queue: build_type: Building"
+                          << "  name: " << item.name << "  location: " << location;
+            return;
+        }
+
+    } else if (item.build_type == BT_SHIP) {
+        if (!ProducibleItem(BT_SHIP, item.design_id, location)) {
+            ErrorLogger() << "Empire::PlaceProductionOnQueue() : Placed a non-buildable item in queue: build_type: Ship"
+                          << "  design_id: " << item.design_id << "  location: " << location;
+            return;
+        }
+
+    } else if (item.build_type == BT_STOCKPILE) {
+        if (!ProducibleItem(BT_STOCKPILE, location)) {
+            ErrorLogger() << "Empire::PlaceProductionOnQueue() : Placed a non-buildable item in queue: build_type: Stockpile"
+                          << "  location: " << location;
+            return;
+        }
+
+    } else {
+        throw std::invalid_argument("Empire::PlaceProductionOnQueue was passed a ProductionQueue::ProductionItem with an invalid BuildType");
     }
 
-    ProductionQueue::Element build(build_type, name, m_id, number, number, blocksize, location);
-
-    if (pos < 0 || static_cast<int>(m_production_queue.size()) <= pos)
-        m_production_queue.push_back(build);
-    else
-        m_production_queue.insert(m_production_queue.begin() + pos, build);
-}
-
-void Empire::PlaceProductionOnQueue(BuildType build_type, BuildType dummy, int number,
-                                    int blocksize, int location, int pos/* = -1*/)
-{
-    // no distinction between enqueuable and producible...
-
-    if (m_production_queue.size() >= MAX_PROD_QUEUE_SIZE) {
-        ErrorLogger() << "Empire::PlaceProductionOnQueue() : Maximum queue size reached. Aborting enqueue";
-        return;
-    }
-
-    if (!ProducibleItem(build_type, location)) {
-        ErrorLogger() << "Empire::PlaceProductionOnQueue() : Placed a non-buildable item in queue: build_type: "
-                      << boost::lexical_cast<std::string>(build_type) << "  location: " << location;
-        return;
-    }
-
-    const bool paused = false;
-    const bool allowed_imperial_stockpile_use = false;
-    const std::string name = "PROJECT_BT_STOCKPILE";
-    ProductionQueue::Element build(build_type, name, m_id, number, number, blocksize,
-                                   location, paused, allowed_imperial_stockpile_use);
-
-    if (pos < 0 || static_cast<int>(m_production_queue.size()) <= pos)
-        m_production_queue.push_back(build);
-    else
-        m_production_queue.insert(m_production_queue.begin() + pos, build);
-}
-
-void Empire::PlaceProductionOnQueue(BuildType build_type, int design_id, int number,
-                                    int blocksize, int location, int pos/* = -1*/)
-{
-    // ship designs don't have a distinction between enqueuable and producible...
-
-    if (m_production_queue.size() >= MAX_PROD_QUEUE_SIZE) {
-        ErrorLogger() << "Empire::PlaceProductionOnQueue() : Maximum queue size reached. Aborting enqueue";
-        return;
-    }
-
-    if (!ProducibleItem(build_type, design_id, location)) {
-        ErrorLogger() << "Empire::PlaceProductionOnQueue() : Placed a non-buildable item in queue: build_type: "
-                      << boost::lexical_cast<std::string>(build_type) << "  design_id: " << design_id << "  location: " << location;
-        return;
-    }
-
-    ProductionQueue::Element elem(build_type, design_id, m_id, number, number, blocksize, location);
+    ProductionQueue::Element elem{item, m_id, uuid, number, number, blocksize, location, false, item.build_type != BT_STOCKPILE};
     if (pos < 0 || static_cast<int>(m_production_queue.size()) <= pos)
         m_production_queue.push_back(elem);
     else
         m_production_queue.insert(m_production_queue.begin() + pos, elem);
-}
-
-void Empire::PlaceProductionOnQueue(const ProductionQueue::ProductionItem& item, int number,
-                                    int blocksize, int location, int pos/* = -1*/)
-{
-    if (item.build_type == BT_BUILDING)
-        PlaceProductionOnQueue(item.build_type, item.name, number, blocksize, location, pos);
-    else if (item.build_type == BT_SHIP)
-        PlaceProductionOnQueue(item.build_type, item.design_id, number, blocksize, location, pos);
-    else if (item.build_type == BT_STOCKPILE)
-        PlaceProductionOnQueue(item.build_type, item.build_type, number, blocksize, location, pos);
-    else
-        throw std::invalid_argument("Empire::PlaceProductionOnQueue was passed a ProductionQueue::ProductionItem with an invalid BuildType");
 }
 
 void Empire::SetProductionQuantityAndBlocksize(int index, int quantity, int blocksize) {
@@ -1219,7 +1496,7 @@ void Empire::SetProductionQuantityAndBlocksize(int index, int quantity, int bloc
     }
 }
 
-void Empire::SplitIncompleteProductionItem(int index) {
+void Empire::SplitIncompleteProductionItem(int index, boost::uuids::uuid uuid) {
     DebugLogger() << "Empire::SplitIncompleteProductionItem() called for index " << index;
     if (index < 0 || static_cast<int>(m_production_queue.size()) <= index)
         throw std::runtime_error("Empire::SplitIncompleteProductionItem() : Attempted to adjust the quantity of items to be built in a nonexistent production queue item.");
@@ -1235,16 +1512,16 @@ void Empire::SplitIncompleteProductionItem(int index) {
     // add duplicate
     int new_item_quantity = elem.remaining - 1;
     elem.remaining = 1; // reduce remaining on specified to 1
-    PlaceProductionOnQueue(elem.item, new_item_quantity, elem.blocksize, elem.location, index + 1);
+    PlaceProductionOnQueue(elem.item, uuid, new_item_quantity, elem.blocksize, elem.location, index + 1);
 }
 
-void Empire::DuplicateProductionItem(int index) {
+void Empire::DuplicateProductionItem(int index, boost::uuids::uuid uuid) {
     DebugLogger() << "Empire::DuplicateProductionItem() called for index " << index;
     if (index < 0 || static_cast<int>(m_production_queue.size()) <= index)
         throw std::runtime_error("Empire::DuplicateProductionItem() : Attempted to adjust the quantity of items to be built in a nonexistent production queue item.");
 
     auto& elem = m_production_queue[index];
-    PlaceProductionOnQueue(elem.item, elem.remaining, elem.blocksize, elem.location, index + 1);
+    PlaceProductionOnQueue(elem.item, uuid, elem.remaining, elem.blocksize, elem.location, index + 1);
 }
 
 void Empire::SetProductionRallyPoint(int index, int rally_point_id) {
@@ -1272,7 +1549,7 @@ void Empire::MoveProductionWithinQueue(int index, int new_index) {
         new_index < 0 || static_cast<int>(m_production_queue.size()) <= new_index)
     {
         DebugLogger() << "Empire::MoveProductionWithinQueue index: " << index << "  new index: "
-                               << new_index << "  queue size: " << m_production_queue.size();
+                      << new_index << "  queue size: " << m_production_queue.size();
         ErrorLogger() << "Attempted to move a production queue item to or from an invalid index.";
         return;
     }
@@ -1367,8 +1644,8 @@ void Empire::ConquerProductionQueueItemsAtLocation(int location_id, int empire_i
                 } else if (result == CR_CAPTURE) {
                     if (to_empire) {
                         // item removed from current queue, added to conquerer's queue
-                        ProductionQueue::Element new_elem(item, empire_id, elem.ordered, elem.remaining,
-                                                          1, location_id);
+                        ProductionQueue::Element new_elem(item, empire_id, elem.uuid, elem.ordered,
+                                                          elem.remaining, 1, location_id);
                         new_elem.progress = elem.progress;
                         to_empire->m_production_queue.push_back(new_elem);
 
@@ -1415,7 +1692,7 @@ void Empire::ApplyNewTechs() {
             continue;
         }
 
-        for (const ItemSpec& item : tech->UnlockedItems())
+        for (const UnlockableItem& item : tech->UnlockedItems())
             UnlockItem(item);  // potential infinite if a tech (in)directly unlocks itself?
 
         if (!m_techs.count(new_tech)) {
@@ -1426,16 +1703,29 @@ void Empire::ApplyNewTechs() {
     m_newly_researched_techs.clear();
 }
 
-void Empire::UnlockItem(const ItemSpec& item) {
+void Empire::AddPolicy(const std::string& name) {
+    const Policy* policy = GetPolicy(name);
+    if (!policy) {
+        ErrorLogger() << "Empire::AddPolicy given and invalid policy: " << name;
+        return;
+    }
+
+    if (m_available_policies.find(name) == m_available_policies.end()) {
+        AddSitRepEntry(CreatePolicyUnlockedSitRep(name));
+        m_available_policies.insert(name);
+    }
+}
+
+void Empire::UnlockItem(const UnlockableItem& item) {
     switch (item.type) {
     case UIT_BUILDING:
         AddBuildingType(item.name);
         break;
     case UIT_SHIP_PART:
-        AddPartType(item.name);
+        AddShipPart(item.name);
         break;
     case UIT_SHIP_HULL:
-        AddHullType(item.name);
+        AddShipHull(item.name);
         break;
     case UIT_SHIP_DESIGN:
         AddShipDesign(GetPredefinedShipDesignManager().GetDesignID(item.name));
@@ -1443,8 +1733,11 @@ void Empire::UnlockItem(const ItemSpec& item) {
     case UIT_TECH:
         AddNewlyResearchedTechToGrantAtStartOfNextTurn(item.name);
         break;
+    case UIT_POLICY:
+        AddPolicy(item.name);
+        break;
     default:
-        ErrorLogger() << "Empire::UnlockItem : passed ItemSpec with unrecognized UnlockableItemType";
+        ErrorLogger() << "Empire::UnlockItem : passed UnlockableItem with unrecognized UnlockableItemType";
     }
 }
 
@@ -1462,27 +1755,27 @@ void Empire::AddBuildingType(const std::string& name) {
     AddSitRepEntry(CreateBuildingTypeUnlockedSitRep(name));
 }
 
-void Empire::AddPartType(const std::string& name) {
-    const PartType* part_type = GetPartType(name);
-    if (!part_type) {
-        ErrorLogger() << "Empire::AddPartType given an invalid part type name: " << name;
+void Empire::AddShipPart(const std::string& name) {
+    const ShipPart* ship_part = GetShipPart(name);
+    if (!ship_part) {
+        ErrorLogger() << "Empire::AddShipPart given an invalid ship part name: " << name;
         return;
     }
-    if (!part_type->Producible())
+    if (!ship_part->Producible())
         return;
-    m_available_part_types.insert(name);
+    m_available_ship_parts.insert(name);
     AddSitRepEntry(CreateShipPartUnlockedSitRep(name));
 }
 
-void Empire::AddHullType(const std::string& name) {
-    const HullType* hull_type = GetHullType(name);
-    if (!hull_type) {
-        ErrorLogger() << "Empire::AddHullType given an invalid hull type name: " << name;
+void Empire::AddShipHull(const std::string& name) {
+    const ShipHull* ship_hull = GetShipHull(name);
+    if (!ship_hull) {
+        ErrorLogger() << "Empire::AddShipHull given an invalid hull type name: " << name;
         return;
     }
-    if (!hull_type->Producible())
+    if (!ship_hull->Producible())
         return;
-    m_available_hull_types.insert(name);
+    m_available_ship_hulls.insert(name);
     AddSitRepEntry(CreateShipHullUnlockedSitRep(name));
 }
 
@@ -1577,16 +1870,19 @@ void Empire::AddSitRepEntry(const SitRepEntry& entry)
 void Empire::RemoveTech(const std::string& name)
 { m_techs.erase(name); }
 
-void Empire::LockItem(const ItemSpec& item) {
+void Empire::RemovePolicy(const std::string& name)
+{ m_available_policies.erase(name); }
+
+void Empire::LockItem(const UnlockableItem& item) {
     switch (item.type) {
     case UIT_BUILDING:
         RemoveBuildingType(item.name);
         break;
     case UIT_SHIP_PART:
-        RemovePartType(item.name);
+        RemoveShipPart(item.name);
         break;
     case UIT_SHIP_HULL:
-        RemoveHullType(item.name);
+        RemoveShipHull(item.name);
         break;
     case UIT_SHIP_DESIGN:
         RemoveShipDesign(GetPredefinedShipDesignManager().GetDesignID(item.name));
@@ -1594,8 +1890,11 @@ void Empire::LockItem(const ItemSpec& item) {
     case UIT_TECH:
         RemoveTech(item.name);
         break;
+    case UIT_POLICY:
+        RemovePolicy(item.name);
+        break;
     default:
-        ErrorLogger() << "Empire::LockItem : passed ItemSpec with unrecognized UnlockableItemType";
+        ErrorLogger() << "Empire::LockItem : passed UnlockableItem with unrecognized UnlockableItemType";
     }
 }
 
@@ -1605,18 +1904,18 @@ void Empire::RemoveBuildingType(const std::string& name) {
     m_available_building_types.erase(name);
 }
 
-void Empire::RemovePartType(const std::string& name) {
-    auto it = m_available_part_types.find(name);
-    if (it == m_available_part_types.end())
-        DebugLogger() << "Empire::RemovePartType asked to remove part type " << name << " that was no available to this empire";
-    m_available_part_types.erase(name);
+void Empire::RemoveShipPart(const std::string& name) {
+    auto it = m_available_ship_parts.find(name);
+    if (it == m_available_ship_parts.end())
+        DebugLogger() << "Empire::RemoveShipPart asked to remove part type " << name << " that was no available to this empire";
+    m_available_ship_parts.erase(name);
 }
 
-void Empire::RemoveHullType(const std::string& name) {
-    auto it = m_available_hull_types.find(name);
-    if (it == m_available_hull_types.end())
-        DebugLogger() << "Empire::RemoveHullType asked to remove hull type " << name << " that was no available to this empire";
-    m_available_hull_types.erase(name);
+void Empire::RemoveShipHull(const std::string& name) {
+    auto it = m_available_ship_hulls.find(name);
+    if (it == m_available_ship_hulls.end())
+        DebugLogger() << "Empire::RemoveShipHull asked to remove hull type " << name << " that was no available to this empire";
+    m_available_ship_hulls.erase(name);
 }
 
 void Empire::ClearSitRep()
@@ -2013,6 +2312,9 @@ void Empire::CheckProductionProgress() {
                 // have been applied, letting new ships start with maxed
                 // everything that is traced with an associated max meter.
                 ship->SetShipMetersToMax();
+                // set ship speed so that it can be affected by non-zero speed checks
+                if (auto* design = GetShipDesign(elem.item.design_id))
+                    ship->GetMeter(METER_SPEED)->Set(design->Speed(), design->Speed());
                 ship->BackPropagateMeters();
 
                 ship->Rename(NewShipName());
@@ -2167,8 +2469,18 @@ void Empire::CheckProductionProgress() {
     SetResourceStockpile(RE_INDUSTRY, m_production_queue.ExpectedNewStockpileAmount());
 }
 
-void Empire::CheckTradeSocialProgress()
-{ m_resource_pools[RE_TRADE]->SetStockpile(m_resource_pools[RE_TRADE]->TotalAvailable()); }
+void Empire::CheckInfluenceProgress() {
+    DebugLogger() << "========Empire::CheckProductionProgress=======";
+    // following commented line should be redundant, as previous call to
+    // UpdateResourcePools should have generated necessary info
+    // m_influence_queue.Update();
+
+    auto spending = m_influence_queue.TotalIPsSpent();
+    auto new_stockpile = m_influence_queue.ExpectedNewStockpileAmount();
+    DebugLogger() << "Empire::CheckInfluenceProgress spending " << spending << " and setting stockpile to " << new_stockpile;
+
+    m_resource_pools[RE_INFLUENCE]->SetStockpile(new_stockpile);
+}
 
 void Empire::SetColor(const GG::Clr& color)
 { m_color = color; }
@@ -2195,7 +2507,7 @@ void Empire::InitResourcePools() {
     }
     m_resource_pools[RE_RESEARCH]->SetObjects(res_centers);
     m_resource_pools[RE_INDUSTRY]->SetObjects(res_centers);
-    m_resource_pools[RE_TRADE]->SetObjects(res_centers);
+    m_resource_pools[RE_INFLUENCE]->SetObjects(res_centers);
 
     // get this empire's owned population centers
     std::vector<int> pop_centers;
@@ -2213,12 +2525,11 @@ void Empire::InitResourcePools() {
     // set non-blockadeable resource pools to share resources between all systems
     std::set<std::set<int>> sets_set;
     std::set<int> all_systems_set;
-    for (const auto& entry : Objects().ExistingSystems()) {
+    for (const auto& entry : Objects().ExistingSystems())
         all_systems_set.insert(entry.first);
-    }
     sets_set.insert(all_systems_set);
     m_resource_pools[RE_RESEARCH]->SetConnectedSupplyGroups(sets_set);
-    m_resource_pools[RE_TRADE]->SetConnectedSupplyGroups(sets_set);
+    m_resource_pools[RE_INFLUENCE]->SetConnectedSupplyGroups(sets_set);
 }
 
 void Empire::UpdateResourcePools() {
@@ -2227,7 +2538,7 @@ void Empire::UpdateResourcePools() {
     // which needs to be done simultaneously to keep things consistent)
     UpdateResearchQueue();
     UpdateProductionQueue();
-    UpdateTradeSpending();
+    UpdateInfluenceSpending();
     UpdatePopulationGrowth();
 }
 
@@ -2245,9 +2556,10 @@ void Empire::UpdateProductionQueue() {
     m_resource_pools[RE_INDUSTRY]->ChangedSignal();
 }
 
-void Empire::UpdateTradeSpending() {
-    m_resource_pools[RE_TRADE]->Update(); // recalculate total trade production
-    m_resource_pools[RE_TRADE]->ChangedSignal();
+void Empire::UpdateInfluenceSpending() {
+    m_resource_pools[RE_INFLUENCE]->Update(); // recalculate total influence production
+    m_influence_queue.Update();
+    m_resource_pools[RE_INFLUENCE]->ChangedSignal();
 }
 
 void Empire::UpdatePopulationGrowth()
@@ -2285,16 +2597,16 @@ void Empire::UpdateOwnedObjectCounters() {
     }
 
     // update ship part counts
-    m_ship_part_types_owned.clear();
+    m_ship_parts_owned.clear();
     m_ship_part_class_owned.clear();
     for (const auto& design_count : m_ship_designs_owned) {
         const ShipDesign* design = GetShipDesign(design_count.first);
         if (!design)
             continue;
 
-        // update count of PartTypes
-        for (const auto& part_type : design->PartTypeCount())
-            m_ship_part_types_owned[part_type.first] += part_type.second * design_count.second;
+        // update count of ShipParts
+        for (const auto& ship_part : design->ShipPartCount())
+            m_ship_parts_owned[ship_part.first] += ship_part.second * design_count.second;
 
         // update count of ShipPartClasses
         for (const auto& part_class : design->PartClassCount())
@@ -2339,6 +2651,34 @@ int Empire::TotalShipsOwned() const {
     for (const auto& entry : m_ship_designs_owned)
     { counter += entry.second; }
     return counter;
+}
+
+void Empire::RecordShipShotDown(const Ship& ship) {
+    m_empire_ships_destroyed[ship.Owner()]++;
+    m_ship_designs_destroyed[ship.DesignID()]++;
+    m_species_ships_destroyed[ship.SpeciesName()]++;
+}
+
+void Empire::RecordShipLost(const Ship& ship) {
+    m_species_ships_lost[ship.SpeciesName()]++;
+    m_ship_designs_lost[ship.DesignID()]++;
+}
+
+void Empire::RecordShipScrapped(const Ship& ship) {
+    m_ship_designs_scrapped[ship.DesignID()]++;
+    m_species_ships_scrapped[ship.SpeciesName()]++;
+}
+
+void Empire::RecordBuildingScrapped(const Building& building) {
+    m_building_types_scrapped[building.BuildingTypeName()]++;
+}
+
+void Empire::RecordPlanetInvaded(const Planet& planet) {
+    m_species_planets_invaded[planet.SpeciesName()]++;
+}
+
+void Empire::RecordPlanetDepopulated(const Planet& planet) {
+    m_species_planets_depoped[planet.SpeciesName()]++;
 }
 
 int Empire::TotalShipPartsOwned() const {

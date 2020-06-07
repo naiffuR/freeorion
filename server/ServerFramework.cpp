@@ -7,7 +7,6 @@
 #include "../util/Logger.h"
 #include "../universe/Condition.h"
 #include "../universe/Universe.h"
-#include "../universe/UniverseGenerator.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/python.hpp>
@@ -57,16 +56,14 @@ BOOST_PYTHON_MODULE(freeorion) {
 namespace {
 }
 
+bool PythonServer::InitImports() {
+    DebugLogger() << "Initializing server Python imports";
+    // Allow the "freeorion" C++ module to be imported within Python code
+    return PyImport_AppendInittab("freeorion", &PyInit_freeorion) != -1;
+}
+
 bool PythonServer::InitModules() {
     DebugLogger() << "Initializing server Python modules";
-
-    // Allow the "freeorion" C++ module to be imported within Python code
-    try {
-        initfreeorion();
-    } catch (...) {
-        ErrorLogger() << "Unable to initialize 'freeorion' server Python module";
-        return false;
-    }
 
     // Confirm existence of the directory containing the universe generation
     // Python scripts and add it to Pythons sys.path to make sure Python will

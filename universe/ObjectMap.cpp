@@ -1,14 +1,15 @@
 #include "ObjectMap.h"
 
-#include "Universe.h"
-#include "UniverseObject.h"
-#include "Ship.h"
+#include "Building.h"
+#include "Enums.h"
+#include "Field.h"
 #include "Fleet.h"
 #include "Planet.h"
+#include "Ship.h"
 #include "System.h"
-#include "Building.h"
-#include "Field.h"
-#include "Enums.h"
+#include "UniverseObject.h"
+#include "Universe.h"
+#include "../util/AppInterface.h"
 #include "../util/Logger.h"
 
 
@@ -36,18 +37,18 @@
 
 
 namespace {
-    template<class T>
+    template <typename T>
     static void ClearMap(ObjectMap::container_type<T>& map)
     { map.clear(); }
 
-    template <class T>
+    template <typename T>
     static void TryInsertIntoMap(ObjectMap::container_type<T>& map, std::shared_ptr<UniverseObject> item)
     {
         if (dynamic_cast<T*>(item.get()))
             map[item->ID()] = std::dynamic_pointer_cast<T, UniverseObject>(item);
     }
 
-    template<class T>
+    template <typename T>
     void EraseFromMap(ObjectMap::container_type<T>& map, int id)
     { map.erase(id); }
 }
@@ -327,7 +328,7 @@ std::string ObjectMap::Dump(unsigned short ntabs) const {
     return dump_stream.str();
 }
 
-std::shared_ptr<UniverseObject> ObjectMap::ExistingObject(int id) {
+std::shared_ptr<const UniverseObject> ObjectMap::ExistingObject(int id) const {
     auto it = m_existing_objects.find(id);
     if (it != m_existing_objects.end())
         return it->second;
@@ -336,7 +337,7 @@ std::shared_ptr<UniverseObject> ObjectMap::ExistingObject(int id) {
 
 // Static helpers
 
-template<class T>
+template <typename T>
 void ObjectMap::SwapMap(ObjectMap::container_type<T>& map, ObjectMap& rhs)
 { map.swap(rhs.Map<T>()); }
 

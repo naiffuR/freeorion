@@ -55,13 +55,13 @@ target_sources(freeorionparseobj
         ${CMAKE_CURRENT_LIST_DIR}/IntComplexValueRefParser.cpp
         ${CMAKE_CURRENT_LIST_DIR}/IntValueRefParser.cpp
         ${CMAKE_CURRENT_LIST_DIR}/ItemsParser.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/KeymapParser.cpp
         ${CMAKE_CURRENT_LIST_DIR}/Lexer.cpp
         ${CMAKE_CURRENT_LIST_DIR}/MonsterFleetPlansParser.cpp
         ${CMAKE_CURRENT_LIST_DIR}/Parse.cpp
         ${CMAKE_CURRENT_LIST_DIR}/PlanetEnvironmentValueRefParser.cpp
         ${CMAKE_CURRENT_LIST_DIR}/PlanetSizeValueRefParser.cpp
         ${CMAKE_CURRENT_LIST_DIR}/PlanetTypeValueRefParser.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/PoliciesParser.cpp
         ${CMAKE_CURRENT_LIST_DIR}/ReportParseError.cpp
         ${CMAKE_CURRENT_LIST_DIR}/ShipDesignsParser.cpp
         ${CMAKE_CURRENT_LIST_DIR}/ShipHullsParser.cpp

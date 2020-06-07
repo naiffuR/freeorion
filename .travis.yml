@@ -10,7 +10,7 @@ _lint_python_common: &_lint_python_common
   dist: bionic
   language: python
   install:
-    - pip install flake8-putty==0.4.0
+    - pip install flake8==3.7.9
   before_script:
     - cd default/python
   script:
@@ -42,25 +42,28 @@ _test_python_common: &_test_python_common
   dist: bionic
   language: python
   install:
-    - pip install pytest==3.6.3
+    - pip install pytest==5.4.1
   script:
     - pytest
 
 jobs:
   include:
-    - name: Lint AI with Python 2.7
-      <<: *_lint_python_common
-      python: 2.7
-      before_install:
-        - alias pip=/usr/bin/pip
-        - alias python=/usr/bin/python2
-
     - name: Lint AI with Python 3.5
       <<: *_lint_python_common
       python: 3.5
       before_install:
         - alias pip=/usr/bin/pip3
         - alias python=/usr/bin/python3
+
+    - name: Lint string tables
+      stage: lint
+      os: linux
+      dist: bionic
+      language: python
+      python: 3.5
+      script:
+        - ./check/st-tool.py check --reference default/stringtables/en.txt default/stringtables/*.txt
+        - diff -u default/stringtables/en.txt <(check/st-tool.py format default/stringtables/en.txt) || { echo "String table is not properly formatted"; exit 1; }
 
     - name: Build C++ API documentation
       stage: build
@@ -125,6 +128,24 @@ jobs:
         - cmake -DBUILD_TESTING=ON ..
         - cmake --build . -- -j 2
 
+    - name: Build headless FreeOrion on Ubunutu 18.04 (Bionic)
+      <<: *_build_cpp_common
+      os: linux
+      dist: bionic
+      services:
+        - docker
+      before_install:
+        - docker pull freeorion/freeorion-travis-build
+        # mount ccache dir and set its environment variable
+        # timeout before Travis kills jobs so that ccache is always at least partially populated
+        - >
+          function cmake {
+              docker run -v "${TRAVIS_BUILD_DIR}:/freeorion"  -v "${HOME}/.ccache:/ccache_dir" -e CCACHE_DIR='/ccache_dir' -w /freeorion/build freeorion/freeorion-travis-build timeout 40m /usr/bin/cmake $@
+          }
+      script:
+        - cmake -DBUILD_HEADLESS=ON -DBUILD_TESTING=ON ..
+        - cmake --build . -- -j 2
+
     - name: Build FreeOrion on MacOS 10.12
       <<: *_build_cpp_common
       os: osx
@@ -141,12 +162,6 @@ jobs:
       script:
         - cmake -GXcode -DBUILD_TESTING=ON ..
         - cmake --build . --config Release -- -parallelizeTargets -jobs $(sysctl hw.ncpu | awk '{print $2}')
-
-    - name: Unittest AI with Python 2.7
-      <<: *_test_python_common
-      python: 2.7
-      before_install:
-        - alias pip=/usr/bin/pip
 
     - name: Unittest AI with Python 3.5
       <<: *_test_python_common

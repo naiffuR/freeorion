@@ -16,7 +16,6 @@
 
 #include <GG/utf8/checked.h>
 #include <GG/dialogs/ColorDlg.h>
-#include <GG/DrawUtil.h>
 #include <GG/GUI.h>
 #include <GG/Layout.h>
 
@@ -203,7 +202,7 @@ void CUIButton::RenderUnpressed() {
 SettableInWindowCUIButton::SettableInWindowCUIButton(const GG::SubTexture& unpressed,
                                                      const GG::SubTexture& pressed,
                                                      const GG::SubTexture& rollover,
-                                                     boost::function<bool(const SettableInWindowCUIButton*, const GG::Pt&)> in_window_function) :
+                                                     std::function<bool (const SettableInWindowCUIButton*, const GG::Pt&)> in_window_function) :
     CUIButton(unpressed, pressed, rollover)
 { m_in_window_func = in_window_function; }
 
@@ -609,7 +608,7 @@ void CUITabBar::DistinguishCurrentTab(const std::vector<GG::StateButton*>& tab_b
         if (index == i)
             tab->SetTextColor(text_color);
         else
-            tab->SetTextColor(DarkColor(text_color));
+            tab->SetTextColor(DarkenClr(text_color));
     }
 }
 
@@ -796,7 +795,7 @@ void CUIDropDownList::Render() {
     GG::Clr lb_color = LB()->Color();
     GG::Clr border_color = Disabled() ? DisabledColor(lb_color) : lb_color;
     if (GG::GUI::GetGUI()->FocusWnd().get() == this)
-        border_color = GG::LightColor(border_color);
+        border_color = GG::LightenClr(border_color);
     GG::Clr interior_color = Disabled() ? DisabledColor(InteriorColor()) : InteriorColor();
 
     glPushMatrix();
@@ -942,6 +941,13 @@ void CUIEdit::KeyPress(GG::Key key, std::uint32_t key_code_point,
     }
 }
 
+void CUIEdit::AcceptPastedText(const std::string& text) {
+    std::string text_copy;
+    std::copy_if(text.begin(), text.end(), std::back_inserter(text_copy),
+                 [this](char c){ return m_disallowed_chars.find(c) == std::string::npos; });
+    GG::Edit::AcceptPastedText(text_copy);
+}
+
 void CUIEdit::GainingFocus() {
     GG::Edit::GainingFocus();
     GainingFocusSignal();
@@ -956,7 +962,7 @@ void CUIEdit::Render() {
     GG::Clr color = Color();
     GG::Clr border_color = Disabled() ? DisabledColor(color) : color;
     if (GG::GUI::GetGUI()->FocusWnd().get() == this)
-        border_color = GG::LightColor(border_color);
+        border_color = GG::LightenClr(border_color);
     GG::Clr int_color_to_use = Disabled() ? DisabledColor(InteriorColor()) : InteriorColor();
 
 
@@ -1101,7 +1107,7 @@ void CUIMultiEdit::Render() {
     GG::Clr color = Color();
     GG::Clr border_color =      Disabled()  ?   DisabledColor(color)            :   color;
     if (GG::GUI::GetGUI()->FocusWnd().get() == this)
-        border_color = GG::LightColor(border_color);
+        border_color = GG::LightenClr(border_color);
     GG::Clr int_color_to_use =  Disabled()  ?   DisabledColor(InteriorColor())  :   InteriorColor();
 
     GG::Pt ul = UpperLeft(), lr = LowerRight();
@@ -1280,7 +1286,7 @@ const GG::Y CUISimpleDropDownListRow::DEFAULT_ROW_HEIGHT(22);
 
 CUISimpleDropDownListRow::CUISimpleDropDownListRow(const std::string& row_text,
                                                    GG::Y row_height/* = DEFAULT_ROW_HEIGHT*/) :
-    GG::ListBox::Row(GG::X1, row_height, ""),
+    GG::ListBox::Row(GG::X1, row_height),
     m_row_label(GG::Wnd::Create<CUILabel>(row_text, GG::FORMAT_LEFT | GG::FORMAT_NOWRAP))
 {}
 
@@ -1317,10 +1323,20 @@ void StatisticIcon::CompleteConstruction() {
     GG::Control::CompleteConstruction();
 
     SetName("StatisticIcon");
-
     SetBrowseModeTime(GetOptionsDB().Get<int>("ui.tooltip.delay"));
 
-    AttachChild(m_icon);
+    AttachChild(m_icon);    // created in constructor to forward texture
+
+    // Format for text?
+    GG::Flags<GG::TextFormat> format;
+
+    if (Width() >= Value(Height())) {
+        format = GG::FORMAT_LEFT;
+    } else {
+        format = GG::FORMAT_BOTTOM;
+    }
+    m_text = GG::Wnd::Create<CUILabel>("    ", format, GG::NO_WND_FLAGS);
+    AttachChild(m_text);
 
     RequirePreRender();
 }
@@ -1331,14 +1347,20 @@ void StatisticIcon::PreRender() {
 }
 
 double StatisticIcon::GetValue(size_t index) const {
-    if (index > 1) throw std::invalid_argument("index greater than 1 passed to StatisticIcon::Value.  Only 1 or 2 values, with indices 0 or 1, supported.");
-    if (index >= m_values.size()) throw std::invalid_argument("index greater than largest index available passed to StatisticIcon::Value");
+    if (index < 0 || index >= m_values.size()) {
+        ErrorLogger() << "StatisticIcon::GetValue passed index out of range index:" << index;
+        return 0.0;
+    }
     return std::get<0>(m_values[index]);
 }
 
 void StatisticIcon::SetValue(double value, size_t index) {
-    if (index > 1) throw std::invalid_argument("index greater than 1 passed to StatisticIcon::SetValue.  Only 1 or 2 values, with indices 0 or 1, supported.");
-    if (index + 1 > m_values.size()) {
+    if (index < 0 || index > 1) {
+        ErrorLogger() << "StatisticIcon::SetValue passed index out of range index:" << index;
+        return;
+    }
+
+    if (index >= m_values.size()) {
         auto entry = std::tuple<double, int, bool>(m_values[0]);
         std::get<0>(entry) = value;
         m_values.resize(index + 1, entry);
@@ -1347,6 +1369,40 @@ void StatisticIcon::SetValue(double value, size_t index) {
     if (value != std::get<0>(m_values[index]))
         RequirePreRender();
     std::get<0>(m_values[index]) = value;
+
+
+    // Compute text elements
+    GG::Font::TextAndElementsAssembler text_elements(*ClientUI::GetFont());
+    text_elements.AddOpenTag(ClientUI::TextColor())
+        .AddText(DoubleToString(std::get<0>(m_values[0]), std::get<1>(m_values[0]), std::get<2>(m_values[0])))
+        .AddCloseTag("rgba");
+
+    if (m_values.size() > 1) {
+        GG::Clr clr = ClientUI::TextColor();
+
+        int effectiveSign = EffectiveSign(std::get<0>(m_values.at(1)));
+
+        if (effectiveSign == -1)
+            clr = ClientUI::StatDecrColor();
+        else if (effectiveSign == 1)
+            clr = ClientUI::StatIncrColor();
+
+        text_elements.AddText(" ")
+                     .AddOpenTag(clr);
+
+        if (effectiveSign == -1)
+            text_elements.AddText("-");
+        else
+            text_elements.AddText("+");
+
+        text_elements
+            .AddText(DoubleToString(std::get<0>(m_values[1]), std::get<1>(m_values[1]), std::get<2>(m_values[1])))
+            .AddCloseTag("rgba");
+    }
+
+    m_text->SetText(text_elements.Text(), text_elements.Elements());
+
+    DoLayout();
 }
 
 void StatisticIcon::SizeMove(const GG::Pt& ul, const GG::Pt& lr) {
@@ -1402,56 +1458,18 @@ void StatisticIcon::DoLayout() {
     m_icon->SizeMove(GG::Pt(GG::X0, GG::Y0),
                      GG::Pt(GG::X(icon_dim), GG::Y(icon_dim)));
 
-    if (m_values.size() <= 0)
+    if (m_values.empty())
         return;
 
-    // Precompute text elements
-    GG::Font::TextAndElementsAssembler text_elements(*ClientUI::GetFont());
-    text_elements.AddOpenTag(ClientUI::TextColor())
-        .AddText(DoubleToString(std::get<0>(m_values[0]), std::get<1>(m_values[0]), std::get<2>(m_values[0])))
-        .AddCloseTag("rgba");
-    if (m_values.size() > 1) {
-        GG::Clr clr = ClientUI::TextColor();
-
-        int effectiveSign = EffectiveSign(std::get<0>(m_values.at(1)));
-
-        if (effectiveSign == -1)
-            clr = ClientUI::StatDecrColor();
-        if (effectiveSign == 1)
-            clr = ClientUI::StatIncrColor();
-
-        text_elements
-            .AddText(" (")
-            .AddOpenTag(clr)
-            .AddText(DoubleToString(std::get<0>(m_values[1]), std::get<1>(m_values[1]), std::get<2>(m_values[1])))
-            .AddCloseTag("rgba")
-            .AddText(")");
-    }
-
-    // Calculate location and format
-    GG::Flags<GG::TextFormat> format;
     GG::Pt text_ul;
-    GG::Pt text_lr(Width(), Height());
-
     if (Width() >= Value(Height())) {
-        format = GG::FORMAT_LEFT;
         text_ul.x = GG::X(icon_dim + STAT_ICON_PAD);
     } else {
-        format = GG::FORMAT_BOTTOM;
         text_ul.y = GG::Y(icon_dim + STAT_ICON_PAD);
     }
 
-    if (!m_text) {
-        // Create new label in correct place.
-        m_text = GG::Wnd::Create<CUILabel>(text_elements.Text(), text_elements.Elements(),
-                                           format, GG::NO_WND_FLAGS,
-                                           text_ul.x, text_ul.y, text_lr.x - text_ul.x, text_lr.y - text_ul.y);
-        AttachChild(m_text);
-    } else {
-        // Adjust text and place label.
-       m_text->SetText(text_elements.Text(), text_elements.Elements());
-       m_text->SizeMove(text_ul, text_lr);
-    }
+    // Adjust text and place label.
+    m_text->SizeMove(text_ul, {Width(), Height()});
 }
 
 GG::Pt StatisticIcon::MinUsableSize() const {
@@ -1462,11 +1480,11 @@ GG::Pt StatisticIcon::MinUsableSize() const {
         return m_icon->Size();
 
     if (Width() >= Value(Height()))
-        return GG::Pt(m_text->RelativeUpperLeft().x + m_text->MinUsableSize().x,
-                      std::max(m_icon->RelativeLowerRight().y, m_text->MinUsableSize().y));
-     else
-        return GG::Pt(std::max(m_icon->RelativeLowerRight().x, m_text->MinUsableSize().x),
-                      m_icon->RelativeLowerRight().y + m_text->MinUsableSize().y);
+        return GG::Pt(m_text->RelativeUpperLeft().x + m_text->Width(),
+                      std::max(m_icon->RelativeLowerRight().y, m_text->Height()));
+    else
+        return GG::Pt(std::max(m_icon->RelativeLowerRight().x, m_text->Width()),
+                      m_icon->RelativeLowerRight().y + m_text->Height());
 }
 
 ///////////////////////////////////////
@@ -1499,8 +1517,9 @@ namespace {
     // row type used in the SpeciesSelector
     struct SpeciesRow : public GG::ListBox::Row {
         SpeciesRow(const Species* species, GG::X w, GG::Y h) :
-            GG::ListBox::Row(w, h, "", GG::ALIGN_VCENTER, 0)
+            GG::ListBox::Row(w, h)
         {
+            SetMargin(0);
             if (!species)
                 return;
             const std::string& species_name = species->Name();
@@ -1511,8 +1530,9 @@ namespace {
 
         SpeciesRow(const std::string& species_name, const std::string& localized_name, const std::string& species_desc,
                    GG::X w, GG::Y h, std::shared_ptr<GG::Texture> species_icon) :
-            GG::ListBox::Row(w, h, "", GG::ALIGN_VCENTER, 0)
+            GG::ListBox::Row(w, h)
         {
+            SetMargin(0);
             GG::Wnd::SetName(species_name);
             Init(species_name, localized_name, species_desc, w, h, species_icon);
         };
@@ -1621,7 +1641,7 @@ namespace {
         };
 
         ColorRow(const GG::Clr& color, GG::Y h) :
-            GG::ListBox::Row(GG::X(Value(h)), h, ""),
+            GG::ListBox::Row(GG::X(Value(h)), h),
             m_color_square(GG::Wnd::Create<ColorSquare>(color, h))
         {}
 
@@ -2145,12 +2165,12 @@ void MultiTurnProgressBar::Render() {
         segment_verts.reserve(2 * m_num_segments);
         segment_colors.reserve(2 * m_num_segments);
 
-        GG::Clr current_colour(GG::DarkColor(m_clr_bar));
+        GG::Clr current_colour(GG::DarkenClr(m_clr_bar));
 
         for (int n = 1; n < m_num_segments; ++n) {
             GG::X separator_x(ul.x + Width() * n / m_num_segments);
             if (separator_x > comp_rect.lr.x)
-                current_colour = GG::LightColor(m_clr_bg);
+                current_colour = GG::LightenClr(m_clr_bg);
             segment_verts.store(separator_x, ul.y);
             segment_verts.store(separator_x, lr.y);
             segment_colors.store(current_colour);
@@ -2178,7 +2198,7 @@ void MultiTurnProgressBar::Render() {
         pred_verts.activate();
         glColor(m_clr_outline);
         glDrawArrays(GL_QUAD_STRIP, 0, 10);
-        glColor(GG::LightColor(m_clr_bar));
+        glColor(GG::LightenClr(m_clr_bar));
         glDrawArrays(GL_QUADS, 10, 4);
     }
 
@@ -2208,11 +2228,11 @@ void MultiTurnProgressBar::Render() {
 //////////////////////////////////////////////////
 // FPSIndicator
 //////////////////////////////////////////////////
-FPSIndicator::FPSIndicator(void) :
-    GG::TextControl(GG::X0, GG::Y0, GG::X1, GG::Y1, "", ClientUI::GetFont(), ClientUI::TextColor(), GG::FORMAT_NOWRAP, GG::ONTOP),
-    m_enabled(false),
-    m_displayed_FPS(0)
+FPSIndicator::FPSIndicator() :
+    GG::TextControl(GG::X0, GG::Y0, GG::X1, GG::Y1, "",
+                    ClientUI::GetFont(), ClientUI::TextColor(), GG::FORMAT_NOWRAP, GG::ONTOP)
 {
+    SetResetMinSize(true);
     GetOptionsDB().OptionChangedSignal("video.fps.shown").connect(
         boost::bind(&FPSIndicator::UpdateEnabled, this));
     UpdateEnabled();
@@ -2222,9 +2242,8 @@ FPSIndicator::FPSIndicator(void) :
 void FPSIndicator::PreRender() {
     GG::Wnd::PreRender();
     m_displayed_FPS = static_cast<int>(GG::GUI::GetGUI()->FPS());
-    if (m_enabled) {
+    if (m_enabled)
         SetText(boost::io::str(FlexibleFormat(UserString("MAP_INDICATOR_FPS")) % m_displayed_FPS));
-    }
 }
 
 void FPSIndicator::Render() {
@@ -2241,8 +2260,11 @@ void FPSIndicator::Render() {
     }
 }
 
-void FPSIndicator::UpdateEnabled()
-{ m_enabled = GetOptionsDB().Get<bool>("video.fps.shown"); }
+void FPSIndicator::UpdateEnabled() {
+    m_enabled = GetOptionsDB().Get<bool>("video.fps.shown");
+    if (!m_enabled)
+        Clear();
+}
 
 
 //////////////////////////////////////////////////

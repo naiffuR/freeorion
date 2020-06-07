@@ -1,4 +1,4 @@
-/* GG is a GUI for SDL and OpenGL.
+/* GG is a GUI for OpenGL.
 
    Copyright (C) 2015 Mitten-O
 
@@ -90,7 +90,9 @@ namespace GG {
         AttachChild(m_vscroll);
         AttachChild(m_content);
 
-        m_vscroll->ScrolledSignal.connect(boost::bind(&ScrollPanel::OnScrolled, this, _1, _2, _3, _4));
+        namespace ph = boost::placeholders;
+
+        m_vscroll->ScrolledSignal.connect(boost::bind(&ScrollPanel::OnScrolled, this, ph::_1, ph::_2, ph::_3, ph::_4));
 
         DoLayout();
     }

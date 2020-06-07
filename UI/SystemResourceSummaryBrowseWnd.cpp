@@ -69,7 +69,7 @@ namespace {
             return prod_queue_allocation_sum;
             break;
 
-        case RE_TRADE:
+        case RE_INFLUENCE:
         case RE_RESEARCH:
         case RE_STOCKPILE:
             // research/stockpile aren't consumed at a particular location, so none is consumed at any location
@@ -94,9 +94,6 @@ SystemResourceSummaryBrowseWnd::SystemResourceSummaryBrowseWnd(ResourceType reso
     m_resource_type(resource_type),
     m_system_id(system_id),
     m_empire_id(empire_id),
-    m_production_label(nullptr),
-    m_allocation_label(nullptr),
-    m_import_export_label(nullptr),
     row_height(1),
     production_label_top(0),
     allocation_label_top(0),
@@ -199,7 +196,7 @@ void SystemResourceSummaryBrowseWnd::UpdateProduction(GG::Y& top) {
         if (!rc) continue;
 
         std::string name = obj->Name();
-        double production = rc->InitialMeterValue(ResourceToMeter(m_resource_type));
+        double production = rc->GetMeter(ResourceToMeter(m_resource_type))->Initial();
         m_production += production;
 
         std::string amount_text = DoubleToString(production, 3, false);
@@ -246,8 +243,8 @@ void SystemResourceSummaryBrowseWnd::UpdateProduction(GG::Y& top) {
         resource_text = UserString("INDUSTRY_PRODUCTION");  break;
     case RE_RESEARCH:
         resource_text = UserString("RESEARCH_PRODUCTION");  break;
-    case RE_TRADE:
-        resource_text = UserString("TRADE_PRODUCTION");     break;
+    case RE_INFLUENCE:
+        resource_text = UserString("INFLUENCE_PRODUCTION"); break;
     case RE_STOCKPILE:
         resource_text = UserString("STOCKPILE_GENERATION"); break;
     default:
@@ -294,7 +291,7 @@ void SystemResourceSummaryBrowseWnd::UpdateAllocation(GG::Y& top) {
         // don't add summary entries for objects that consume no resource.  (otherwise there would be a loooong pointless list of 0's
         if (allocation <= 0.0) {
             if (allocation < 0.0)
-                ErrorLogger() << "object " << obj->Name() << " is reported having negative " << boost::lexical_cast<std::string>(m_resource_type) << " consumption";
+                ErrorLogger() << "object " << obj->Name() << " is reported having negative " << m_resource_type << " consumption";
             continue;
         }
 
@@ -346,8 +343,8 @@ void SystemResourceSummaryBrowseWnd::UpdateAllocation(GG::Y& top) {
         resource_text = UserString("INDUSTRY_CONSUMPTION"); break;
     case RE_RESEARCH:
         resource_text = UserString("RESEARCH_CONSUMPTION"); break;
-    case RE_TRADE:
-        resource_text = UserString("TRADE_CONSUMPTION");    break;
+    case RE_INFLUENCE:
+        resource_text = UserString("INFLUENCE_CONSUMPTION");break;
     case RE_STOCKPILE:
         resource_text = UserString("STOCKPILE_USE");        break;
     default:
@@ -398,7 +395,7 @@ void SystemResourceSummaryBrowseWnd::UpdateImportExport(GG::Y& top) {
         double difference = m_production - m_allocation;
 
         switch (m_resource_type) {
-        case RE_TRADE:
+        case RE_INFLUENCE:
         case RE_INDUSTRY:
             if (difference > 0.0) {
                 // show surplus

@@ -6,9 +6,6 @@
 #include "../universe/ValueRefs.h"
 #include "../parse/Parse.h"
 
-//TODO: replace with std::make_unique when transitioning to C++14
-#include <boost/smart_ptr/make_unique.hpp>
-
 #include <boost/iterator/filter_iterator.hpp>
 #include <boost/asio/high_resolution_timer.hpp>
 #include <boost/uuid/nil_generator.hpp>
@@ -98,22 +95,22 @@ private:
         std::string reply;
         try {
             if (parse::int_free_variable(message)) {
-                auto value_ref = boost::make_unique<ValueRef::Variable<int>>(ValueRef::NON_OBJECT_REFERENCE, message);
+                auto value_ref = std::make_unique<ValueRef::Variable<int>>(ValueRef::NON_OBJECT_REFERENCE, message);
                 reply = std::to_string(value_ref->Eval(ScriptingContext()));
                 DebugLogger(network) << "DiscoveryServer evaluated expression as integer with result: " << reply;
 
             } else if (parse::double_free_variable(message)) {
-                auto value_ref = boost::make_unique<ValueRef::Variable<double>>(ValueRef::NON_OBJECT_REFERENCE, message);
+                auto value_ref = std::make_unique<ValueRef::Variable<double>>(ValueRef::NON_OBJECT_REFERENCE, message);
                 reply = std::to_string(value_ref->Eval(ScriptingContext()));
                 DebugLogger(network) << "DiscoveryServer evaluated expression as double with result: " << reply;
 
             } else if (parse::string_free_variable(message)) {
-                auto value_ref = boost::make_unique<ValueRef::Variable<std::string>>(ValueRef::NON_OBJECT_REFERENCE, message);
+                auto value_ref = std::make_unique<ValueRef::Variable<std::string>>(ValueRef::NON_OBJECT_REFERENCE, message);
                 reply = value_ref->Eval(ScriptingContext());
                 DebugLogger(network) << "DiscoveryServer evaluated expression as string with result: " << reply;
 
             //} else {
-            //    auto value_ref = boost::make_unique<ValueRef::Variable<std::vector<std::string>>>(ValueRef::NON_OBJECT_REFERENCE, message);
+            //    auto value_ref = std::make_unique<ValueRef::Variable<std::vector<std::string>>>(ValueRef::NON_OBJECT_REFERENCE, message);
             //    auto result = value_ref->Eval(ScriptingContext());
             //    for (auto entry : result)
             //        reply += entry + "\n";
@@ -170,7 +167,7 @@ PlayerConnection::PlayerConnection(boost::asio::io_context& io_context,
 
 PlayerConnection::~PlayerConnection() {
     boost::system::error_code error;
-    m_socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, error);
+    m_socket->shutdown(boost::asio::ip::tcp::socket::shutdown_both, error);
     if (error && (m_ID != INVALID_PLAYER_ID)) {
         if (error == boost::asio::error::eof)
             TraceLogger(network) << "Player connection disconnected by EOF from client.";
@@ -191,7 +188,12 @@ PlayerConnection::~PlayerConnection() {
                                  << " for player id " << m_ID;
         }
     }
-    m_socket.close();
+
+    std::thread([socket{std::move(m_socket)}, id{m_ID}] () mutable {
+        TraceLogger(network) << "Asynchronously closing socket for player id " << id;
+        socket->close();
+        TraceLogger(network) << "Socket closed for player id " << id;
+    }).detach();
 }
 
 bool PlayerConnection::EstablishedPlayer() const
@@ -207,7 +209,7 @@ Networking::ClientType PlayerConnection::GetClientType() const
 { return m_client_type; }
 
 bool PlayerConnection::IsLocalConnection() const
-{ return (m_socket.remote_endpoint().address().is_loopback()); }
+{ return (m_socket->remote_endpoint().address().is_loopback()); }
 
 void PlayerConnection::Start()
 { AsyncReadMessage(); }
@@ -405,13 +407,9 @@ void PlayerConnection::HandleMessageBodyRead(boost::system::error_code error,
                 //TraceLogger(network) << "     Full message: " << m_incoming_message;
             }
             if (EstablishedPlayer()) {
-                EventSignal(boost::bind(m_player_message_callback,
-                                        m_incoming_message,
-                                        shared_from_this()));
+                EventSignal(boost::bind(m_player_message_callback, m_incoming_message, shared_from_this()));
             } else {
-                EventSignal(boost::bind(m_nonplayer_message_callback,
-                                        m_incoming_message,
-                                        shared_from_this()));
+                EventSignal(boost::bind(m_nonplayer_message_callback, m_incoming_message, shared_from_this()));
             }
             m_incoming_message = Message();
             AsyncReadMessage();
@@ -438,7 +436,7 @@ void PlayerConnection::HandleMessageHeaderRead(boost::system::error_code error,
             // probably just need more setup time
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
             m_new_connection = false;
-            if (m_socket.is_open()) {
+            if (m_socket->is_open()) {
                 ErrorLogger(network) << "Spurious network error on startup of client. player id = "
                                      << m_ID << ".  Retrying read...";
                 AsyncReadMessage();
@@ -463,19 +461,30 @@ void PlayerConnection::HandleMessageHeaderRead(boost::system::error_code error,
         if (bytes_transferred == Message::HeaderBufferSize) {
             BufferToHeader(m_incoming_header_buffer, m_incoming_message);
             auto msg_size = m_incoming_header_buffer[Message::Parts::SIZE];
+            TraceLogger(network) << "Server Handling Message maybe allocating buffer of size: " << msg_size;
             if (GetOptionsDB().Get<int>("network.server.client-message-size.max") > 0 &&
                 msg_size > GetOptionsDB().Get<int>("network.server.client-message-size.max"))
             {
                 ErrorLogger(network) << "PlayerConnection::HandleMessageHeaderRead(): "
                                      << "too big message " << msg_size << " bytes ";
                 boost::system::error_code error;
-                m_socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, error);
-                m_socket.close();
+                m_socket->shutdown(boost::asio::ip::tcp::socket::shutdown_both, error);
+                m_socket->close();
                 return;
             }
-            m_incoming_message.Resize(m_incoming_header_buffer[Message::Parts::SIZE]);
+            try {
+                m_incoming_message.Resize(msg_size);
+            } catch (const std::exception& e) {
+                ErrorLogger(network) << "PlayerConnection::HandleMessageHeaderRead(): "
+                                     << "caught exception resizing message buffer to size "
+                                     << msg_size << " : " << e.what();
+                boost::system::error_code error;
+                m_socket->shutdown(boost::asio::ip::tcp::socket::shutdown_both, error);
+                m_socket->close();
+                return;
+            }
             boost::asio::async_read(
-                m_socket,
+                *m_socket,
                 boost::asio::buffer(m_incoming_message.Data(), m_incoming_message.Size()),
                 boost::bind(&PlayerConnection::HandleMessageBodyRead, shared_from_this(),
                             boost::asio::placeholders::error,
@@ -485,7 +494,7 @@ void PlayerConnection::HandleMessageHeaderRead(boost::system::error_code error,
 }
 
 void PlayerConnection::AsyncReadMessage() {
-    boost::asio::async_read(m_socket, boost::asio::buffer(m_incoming_header_buffer),
+    boost::asio::async_read(*m_socket, boost::asio::buffer(m_incoming_header_buffer),
                             boost::bind(&PlayerConnection::HandleMessageHeaderRead,
                                         shared_from_this(),
                                         boost::asio::placeholders::error,
@@ -512,7 +521,7 @@ void PlayerConnection::AsyncWriteMessage() {
     buffers.push_back(boost::asio::buffer(m_outgoing_header));
     buffers.push_back(boost::asio::buffer(m_outgoing_messages.front().Data(),
                                           m_outgoing_messages.front().Size()));
-    boost::asio::async_write(m_socket, buffers,
+    boost::asio::async_write(*m_socket, buffers,
                              boost::bind(&PlayerConnection::HandleMessageWrite, shared_from_this(),
                                          boost::asio::placeholders::error,
                                          boost::asio::placeholders::bytes_transferred));
@@ -715,7 +724,7 @@ ServerNetworking::established_iterator ServerNetworking::established_end() {
 
 void ServerNetworking::HandleNextEvent() {
     if (!m_event_queue.empty()) {
-        boost::function<void ()> f = m_event_queue.front();
+        std::function<void ()> f = m_event_queue.front();
         m_event_queue.pop();
         f();
     }
@@ -805,6 +814,8 @@ void ServerNetworking::Init() {
 }
 
 void ServerNetworking::AcceptNextMessagingConnection() {
+    using boost::placeholders::_1;
+
     auto next_connection = PlayerConnection::NewConnection(
 #if BOOST_VERSION >= 106600
         m_player_connection_acceptor.get_executor().context(),
@@ -817,7 +828,7 @@ void ServerNetworking::AcceptNextMessagingConnection() {
     next_connection->EventSignal.connect(
         boost::bind(&ServerNetworking::EnqueueEvent, this, _1));
     m_player_connection_acceptor.async_accept(
-        next_connection->m_socket,
+        *next_connection->m_socket,
         boost::bind(&ServerNetworking::AcceptPlayerMessagingConnection,
                     this,
                     next_connection,

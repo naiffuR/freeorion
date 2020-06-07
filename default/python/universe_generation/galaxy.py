@@ -1,5 +1,3 @@
-from __future__ import print_function
-from __future__ import division
 import sys
 from collections import defaultdict
 from math import acos, ceil, cos, floor, pi, sin, sqrt
@@ -11,7 +9,7 @@ import universe_tables
 import util
 
 
-class AdjacencyGrid(object):
+class AdjacencyGrid:
     def __init__(self, universe_width):
         """
         :param float universe_width:
@@ -91,7 +89,7 @@ class AdjacencyGrid(object):
                    for p2 in self.grid[p2_cell])
 
 
-class DSet(object):
+class DSet:
     """
     A set of pos that is disjoint (not connected) to other sets.
 
@@ -120,7 +118,7 @@ class DSet(object):
         self.rank += 1
 
 
-class DisjointSets(object):
+class DisjointSets:
     """
     A set of disjoint sets.
 
@@ -211,7 +209,7 @@ class DisjointSets(object):
         return list(ret.values())
 
 
-class Clusterer(object):
+class Clusterer:
     """
     Computes all clusters of positions separated by more than MAX_STARLANE_LENGTH
 

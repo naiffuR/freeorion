@@ -1,12 +1,13 @@
 #ifndef _Planet_h_
 #define _Planet_h_
 
-#include "UniverseObject.h"
+
+#include "Meter.h"
 #include "PopCenter.h"
 #include "ResourceCenter.h"
-#include "Meter.h"
-
+#include "UniverseObject.h"
 #include "../util/Export.h"
+
 
 /** a class representing a FreeOrion planet. */
 class FO_COMMON_API Planet :
@@ -27,8 +28,7 @@ public:
     bool                    Contains(int object_id) const override;
     bool                    ContainedBy(int object_id) const override;
 
-    float                   CurrentMeterValue(MeterType type) const override;
-    float                   InitialMeterValue(MeterType type) const override;
+    const Meter*            GetMeter(MeterType type) const override;
 
     std::shared_ptr<UniverseObject> Accept(const UniverseObjectVisitor& visitor) const override;
 
@@ -71,6 +71,7 @@ public:
     bool IsAboutToBeBombarded() const           { return m_is_about_to_be_bombarded; }
     int OrderedGivenToEmpire() const            { return m_ordered_given_to_empire_id; }
     int LastTurnAttackedByShip() const          { return m_last_turn_attacked_by_ship; }
+    int LastTurnColonized() const               { return m_turn_last_colonized; }
     int LastTurnConquered() const               { return m_turn_last_conquered; }
 
     const std::string&  SurfaceTexture() const  { return m_surface_texture; }
@@ -85,6 +86,7 @@ public:
 
     void Reset() override;
     void Depopulate() override;
+    void SetSpecies(const std::string& species_name) override;
 
     void SetType(PlanetType type);          ///< sets the type of this Planet to \a type
     void SetOriginalType(PlanetType type);  ///< sets the original type of this Planet to \a type
@@ -128,7 +130,7 @@ public:
     ~Planet() {}
 
 protected:
-    template <class T>
+    template <typename T>
     friend void boost::python::detail::value_destroyer<false>::execute(T const volatile* p);
 
 protected:
@@ -141,8 +143,6 @@ private:
 
     Visibility GetVisibility(int empire_id) const override
     { return UniverseObject::GetVisibility(empire_id); }
-
-    const Meter* GetMeter(MeterType type) const override;
 
     void AddMeter(MeterType meter_type) override
     { UniverseObject::AddMeter(meter_type); }
@@ -161,6 +161,7 @@ private:
 
     std::set<int>   m_buildings;
 
+    int             m_turn_last_colonized = INVALID_GAME_TURN;
     int             m_turn_last_conquered = INVALID_GAME_TURN;
     bool            m_is_about_to_be_colonized = false;
     bool            m_is_about_to_be_invaded = false;
@@ -171,7 +172,7 @@ private:
     std::string     m_surface_texture;  // intentionally not serialized; set by local effects
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 

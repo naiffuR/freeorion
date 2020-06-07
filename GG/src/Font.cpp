@@ -1,4 +1,4 @@
-/* GG is a GUI for SDL and OpenGL.
+/* GG is a GUI for OpenGL.
    Copyright (C) 2003-2008 T. Zachary Laine
 
    This library is free software; you can redistribute it and/or
@@ -26,7 +26,6 @@
 
 #include <GG/GUI.h>
 #include <GG/Base.h>
-#include <GG/DrawUtil.h>
 #include <GG/StyleFactory.h>
 #include <GG/utf8/checked.h>
 #include <GG/GLClientAndServerBuffer.h>
@@ -78,7 +77,7 @@ namespace {
     const std::string ALIGN_RIGHT_TAG = "right";
     const std::string PRE_TAG = "pre";
 
-    template <class T>
+    template <typename T>
     T NextPowerOfTwo(T input)
     {
         T value(1);
@@ -328,20 +327,18 @@ namespace {
 ///////////////////////////////////////
 // class GG::Font::Substring
 ///////////////////////////////////////
-const std::string Font::Substring::EMPTY_STRING;
+namespace {
+    const std::string EMPTY_STRING;
+}
 
 Font::Substring::Substring() :
-    str(&EMPTY_STRING),
-    first(0),
-    second(0)
+    str(&EMPTY_STRING)
 {}
 
 Font::Substring::Substring(const std::string& str_,
                            std::string::const_iterator first_,
                            std::string::const_iterator second_) :
-    str(&str_),
-    first(0),
-    second(0)
+    str(&str_)
 {
     assert(str->begin() <= first_);
     assert(first_ <= second_);
@@ -351,9 +348,7 @@ Font::Substring::Substring(const std::string& str_,
 }
 
 Font::Substring::Substring(const std::string& str_, const IterPair& pair) :
-    str(&str_),
-    first(0),
-    second(0)
+    str(&str_)
 {
     assert(str->begin() <= pair.first);
     assert(pair.first <= pair.second);
@@ -506,6 +501,8 @@ namespace {
             xpr::mark_tag close_bracket_tag(3);
             xpr::mark_tag whitespace_tag(4);
             xpr::mark_tag text_tag(5);
+
+            using boost::placeholders::_1;
 
             // The comments before each regex are intended to clarify the mapping from xpressive
             // notation to the more typical regex notation.  If you read xpressive or don't read
@@ -1441,7 +1438,7 @@ namespace DebugOutput {
             for (const auto& character : line_data[i].char_data) {
                 std::cout << text[Value(character.string_index)];
             }
-            std::cout << "\"" << std::endl;
+            std::cout << "\"\n";
             for (std::size_t j = 0; j < line_data[i].char_data.size(); ++j) {
                 for (auto& tag_elem : line_data[i].char_data[j].tags) {
                     if (tag_elem) {
@@ -1455,7 +1452,7 @@ namespace DebugOutput {
                             std::cout << "        \"" << param << "\"\n";
                         }
                         std::cout << "    tag_name=\"" << tag_elem->tag_name << "\"\n    close_tag="
-                                  << tag_elem->close_tag << std::endl;
+                                  << tag_elem->close_tag << "\n";
                     }
                 }
             }

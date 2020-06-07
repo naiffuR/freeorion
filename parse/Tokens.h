@@ -13,6 +13,7 @@
     (AddSpecial)                                \
     (AddStarlanes)                              \
     (Adequate)                                  \
+    (AdoptionCost)                              \
     (Affiliation)                               \
     (Age)                                       \
     (Aggressive)                                \
@@ -63,6 +64,7 @@
     (Construction)                              \
     (Consumption)                               \
     (ContainedBy)                               \
+    (ContainerID)                               \
     (Contains)                                  \
     (Core)                                      \
     (Cos)                                       \
@@ -105,6 +107,7 @@
     (EffectsGroups)                             \
     (Else)                                      \
     (Empire)                                    \
+    (EmpireHasAdoptedPolicy)                    \
     (EmpireHasBuildingAvailable)                \
     (EmpireHasShipDesignAvailable)              \
     (EmpireHasShipPartAvailable)                \
@@ -181,13 +184,13 @@
     (HullSpeed)                                 \
     (HullStealth)                               \
     (HullStructure)                             \
-    (HullType)                                  \
     (Human)                                     \
     (Icon)                                      \
     (ID)                                        \
     (If)                                        \
     (Industry)                                  \
     (Inferno)                                   \
+    (Influence)                                 \
     (InSystem)                                  \
     (Interceptor)                               \
     (Integer)                                   \
@@ -195,9 +198,7 @@
     (Invisible)                                 \
     (Item)                                      \
     (Jumps)                                     \
-    (JumpsBetween)                              \
-    (Keymap)                                    \
-    (Keys)
+    (JumpsBetween)
 
 #define TOKEN_SEQ_6                             \
     (Label)                                     \
@@ -205,6 +206,7 @@
     (LastTurnActiveInBattle)                    \
     (LastTurnAttackedByShip)                    \
     (LastTurnBattleHere)                        \
+    (LastTurnColonized)                         \
     (LastTurnConquered)                         \
     (LastTurnResupplied)                        \
     (LaunchedFrom)                              \
@@ -285,6 +287,7 @@
     (Off)                                       \
     (On)                                        \
     (OneOf)                                     \
+    (OnPlanet)                                  \
     (Opinion)                                   \
     (Or)                                        \
     (Orange)                                    \
@@ -309,7 +312,6 @@
     (Parts)                                     \
     (PartOfClassInShipDesign)                   \
     (PartsInShipDesign)                         \
-    (PartType)                                  \
     (Passive)                                   \
     (PeaceWith)                                 \
     (Planet)                                    \
@@ -320,6 +322,7 @@
     (PlanetType)                                \
     (Playable)                                  \
     (PointDefense)                              \
+    (Policy)                                    \
     (Poor)                                      \
     (Population)                                \
     (PopulationCenter)                          \
@@ -386,6 +389,7 @@
     (SetFuel)                                   \
     (SetHappiness)                              \
     (SetIndustry)                               \
+    (SetInfluence)                              \
     (SetMaxCapacity)                            \
     (SetMaxDamage)                              \
     (SetMaxDefense)                             \
@@ -422,11 +426,10 @@
     (SetTargetConstruction)                     \
     (SetTargetHappiness)                        \
     (SetTargetIndustry)                         \
+    (SetTargetInfluence)                        \
     (SetTargetPopulation)                       \
     (SetTargetResearch)                         \
-    (SetTargetTrade)                            \
     (SetTexture)                                \
-    (SetTrade)                                  \
     (SetTroops)                                 \
     (SetVisibility)
 
@@ -513,9 +516,9 @@
     (TargetConstruction)                        \
     (TargetHappiness)                           \
     (TargetIndustry)                            \
+    (TargetInfluence)                           \
     (TargetPopulation)                          \
     (TargetResearch)                            \
-    (TargetTrade)                               \
     (Tech)                                      \
     (Terran)                                    \
     (TestValue)                                 \
@@ -541,6 +544,7 @@
     (Troops)                                    \
     (Tundra)                                    \
     (Turn)                                      \
+    (TurnPolicyAdopted)                         \
     (TurnsSinceFocusChange)                     \
     (TurnTechResearched)                        \
     (Type)                                      \

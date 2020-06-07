@@ -1,33 +1,38 @@
 #include "ValueRefs.h"
 
-#include "Building.h"
-#include "Fleet.h"
-#include "Ship.h"
-#include "Planet.h"
-#include "Predicates.h"
-#include "Species.h"
-#include "System.h"
-#include "Field.h"
-#include "Fighter.h"
-#include "Pathfinder.h"
-#include "Universe.h"
-#include "UniverseObject.h"
-#include "Enums.h"
-#include "Tech.h"
-#include "../Empire/EmpireManager.h"
-#include "../Empire/Empire.h"
-#include "../Empire/Supply.h"
-#include "../util/Random.h"
-#include "../util/Logger.h"
-#include "../util/MultiplayerCommon.h"
-#include "../util/GameRules.h"
-
+#include <functional>
+#include <iomanip>
+#include <iterator>
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/split.hpp>
-
-#include <iomanip>
-#include <iterator>
+#include <boost/range/adaptor/filtered.hpp>
+#include <boost/range/adaptor/map.hpp>
+#include <boost/range/numeric.hpp>
+#include "Building.h"
+#include "Enums.h"
+#include "Field.h"
+#include "Fighter.h"
+#include "Fleet.h"
+#include "Pathfinder.h"
+#include "Planet.h"
+#include "Predicates.h"
+#include "ShipDesign.h"
+#include "ShipHull.h"
+#include "ShipPart.h"
+#include "Ship.h"
+#include "Species.h"
+#include "System.h"
+#include "Tech.h"
+#include "UniverseObject.h"
+#include "Universe.h"
+#include "../Empire/EmpireManager.h"
+#include "../Empire/Empire.h"
+#include "../Empire/Supply.h"
+#include "../util/GameRules.h"
+#include "../util/Logger.h"
+#include "../util/MultiplayerCommon.h"
+#include "../util/Random.h"
 
 
 std::string DoubleToString(double val, int digits, bool always_show_sign);
@@ -74,19 +79,19 @@ namespace {
             std::string property_name = *first;
             if (property_name == "Planet") {
                 if (auto b = std::dynamic_pointer_cast<const Building>(obj)) {
-                    obj = context.objects.get<Planet>(b->PlanetID());
+                    obj = context.ContextObjects().get<Planet>(b->PlanetID());
                 } else {
                     ErrorLogger() << "FollowReference : object not a building, so can't get its planet.";
                     obj = nullptr;
                 }
             } else if (property_name == "System") {
                 if (obj)
-                    obj = context.objects.get<System>(obj->SystemID());
+                    obj = context.ContextObjects().get<System>(obj->SystemID());
                 if (!obj)
                     ErrorLogger() << "FollowReference : Unable to get system for object";
             } else if (property_name == "Fleet") {
                 if (auto s = std::dynamic_pointer_cast<const Ship>(obj)) {
-                    obj = context.objects.get<Fleet>(s->FleetID());
+                    obj = context.ContextObjects().get<Fleet>(s->FleetID());
                 } else {
                     ErrorLogger() << "FollowReference : object not a ship, so can't get its fleet";
                     obj = nullptr;
@@ -144,18 +149,18 @@ namespace {
             if (property_name_part == "Planet") {
                 if (auto b = std::dynamic_pointer_cast<const Building>(obj)) {
                     retval += "(" + std::to_string(b->PlanetID()) + "): ";
-                    obj = context.objects.get<Planet>(b->PlanetID());
+                    obj = context.ContextObjects().get<Planet>(b->PlanetID());
                 } else
                     obj = nullptr;
             } else if (property_name_part == "System") {
                 if (obj) {
                     retval += "(" + std::to_string(obj->SystemID()) + "): ";
-                    obj = context.objects.get<System>(obj->SystemID());
+                    obj = context.ContextObjects().get<System>(obj->SystemID());
                 }
             } else if (property_name_part == "Fleet") {
                 if (auto s = std::dynamic_pointer_cast<const Ship>(obj))  {
                     retval += "(" + std::to_string(s->FleetID()) + "): ";
-                    obj = context.objects.get<Fleet>(s->FleetID());
+                    obj = context.ContextObjects().get<Fleet>(s->FleetID());
                 } else
                     obj = nullptr;
             }
@@ -196,51 +201,51 @@ namespace {
     };
 
     const std::map<std::string, MeterType>& GetMeterNameMap() {
-        static std::map<std::string, MeterType> meter_name_map;
-        if (meter_name_map.empty()) {
-            // todo: maybe need some thread guards here?
-            meter_name_map["Population"] =         METER_POPULATION;
-            meter_name_map["TargetPopulation"] =   METER_TARGET_POPULATION;
-            meter_name_map["Industry"] =           METER_INDUSTRY;
-            meter_name_map["TargetIndustry"] =     METER_TARGET_INDUSTRY;
-            meter_name_map["Research"] =           METER_RESEARCH;
-            meter_name_map["TargetResearch"] =     METER_TARGET_RESEARCH;
-            meter_name_map["Trade"] =              METER_TRADE;
-            meter_name_map["TargetTrade"] =        METER_TARGET_TRADE;
-            meter_name_map["Construction"] =       METER_CONSTRUCTION;
-            meter_name_map["TargetConstruction"] = METER_TARGET_CONSTRUCTION;
-            meter_name_map["Happiness"] =          METER_HAPPINESS;
-            meter_name_map["TargetHappiness"] =    METER_TARGET_HAPPINESS;
-            meter_name_map["MaxFuel"] =            METER_MAX_FUEL;
-            meter_name_map["Fuel"] =               METER_FUEL;
-            meter_name_map["MaxStructure"] =       METER_MAX_STRUCTURE;
-            meter_name_map["Structure"] =          METER_STRUCTURE;
-            meter_name_map["MaxShield"] =          METER_MAX_SHIELD;
-            meter_name_map["Shield"] =             METER_SHIELD;
-            meter_name_map["MaxDefense"] =         METER_MAX_DEFENSE;
-            meter_name_map["Defense"] =            METER_DEFENSE;
-            meter_name_map["MaxTroops"] =          METER_MAX_TROOPS;
-            meter_name_map["Troops"] =             METER_TROOPS;
-            meter_name_map["RebelTroops"] =        METER_REBEL_TROOPS;
-            meter_name_map["Supply"] =             METER_SUPPLY;
-            meter_name_map["MaxSupply"] =          METER_MAX_SUPPLY;
-            meter_name_map["Stockpile"] =          METER_STOCKPILE;
-            meter_name_map["MaxStockpile"] =       METER_MAX_STOCKPILE;
-            meter_name_map["Stealth"] =            METER_STEALTH;
-            meter_name_map["Detection"] =          METER_DETECTION;
-            meter_name_map["Speed"] =              METER_SPEED;
-            meter_name_map["Damage"] =             METER_CAPACITY;
-            meter_name_map["Capacity"] =           METER_CAPACITY;
-            meter_name_map["MaxCapacity"] =        METER_MAX_CAPACITY;
-            meter_name_map["SecondaryStat"] =      METER_SECONDARY_STAT;
-            meter_name_map["MaxSecondaryStat"] =   METER_MAX_SECONDARY_STAT;
-            meter_name_map["Size"] =               METER_SIZE;
-        }
+        static const std::map<std::string, MeterType> meter_name_map{
+            {"Population",           METER_POPULATION},
+            {"TargetPopulation",     METER_TARGET_POPULATION},
+            {"Industry",             METER_INDUSTRY},
+            {"TargetIndustry",       METER_TARGET_INDUSTRY},
+            {"Research",             METER_RESEARCH},
+            {"TargetResearch",       METER_TARGET_RESEARCH},
+            {"Influence",            METER_INFLUENCE},
+            {"TargetInfluence",      METER_TARGET_INFLUENCE},
+            {"Construction",         METER_CONSTRUCTION},
+            {"TargetConstruction",   METER_TARGET_CONSTRUCTION},
+            {"Happiness",            METER_HAPPINESS},
+            {"TargetHappiness",      METER_TARGET_HAPPINESS},
+            {"MaxFuel",              METER_MAX_FUEL},
+            {"Fuel",                 METER_FUEL},
+            {"MaxStructure",         METER_MAX_STRUCTURE},
+            {"Structure",            METER_STRUCTURE},
+            {"MaxShield",            METER_MAX_SHIELD},
+            {"Shield",               METER_SHIELD},
+            {"MaxDefense",           METER_MAX_DEFENSE},
+            {"Defense",              METER_DEFENSE},
+            {"MaxTroops",            METER_MAX_TROOPS},
+            {"Troops",               METER_TROOPS},
+            {"RebelTroops",          METER_REBEL_TROOPS},
+            {"Supply",               METER_SUPPLY},
+            {"MaxSupply",            METER_MAX_SUPPLY},
+            {"Stockpile",            METER_STOCKPILE},
+            {"MaxStockpile",         METER_MAX_STOCKPILE},
+            {"Stealth",              METER_STEALTH},
+            {"Detection",            METER_DETECTION},
+            {"Speed",                METER_SPEED},
+            {"Damage",               METER_CAPACITY},
+            {"Capacity",             METER_CAPACITY},
+            {"MaxCapacity",          METER_MAX_CAPACITY},
+            {"SecondaryStat",        METER_SECONDARY_STAT},
+            {"MaxSecondaryStat",     METER_MAX_SECONDARY_STAT},
+            {"Size",                 METER_SIZE}
+        };
         return meter_name_map;
     }
 
     // force early init to avoid threading issues later
     std::map<std::string, MeterType> dummy = GetMeterNameMap();
+
+    const std::string EMPTY_STRING;
 }
 
 namespace ValueRef {
@@ -252,12 +257,12 @@ MeterType NameToMeter(const std::string& name) {
     return retval;
 }
 
-std::string MeterToName(MeterType meter) {
+const std::string& MeterToName(MeterType meter) {
     for (const auto& entry : GetMeterNameMap()) {
         if (entry.second == meter)
             return entry.first;
     }
-    return "";
+    return EMPTY_STRING;
 }
 
 std::string ReconstructName(const std::vector<std::string>& property_name,
@@ -265,6 +270,7 @@ std::string ReconstructName(const std::vector<std::string>& property_name,
                             bool return_immediate_value)
 {
     std::string retval;
+    retval.reserve(64);
 
     if (return_immediate_value)
         retval += "Value(";
@@ -304,17 +310,19 @@ std::string FormatedDescriptionPropertyNames(ReferenceType ref_type,
         if (property_name_part.empty())
              num_references--;
     num_references = std::max(0, num_references);
-    std::string format_string;
-    switch (num_references) {
-    case 0: format_string = UserString("DESC_VALUE_REF_MULTIPART_VARIABLE0"); break;
-    case 1: format_string = UserString("DESC_VALUE_REF_MULTIPART_VARIABLE1"); break;
-    case 2: format_string = UserString("DESC_VALUE_REF_MULTIPART_VARIABLE2"); break;
-    case 3: format_string = UserString("DESC_VALUE_REF_MULTIPART_VARIABLE3"); break;
-    case 4: format_string = UserString("DESC_VALUE_REF_MULTIPART_VARIABLE4"); break;
-    case 5: format_string = UserString("DESC_VALUE_REF_MULTIPART_VARIABLE5"); break;
-    case 6: format_string = UserString("DESC_VALUE_REF_MULTIPART_VARIABLE6"); break;
-    default:format_string = UserString("DESC_VALUE_REF_MULTIPART_VARIABLEMANY"); break;
-    }
+    const std::string& format_string{
+        [num_references]() {
+            switch (num_references) {
+            case 0: return UserString("DESC_VALUE_REF_MULTIPART_VARIABLE0"); break;
+            case 1: return UserString("DESC_VALUE_REF_MULTIPART_VARIABLE1"); break;
+            case 2: return UserString("DESC_VALUE_REF_MULTIPART_VARIABLE2"); break;
+            case 3: return UserString("DESC_VALUE_REF_MULTIPART_VARIABLE3"); break;
+            case 4: return UserString("DESC_VALUE_REF_MULTIPART_VARIABLE4"); break;
+            case 5: return UserString("DESC_VALUE_REF_MULTIPART_VARIABLE5"); break;
+            case 6: return UserString("DESC_VALUE_REF_MULTIPART_VARIABLE6"); break;
+            default:return UserString("DESC_VALUE_REF_MULTIPART_VARIABLEMANY"); break;
+            }
+        }()};
 
     boost::format formatter = FlexibleFormat(format_string);
 
@@ -331,13 +339,10 @@ std::string FormatedDescriptionPropertyNames(ReferenceType ref_type,
     for (const std::string& property_name_part : property_names) {
         if (property_name_part.empty())  // apparently is empty for a EFFECT_TARGET_VALUE_REFERENCE
             continue;
-        std::string stringtable_key("DESC_VAR_" + boost::to_upper_copy(property_name_part));
-        formatter % UserString(stringtable_key);
+        formatter % UserString("DESC_VAR_" + boost::to_upper_copy(property_name_part));
     }
 
-    std::string retval = boost::io::str(formatter);
-    //std::cerr << "ret: " << retval << std::endl;
-    return retval;
+    return boost::io::str(formatter);
 }
 
 std::string ComplexVariableDescription(const std::vector<std::string>& property_names,
@@ -587,9 +592,9 @@ else                                                                   \
 template <>
 PlanetSize Variable<PlanetSize>::Eval(const ScriptingContext& context) const
 {
-    const std::string& property_name = m_property_name.empty() ? "" : m_property_name.back();
-
     IF_CURRENT_VALUE(PlanetSize)
+
+    const std::string& property_name = m_property_name.empty() ? "" : m_property_name.back();
 
     auto object = FollowReference(m_property_name.begin(), m_property_name.end(),
                                   m_ref_type, context);
@@ -598,19 +603,18 @@ PlanetSize Variable<PlanetSize>::Eval(const ScriptingContext& context) const
         return INVALID_PLANET_SIZE;
     }
 
-    if (property_name == "PlanetSize") {
-        if (auto p = std::dynamic_pointer_cast<const Planet>(object))
-            return p->Size();
-        return INVALID_PLANET_SIZE;
+    std::function<PlanetSize (const Planet&)> planet_property{nullptr};
 
-    } else if (property_name == "NextLargerPlanetSize") {
-        if (auto p = std::dynamic_pointer_cast<const Planet>(object))
-            return p->NextLargerPlanetSize();
-        return INVALID_PLANET_SIZE;
+    if (property_name == "PlanetSize")
+        planet_property = &Planet::Size;
+    else if (property_name == "NextLargerPlanetSize")
+        planet_property = &Planet::NextLargerPlanetSize;
+    else if (property_name == "NextSmallerPlanetSize")
+        planet_property = &Planet::NextSmallerPlanetSize;
 
-    } else if (property_name == "NextSmallerPlanetSize") {
+    if (planet_property) {
         if (auto p = std::dynamic_pointer_cast<const Planet>(object))
-            return p->NextSmallerPlanetSize();
+            return planet_property(*p);
         return INVALID_PLANET_SIZE;
     }
 
@@ -622,9 +626,9 @@ PlanetSize Variable<PlanetSize>::Eval(const ScriptingContext& context) const
 template <>
 PlanetType Variable<PlanetType>::Eval(const ScriptingContext& context) const
 {
-    const std::string& property_name = m_property_name.empty() ? "" : m_property_name.back();
-
     IF_CURRENT_VALUE(PlanetType)
+
+    const std::string& property_name = m_property_name.empty() ? "" : m_property_name.back();
 
     auto object = FollowReference(m_property_name.begin(), m_property_name.end(),
                                   m_ref_type, context);
@@ -633,34 +637,24 @@ PlanetType Variable<PlanetType>::Eval(const ScriptingContext& context) const
         return INVALID_PLANET_TYPE;
     }
 
-    if (property_name == "PlanetType") {
-        if (auto p = std::dynamic_pointer_cast<const Planet>(object))
-            return p->Type();
-        return INVALID_PLANET_TYPE;
+    std::function<PlanetType (const Planet&)> planet_property{nullptr};
 
-    } else if (property_name == "OriginalType") {
-        if (auto p = std::dynamic_pointer_cast<const Planet>(object))
-            return p->OriginalType();
-        return INVALID_PLANET_TYPE;
+    if (property_name == "PlanetType")
+        planet_property = &Planet::Type;
+    else if (property_name == "OriginalType")
+        planet_property = &Planet::OriginalType;
+    else if (property_name == "NextCloserToOriginalPlanetType")
+        planet_property = &Planet::NextCloserToOriginalPlanetType;
+    else if (property_name == "NextBetterPlanetType")
+        planet_property = boost::bind(&Planet::NextBetterPlanetTypeForSpecies, boost::placeholders::_1, "");
+    else if (property_name == "ClockwiseNextPlanetType")
+        planet_property = &Planet::ClockwiseNextPlanetType;
+    else if (property_name == "CounterClockwiseNextPlanetType")
+        planet_property = &Planet::CounterClockwiseNextPlanetType;
 
-    } else if (property_name == "NextCloserToOriginalPlanetType") {
+    if (planet_property) {
         if (auto p = std::dynamic_pointer_cast<const Planet>(object))
-            return p->NextCloserToOriginalPlanetType();
-        return INVALID_PLANET_TYPE;
-
-    } else if (property_name == "NextBetterPlanetType") {
-        if (auto p = std::dynamic_pointer_cast<const Planet>(object))
-            return p->NextBetterPlanetTypeForSpecies();
-        return INVALID_PLANET_TYPE;
-
-    } else if (property_name == "ClockwiseNextPlanetType") {
-        if (auto p = std::dynamic_pointer_cast<const Planet>(object))
-            return p->ClockwiseNextPlanetType();
-        return INVALID_PLANET_TYPE;
-
-    } else if (property_name == "CounterClockwiseNextPlanetType") {
-        if (auto p = std::dynamic_pointer_cast<const Planet>(object))
-            return p->CounterClockwiseNextPlanetType();
+            return planet_property(*p);
         return INVALID_PLANET_TYPE;
     }
 
@@ -669,14 +663,12 @@ PlanetType Variable<PlanetType>::Eval(const ScriptingContext& context) const
     return INVALID_PLANET_TYPE;
 }
 
-
-
 template <>
 PlanetEnvironment Variable<PlanetEnvironment>::Eval(const ScriptingContext& context) const
 {
-    const std::string& property_name = m_property_name.empty() ? "" : m_property_name.back();
-
     IF_CURRENT_VALUE(PlanetEnvironment)
+
+    const std::string& property_name = m_property_name.empty() ? "" : m_property_name.back();
 
     if (property_name == "PlanetEnvironment") {
         auto object = FollowReference(m_property_name.begin(), m_property_name.end(), m_ref_type, context);
@@ -698,9 +690,9 @@ PlanetEnvironment Variable<PlanetEnvironment>::Eval(const ScriptingContext& cont
 template <>
 UniverseObjectType Variable<UniverseObjectType>::Eval(const ScriptingContext& context) const
 {
-    const std::string& property_name = m_property_name.empty() ? "" : m_property_name.back();
-
     IF_CURRENT_VALUE(UniverseObjectType)
+
+    const std::string& property_name = m_property_name.empty() ? "" : m_property_name.back();
 
     if (property_name == "ObjectType") {
         auto object = FollowReference(m_property_name.begin(), m_property_name.end(), m_ref_type, context);
@@ -727,9 +719,9 @@ UniverseObjectType Variable<UniverseObjectType>::Eval(const ScriptingContext& co
 template <>
 StarType Variable<StarType>::Eval(const ScriptingContext& context) const
 {
-    const std::string& property_name = m_property_name.empty() ? "" : m_property_name.back();
-
     IF_CURRENT_VALUE(StarType)
+
+    const std::string& property_name = m_property_name.empty() ? "" : m_property_name.back();
 
     auto object = FollowReference(m_property_name.begin(), m_property_name.end(),
                                   m_ref_type, context);
@@ -738,19 +730,18 @@ StarType Variable<StarType>::Eval(const ScriptingContext& context) const
         return INVALID_STAR_TYPE;
     }
 
-    if (property_name == "StarType") {
-        if (auto s = std::dynamic_pointer_cast<const System>(object))
-            return s->GetStarType();
-        return INVALID_STAR_TYPE;
+    std::function<StarType (const System&)> system_property{nullptr};
 
-    } else if (property_name == "NextOlderStarType") {
-        if (auto s = std::dynamic_pointer_cast<const System>(object))
-            return s->NextOlderStarType();
-        return INVALID_STAR_TYPE;
+    if (property_name == "StarType")
+        system_property = &System::GetStarType;
+    else if (property_name == "NextOlderStarType")
+        system_property = &System::NextOlderStarType;
+    else if (property_name == "NextYoungerStarType")
+        system_property = &System::NextYoungerStarType;
 
-    } else if (property_name == "NextYoungerStarType") {
+    if (system_property) {
         if (auto s = std::dynamic_pointer_cast<const System>(object))
-            return s->NextYoungerStarType();
+            return system_property(*s);
         return INVALID_STAR_TYPE;
     }
 
@@ -776,9 +767,9 @@ Visibility Variable<Visibility>::Eval(const ScriptingContext& context) const
 template <>
 double Variable<double>::Eval(const ScriptingContext& context) const
 {
-    const std::string& property_name = m_property_name.empty() ? "" : m_property_name.back();
-
     IF_CURRENT_VALUE(float)
+
+    const std::string& property_name = m_property_name.empty() ? "" : m_property_name.back();
 
     if (m_ref_type == NON_OBJECT_REFERENCE) {
         if ((property_name == "UniverseCentreX") |
@@ -806,12 +797,8 @@ double Variable<double>::Eval(const ScriptingContext& context) const
 
     MeterType meter_type = NameToMeter(property_name);
     if (object && meter_type != INVALID_METER_TYPE) {
-        if (object->GetMeter(meter_type)) {
-            if (m_return_immediate_value)
-                return object->CurrentMeterValue(meter_type);
-            else
-                return object->InitialMeterValue(meter_type);
-        }
+        if (auto* m = object->GetMeter(meter_type))
+            return m_return_immediate_value ? m->Current() : m->Initial();
         return 0.0;
 
     } else if (property_name == "X") {
@@ -820,22 +807,25 @@ double Variable<double>::Eval(const ScriptingContext& context) const
     } else if (property_name == "Y") {
         return object->Y();
 
-    } else if (property_name == "SizeAsDouble") {
+    }
+
+    std::function<double (const Planet&)> planet_property{nullptr};
+
+    if (property_name == "SizeAsDouble")
+        planet_property = &Planet::Size;
+    else if (property_name == "HabitableSize")
+        planet_property = &Planet::HabitableSize;
+    else if (property_name == "DistanceFromOriginalType")
+        planet_property = &Planet::DistanceFromOriginalType;
+
+    if (planet_property) {
         if (auto planet = std::dynamic_pointer_cast<const Planet>(object))
-            return planet->Size();
+            return planet_property(*planet);
         return 0.0;
 
-    } else if (property_name == "HabitableSize") {
-        if (auto planet = std::dynamic_pointer_cast<const Planet>(object))
-            return planet->HabitableSize();
-        return 0.0;
+    }
 
-    } else if (property_name == "DistanceFromOriginalType") {
-        if (auto planet = std::dynamic_pointer_cast<const Planet>(object))
-            return planet->DistanceFromOriginalType();
-        return 0.0;
-
-    } else if (property_name == "CombatBout") {
+    if (property_name == "CombatBout") {
         return context.combat_info.bout;
 
     } else if (property_name == "CurrentTurn") {
@@ -873,9 +863,9 @@ double Variable<double>::Eval(const ScriptingContext& context) const
 template <>
 int Variable<int>::Eval(const ScriptingContext& context) const
 {
-    const std::string& property_name = m_property_name.empty() ? "" : m_property_name.back();
-
     IF_CURRENT_VALUE(int)
+
+    const std::string& property_name = m_property_name.empty() ? "" : m_property_name.back();
 
     if (m_ref_type == NON_OBJECT_REFERENCE) {
         if (property_name == "CombatBout")
@@ -933,6 +923,14 @@ int Variable<int>::Eval(const ScriptingContext& context) const
     if (property_name == "Owner") {
         return object->Owner();
     }
+    else if (property_name == "SystemID") {
+        return object->SystemID();
+
+    }
+    else if (property_name == "ContainerID") {
+        return object->ContainerObjectID();
+
+    }
     else if (property_name == "SupplyingEmpire") {
         return GetSupplyManager().EmpireThatCanSupplyAt(object->SystemID());
     }
@@ -946,7 +944,55 @@ int Variable<int>::Eval(const ScriptingContext& context) const
         return object->AgeInTurns();
 
     }
-    else if (property_name == "TurnsSinceFocusChange") {
+
+    std::function<int (const Ship&)> ship_property{nullptr};
+
+    if (property_name == "ArrivedOnTurn")
+        ship_property = &Ship::ArrivedOnTurn;
+    else if (property_name == "LastTurnActiveInBattle")
+        ship_property = &Ship::LastTurnActiveInCombat;
+    else if (property_name == "LastTurnResupplied")
+        ship_property = &Ship::LastResuppliedOnTurn;
+
+    if (ship_property) {
+        if (auto ship = std::dynamic_pointer_cast<const Ship>(object))
+            return ship_property(*ship);
+        return INVALID_GAME_TURN;
+    }
+
+    std::function<int (const Fleet&)> fleet_property{nullptr};
+
+    if (property_name == "FinalDestinationID")
+        fleet_property = &Fleet::FinalDestinationID;
+    else if (property_name == "NextSystemID")
+        fleet_property = &Fleet::NextSystemID;
+    else if (property_name == "PreviousSystemID")
+        fleet_property = &Fleet::PreviousSystemID;
+    else if (property_name == "ArrivalStarlaneID")
+        fleet_property = &Fleet::ArrivalStarlane;
+
+    if (fleet_property) {
+        if (auto fleet = std::dynamic_pointer_cast<const Fleet>(object))
+            return fleet_property(*fleet);
+        return INVALID_OBJECT_ID;
+    }
+
+    std::function<int (const Planet&)> planet_property{nullptr};
+
+    if (property_name == "LastTurnAttackedByShip")
+        planet_property = &Planet::LastTurnAttackedByShip;
+    else if (property_name == "LastTurnColonized")
+        planet_property = &Planet::LastTurnColonized;
+    else if (property_name == "LastTurnConquered")
+        planet_property = &Planet::LastTurnConquered;
+
+    if (planet_property) {
+        if (auto planet = std::dynamic_pointer_cast<const Planet>(object))
+            return planet_property(*planet);
+        return INVALID_GAME_TURN;
+    }
+
+    if (property_name == "TurnsSinceFocusChange") {
         if (auto planet = std::dynamic_pointer_cast<const Planet>(object))
             return planet->TurnsSinceFocusChange();
         return 0;
@@ -958,12 +1004,6 @@ int Variable<int>::Eval(const ScriptingContext& context) const
         else if (auto building = std::dynamic_pointer_cast<const Building>(object))
             return building->ProducedByEmpireID();
         return ALL_EMPIRES;
-
-    }
-    else if (property_name == "ArrivedOnTurn") {
-        if (auto ship = std::dynamic_pointer_cast<const Ship>(object))
-            return ship->ArrivedOnTurn();
-        return INVALID_GAME_TURN;
 
     }
     else if (property_name == "DesignID") {
@@ -996,34 +1036,6 @@ int Variable<int>::Eval(const ScriptingContext& context) const
         return INVALID_OBJECT_ID;
 
     }
-    else if (property_name == "SystemID") {
-        return object->SystemID();
-
-    }
-    else if (property_name == "FinalDestinationID") {
-        if (auto fleet = std::dynamic_pointer_cast<const Fleet>(object))
-            return fleet->FinalDestinationID();
-        return INVALID_OBJECT_ID;
-
-    }
-    else if (property_name == "NextSystemID") {
-        if (auto fleet = std::dynamic_pointer_cast<const Fleet>(object))
-            return fleet->NextSystemID();
-        return INVALID_OBJECT_ID;
-
-    }
-    else if (property_name == "PreviousSystemID") {
-        if (auto fleet = std::dynamic_pointer_cast<const Fleet>(object))
-            return fleet->PreviousSystemID();
-        return INVALID_OBJECT_ID;
-
-    }
-    else if (property_name == "ArrivalStarlaneID") {
-        if (auto fleet = std::dynamic_pointer_cast<const Fleet>(object))
-            return fleet->ArrivalStarlane();
-        return INVALID_OBJECT_ID;
-
-    }
     else if (property_name == "NearestSystemID") {
         if (object->SystemID() != INVALID_OBJECT_ID)
             return object->SystemID();
@@ -1045,37 +1057,13 @@ int Variable<int>::Eval(const ScriptingContext& context) const
     else if (property_name == "LastTurnBattleHere") {
         if (auto const_system = std::dynamic_pointer_cast<const System>(object))
             return const_system->LastTurnBattleHere();
-        else if (auto system = context.objects.get<System>(object->SystemID()))
+        else if (auto system = context.ContextObjects().get<System>(object->SystemID()))
             return system->LastTurnBattleHere();
         return INVALID_GAME_TURN;
 
     }
-    else if (property_name == "LastTurnActiveInBattle") {
-        if (auto ship = std::dynamic_pointer_cast<const Ship>(object))
-            return ship->LastTurnActiveInCombat();
-        return INVALID_GAME_TURN;
-
-    }
-    else if (property_name == "LastTurnAttackedByShip") {
-        if (auto planet = std::dynamic_pointer_cast<const Planet>(object))
-            return planet->LastTurnAttackedByShip();
-        return INVALID_GAME_TURN;
-
-    }
-    else if (property_name == "LastTurnConquered") {
-        if (auto planet = std::dynamic_pointer_cast<const Planet>(object))
-            return planet->LastTurnConquered();
-        return INVALID_GAME_TURN;
-
-    }
-    else if (property_name == "LastTurnResupplied") {
-        if (auto ship = std::dynamic_pointer_cast<const Ship>(object))
-            return ship->LastResuppliedOnTurn();
-        return INVALID_GAME_TURN;
-
-    }
     else if (property_name == "Orbit") {
-        if (auto system = context.objects.get<System>(object->SystemID()))
+        if (auto system = context.ContextObjects().get<System>(object->SystemID()))
             return system->OrbitOfPlanet(object->ID());
         return -1;
 
@@ -1105,9 +1093,9 @@ template <>
 std::vector<std::string> Variable<std::vector<std::string>>::Eval(
     const ScriptingContext& context) const
 {
-    const std::string& property_name = m_property_name.empty() ? "" : m_property_name.back();
-
     IF_CURRENT_VALUE(std::vector<std::string>)
+
+    const std::string& property_name = m_property_name.empty() ? "" : m_property_name.back();
 
     if (m_ref_type == NON_OBJECT_REFERENCE) {
         // add more non-object reference string vector functions here
@@ -1125,16 +1113,12 @@ std::vector<std::string> Variable<std::vector<std::string>>::Eval(
     }
 
     if (property_name == "Tags") {
-        std::vector<std::string> retval;
-        for (auto tag : object->Tags())
-            retval.push_back(tag);
-        return retval;
+        auto tags = object->Tags();
+        return {tags.begin(), tags.end()};
     }
     else if (property_name == "Specials") {
-        std::vector<std::string> retval;
-        for (auto spec : object->Specials())
-            retval.push_back(spec.first);
-        return retval;
+        auto obj_special_names_range = object->Specials() | boost::adaptors::map_keys;
+        return {obj_special_names_range.begin(), obj_special_names_range.end()};
     }
     else if (property_name == "AvailableFoci") {
         if (auto planet = std::dynamic_pointer_cast<const Planet>(object))
@@ -1156,9 +1140,9 @@ std::vector<std::string> Variable<std::vector<std::string>>::Eval(
 template <>
 std::string Variable<std::string>::Eval(const ScriptingContext& context) const
 {
-    const std::string& property_name = m_property_name.empty() ? "" : m_property_name.back();
-
     IF_CURRENT_VALUE(std::string)
+
+    const std::string& property_name = m_property_name.empty() ? "" : m_property_name.back();
 
     if (m_ref_type == NON_OBJECT_REFERENCE) {
         if (property_name == "GalaxySeed")
@@ -1190,7 +1174,29 @@ std::string Variable<std::string>::Eval(const ScriptingContext& context) const
     } else if (property_name == "TypeName") {
         return boost::lexical_cast<std::string>(object->ObjectType());
 
-    } else if (property_name == "Species") {
+    }
+
+    std::function<std::string (const Empire&)> empire_property{nullptr};
+
+    if (property_name == "OwnerLeastExpensiveEnqueuedTech")
+        empire_property = &Empire::LeastExpensiveEnqueuedTech;
+    else if (property_name == "OwnerMostExpensiveEnqueuedTech")
+        empire_property = &Empire::MostExpensiveEnqueuedTech;
+    else if (property_name == "OwnerMostRPCostLeftEnqueuedTech")
+        empire_property = &Empire::MostRPCostLeftEnqueuedTech;
+    else if (property_name == "OwnerMostRPSpentEnqueuedTech")
+        empire_property = &Empire::MostRPSpentEnqueuedTech;
+    else if (property_name == "OwnerTopPriorityEnqueuedTech")
+        empire_property = &Empire::TopPriorityEnqueuedTech;
+
+    if (empire_property) {
+        const Empire* empire = GetEmpire(object->Owner());
+        if (!empire)
+            return "";
+        return empire_property(*empire);
+    }
+
+    if (property_name == "Species") {
         if (auto planet = std::dynamic_pointer_cast<const Planet>(object))
             return planet->SpeciesName();
         else if (auto ship = std::dynamic_pointer_cast<const Ship>(object))
@@ -1231,35 +1237,6 @@ std::string Variable<std::string>::Eval(const ScriptingContext& context) const
             return species->PreferredFocus();
         return "";
 
-    } else if (property_name == "OwnerLeastExpensiveEnqueuedTech") {
-        const Empire* empire = GetEmpire(object->Owner());
-        if (!empire)
-            return "";
-        return empire->LeastExpensiveEnqueuedTech();
-
-    } else if (property_name == "OwnerMostExpensiveEnqueuedTech") {
-        const Empire* empire = GetEmpire(object->Owner());
-        if (!empire)
-            return "";
-        return empire->MostExpensiveEnqueuedTech();
-
-    } else if (property_name == "OwnerMostRPCostLeftEnqueuedTech") {
-        const Empire* empire = GetEmpire(object->Owner());
-        if (!empire)
-            return "";
-        return empire->MostRPCostLeftEnqueuedTech();
-
-    } else if (property_name == "OwnerMostRPSpentEnqueuedTech") {
-        const Empire* empire = GetEmpire(object->Owner());
-        if (!empire)
-            return "";
-        return empire->MostRPSpentEnqueuedTech();
-
-    } else if (property_name == "OwnerTopPriorityEnqueuedTech") {
-        const Empire* empire = GetEmpire(object->Owner());
-        if (!empire)
-            return "";
-        return empire->TopPriorityEnqueuedTech();
     }
 
     LOG_UNKNOWN_VARIABLE_PROPERTY_TRACE(std::string)
@@ -1384,7 +1361,7 @@ PlanetEnvironment ComplexVariable<PlanetEnvironment>::Eval(const ScriptingContex
         int planet_id = INVALID_OBJECT_ID;
         if (m_int_ref1)
             planet_id = m_int_ref1->Eval(context);
-        const auto planet = context.objects.get<Planet>(planet_id);
+        const auto planet = context.ContextObjects().get<Planet>(planet_id);
         if (!planet)
             return INVALID_PLANET_ENVIRONMENT;
 
@@ -1431,340 +1408,130 @@ Visibility ComplexVariable<Visibility>::Eval(const ScriptingContext& context) co
     return INVALID_VISIBILITY;
 }
 
-namespace {
-    static std::map<std::string, int> EMPTY_STRING_INT_MAP;
-    static std::map<int, int> EMPTY_INT_INT_MAP;
-    static std::map<int, float> EMPTY_INT_FLOAT_MAP;
-
-    const std::map<std::string, int>& GetEmpireStringIntMap(int empire_id, const std::string& parsed_map_name) {
-        Empire* empire = GetEmpire(empire_id);
-        if (!empire)
-            return EMPTY_STRING_INT_MAP;
-
-        if (parsed_map_name == "BuildingTypesOwned")
-            return empire->BuildingTypesOwned();
-        if (parsed_map_name == "BuildingTypesProduced")
-            return empire->BuildingTypesProduced();
-        if (parsed_map_name == "BuildingTypesScrapped")
-            return empire->BuildingTypesScrapped();
-        if (parsed_map_name == "SpeciesColoniesOwned")
-            return empire->SpeciesColoniesOwned();
-        if (parsed_map_name == "SpeciesPlanetsBombed")
-            return empire->SpeciesPlanetsBombed();
-        if (parsed_map_name == "SpeciesPlanetsDepoped")
-            return empire->SpeciesPlanetsDepoped();
-        if (parsed_map_name == "SpeciesPlanetsInvaded")
-            return empire->SpeciesPlanetsInvaded();
-        if (parsed_map_name == "SpeciesShipsDestroyed")
-            return empire->SpeciesShipsDestroyed();
-        if (parsed_map_name == "SpeciesShipsLost")
-            return empire->SpeciesShipsLost();
-        if (parsed_map_name == "SpeciesShipsOwned")
-            return empire->SpeciesShipsOwned();
-        if (parsed_map_name == "SpeciesShipsProduced")
-            return empire->SpeciesShipsProduced();
-        if (parsed_map_name == "SpeciesShipsScrapped")
-            return empire->SpeciesShipsScrapped();
-        if (parsed_map_name == "ShipPartsOwned")
-            return empire->ShipPartTypesOwned();
-        if (parsed_map_name == "TurnTechResearched")
-            return empire->ResearchedTechs();
-
-        return EMPTY_STRING_INT_MAP;
-    }
-
-    const std::map<int, int>& GetEmpireIntIntMap(int empire_id, const std::string& parsed_map_name) {
-        Empire* empire = GetEmpire(empire_id);
-        if (!empire)
-            return EMPTY_INT_INT_MAP;
-
-        if (parsed_map_name == "EmpireShipsDestroyed")
-            return empire->EmpireShipsDestroyed();
-        if (parsed_map_name == "ShipDesignsDestroyed")
-            return empire->ShipDesignsDestroyed();
-        if (parsed_map_name == "ShipDesignsLost")
-            return empire->ShipDesignsLost();
-        if (parsed_map_name == "ShipDesignsOwned")
-            return empire->ShipDesignsOwned();
-        if (parsed_map_name == "ShipDesignsInProduction")
-            return empire->ShipDesignsInProduction();
-        if (parsed_map_name == "ShipDesignsProduced")
-            return empire->ShipDesignsProduced();
-        if (parsed_map_name == "ShipDesignsScrapped")
-            return empire->ShipDesignsScrapped();
-
-        return EMPTY_INT_INT_MAP;
-    }
-
-    const std::map<int, float>& GetEmpireIntFloatMap(int empire_id, const std::string& parsed_map_name) {
-        Empire* empire = GetEmpire(empire_id);
-        if (!empire)
-            return EMPTY_INT_FLOAT_MAP;
-
-        if (parsed_map_name == "PropagatedSystemSupplyRange")
-            return GetSupplyManager().PropagatedSupplyRanges(empire_id);
-        if (parsed_map_name == "SystemSupplyRange")
-            return empire->SystemSupplyRanges();
-        if (parsed_map_name == "PropagatedSystemSupplyDistance")
-            return GetSupplyManager().PropagatedSupplyDistances(empire_id);
-
-        return EMPTY_INT_FLOAT_MAP;
-    }
-
-    int GetIntEmpirePropertyNoKeyImpl(int empire_id, const std::string& parsed_property_name) {
-        Empire* empire = GetEmpire(empire_id);
-        if (!empire)
-            return 0;
-
-        if (parsed_property_name == "OutpostsOwned")
-            return empire->OutpostsOwned();
-        // todo: add all the various OwnerWhatever ValueRef stuff here
-
-        return 0;
-    }
-
-    // gets property for a particular map key string for one or all empires
-    int GetIntEmpirePropertySingleKey(int empire_id, const std::string& parsed_property_name,
-                                      const std::string& map_key)
-    {
-        int sum = 0;
-        if (map_key.empty())
-            return sum;
-
-        // single empire
-        if (empire_id != ALL_EMPIRES) {
-            const auto& map = GetEmpireStringIntMap(empire_id, parsed_property_name);
-            auto it = map.find(map_key);
-            if (it == map.end())
-                return 0;
-            return it->second;
-        }
-
-        // all empires summed
-        for (auto& entry : Empires()) {
-            const auto& map = GetEmpireStringIntMap(entry.first, parsed_property_name);
-            auto map_it = map.find(map_key);
-            if (map_it != map.end())
-                sum += map_it->second;
-        }
-        return sum;
-    }
-
-    // gets property for the sum of all map keys for one or all empires
-    int GetIntEmpirePropertySumAllStringKeys(int empire_id, const std::string& parsed_property_name) {
-        int sum = 0;
-
-        // single empire
-        if (empire_id != ALL_EMPIRES) {
-            // sum of all key entries for this empire
-            for (const auto& entry : GetEmpireStringIntMap(empire_id, parsed_property_name))
-                sum += entry.second;
-            return sum;
-        }
-
-        // all empires summed
-        for (const auto& empire_entry : Empires()) {
-            for (const auto& property_entry : GetEmpireStringIntMap(empire_entry.first, parsed_property_name))
-                sum += property_entry.second;
-        }
-        return sum;
-    }
-
-    // gets property for a particular map key int for one or all empires
-    int GetIntEmpirePropertySingleKey(int empire_id, const std::string& parsed_property_name,
-                                      int map_key)
-    {
-        int sum = 0;
-
-        // single empire
-        if (empire_id != ALL_EMPIRES) {
-            const auto& map = GetEmpireIntIntMap(empire_id, parsed_property_name);
-            auto it = map.find(map_key);
-            if (it == map.end())
-                return 0;
-            return it->second;
-        }
-
-        // all empires summed
-        for (const auto& empire_entry : Empires()) {
-            const auto& map = GetEmpireIntIntMap(empire_entry.first, parsed_property_name);
-            auto map_it = map.find(map_key);
-            if (map_it != map.end())
-                sum += map_it->second;
-        }
-        return sum;
-    }
-
-    float GetFloatEmpirePropertySingleKey(int empire_id, const std::string& parsed_property_name,
-                                          int map_key)
-    {
-        float sum = 0.0f;
-
-        // single empire
-        if (empire_id != ALL_EMPIRES) {
-            const auto& map = GetEmpireIntFloatMap(empire_id, parsed_property_name);
-            auto it = map.find(map_key);
-            if (it == map.end())
-                return 0.0f;
-            return it->second;
-        }
-
-        // all empires summed
-        for (const auto& empire_entry : Empires()) {
-            const auto& map = GetEmpireIntFloatMap(empire_entry.first, parsed_property_name);
-            auto map_it = map.find(map_key);
-            if (map_it != map.end())
-                sum += map_it->second;
-        }
-        return sum;
-    }
-
-    // gets property for the sum of all map keys for one or all empires
-    int GetIntEmpirePropertySumAllIntKeys(int empire_id, const std::string& parsed_property_name) {
-        int sum = 0;
-
-        // single empire
-        if (empire_id != ALL_EMPIRES) {
-            // sum of all key entries for this empire
-            for (const auto& property_entry : GetEmpireIntIntMap(empire_id, parsed_property_name))
-                sum += property_entry.second;
-            return sum;
-        }
-
-        // all empires summed
-        for (const auto& empire_entry : Empires()) {
-            for (const auto& property_entry : GetEmpireIntIntMap(empire_entry.first, parsed_property_name))
-                sum += property_entry.second;
-        }
-        return sum;
-    }
-
-    float  GetFloatEmpirePropertySumAllIntKeys(int empire_id, const std::string& parsed_property_name) {
-        float sum = 0.0f;
-
-        // single empire
-        if (empire_id != ALL_EMPIRES) {
-            // sum of all key entries for this empire
-            for (const auto& property_entry : GetEmpireIntFloatMap(empire_id, parsed_property_name))
-                sum += property_entry.second;
-            return sum;
-        }
-
-        // all empires summed
-        for (const auto& empire_entry : Empires()) {
-            for (const auto& property_entry : GetEmpireIntFloatMap(empire_entry.first, parsed_property_name))
-                sum += property_entry.second;
-        }
-        return sum;
-    }
-
-    // gets map index int for content specified by a string. eg. look up
-    // predefined ship design id by name.
-    // how to look up such strings depends on the parsed property name.
-    int GetIntKeyFromContentStringKey(const std::string& parsed_property_name,
-                                      const std::string& key_string)
-    {
-        if (boost::istarts_with(parsed_property_name, "ShipDesign")) {
-            // look up ship design id corresponding to specified predefined ship design name
-            const ShipDesign* design = GetPredefinedShipDesign(key_string);
-            if (design)
-                return design->ID();
-        }
-        return -1;
-    }
-
-    // gets unkeyed property for one or all empires
-    int GetIntEmpirePropertyNoKey(int empire_id, const std::string& parsed_property_name) {
-        int sum = 0;
-
-        if (empire_id != ALL_EMPIRES) {
-            // single empire
-            return GetIntEmpirePropertyNoKeyImpl(empire_id, parsed_property_name);
-        }
-
-        // all empires summed
-        for (const auto& empire_entry : Empires())
-            sum += GetIntEmpirePropertyNoKeyImpl(empire_entry.first, parsed_property_name);
-        return sum;
-    }
-}
-
 template <>
 int ComplexVariable<int>::Eval(const ScriptingContext& context) const
 {
     const std::string& variable_name = m_property_name.back();
 
+    std::function<const std::map<std::string, int>& (const Empire&)> empire_property_string_key{nullptr};
+
+    if (variable_name == "BuildingTypesOwned")
+        empire_property_string_key = &Empire::BuildingTypesOwned;
+    if (variable_name == "BuildingTypesProduced")
+        empire_property_string_key = &Empire::BuildingTypesProduced;
+    if (variable_name == "BuildingTypesScrapped")
+        empire_property_string_key = &Empire::BuildingTypesScrapped;
+    if (variable_name == "SpeciesColoniesOwned")
+        empire_property_string_key = &Empire::SpeciesColoniesOwned;
+    if (variable_name == "SpeciesPlanetsBombed")
+        empire_property_string_key = &Empire::SpeciesPlanetsBombed;
+    if (variable_name == "SpeciesPlanetsDepoped")
+        empire_property_string_key = &Empire::SpeciesPlanetsDepoped;
+    if (variable_name == "SpeciesPlanetsInvaded")
+        empire_property_string_key = &Empire::SpeciesPlanetsInvaded;
+    if (variable_name == "SpeciesShipsDestroyed")
+        empire_property_string_key = &Empire::SpeciesShipsDestroyed;
+    if (variable_name == "SpeciesShipsLost")
+        empire_property_string_key = &Empire::SpeciesShipsLost;
+    if (variable_name == "SpeciesShipsOwned")
+        empire_property_string_key = &Empire::SpeciesShipsOwned;
+    if (variable_name == "SpeciesShipsProduced")
+        empire_property_string_key = &Empire::SpeciesShipsProduced;
+    if (variable_name == "SpeciesShipsScrapped")
+        empire_property_string_key = &Empire::SpeciesShipsScrapped;
+    if (variable_name == "ShipPartsOwned")
+        empire_property_string_key = &Empire::ShipPartsOwned;
+    if (variable_name == "TurnTechResearched")
+        empire_property_string_key = &Empire::ResearchedTechs;
+    if (variable_name == "TurnPolicyAdopted")
+        empire_property_string_key = &Empire::TurnsPoliciesAdopted;
+
     // empire properties indexed by strings
-    if (variable_name == "BuildingTypesOwned" ||
-        variable_name == "BuildingTypesProduced" ||
-        variable_name == "BuildingTypesScrapped" ||
-        variable_name == "SpeciesColoniesOwned" ||
-        variable_name == "SpeciesPlanetsBombed" ||
-        variable_name == "SpeciesPlanetsDepoped" ||
-        variable_name == "SpeciesPlanetsInvaded" ||
-        variable_name == "SpeciesShipsDestroyed" ||
-        variable_name == "SpeciesShipsLost" ||
-        variable_name == "SpeciesShipsOwned" ||
-        variable_name == "SpeciesShipsProduced" ||
-        variable_name == "SpeciesShipsScrapped" ||
-        variable_name == "TurnTechResearched")
-    {
-        int empire_id = ALL_EMPIRES;
+    if (empire_property_string_key) {
+        using namespace boost::adaptors;
+
+        Empire* empire{nullptr};
         if (m_int_ref1) {
-            empire_id = m_int_ref1->Eval(context);
+            int empire_id = m_int_ref1->Eval(context);
             if (empire_id == ALL_EMPIRES)
                 return 0;
+            empire = GetEmpire(empire_id);
         }
-        std::string key_string;
+
+        std::function<bool (const std::map<std::string, int>::value_type&)> key_filter{nullptr};
+        key_filter = [](auto e){ return true; };
+
         if (m_string_ref1) {
-            key_string = m_string_ref1->Eval(context);
+            std::string key_string = m_string_ref1->Eval(context);
             if (key_string.empty())
                 return 0;
 
-            // if a string specified, get just that entry (for single empire, or
-            // summed for all empires)
-            if (variable_name != "TurnTechResearched") {
-                return GetIntEmpirePropertySingleKey(empire_id, variable_name,
-                                                     key_string);
-            } else {
+            if (empire && variable_name == "TurnTechResearched" && !empire->TechResearched(key_string))
                 // special case for techs: make unresearched-tech's research-turn a big number
-                if (const auto* empire = GetEmpire(empire_id)) {
-                    if (empire->TechResearched(key_string))
-                        return GetIntEmpirePropertySingleKey(empire_id, variable_name,
-                                                             key_string);
-                    return IMPOSSIBLY_LARGE_TURN;
-                }
-                return GetIntEmpirePropertySingleKey(empire_id, variable_name,
-                                                     key_string);
-            }
+                return IMPOSSIBLY_LARGE_TURN;
+
+            key_filter = [k = key_string](auto e){ return k == e.first; };
+        }
+        else if (variable_name == "ShipPartsOwned" && m_int_ref2) {
+            int key_int = m_int_ref2->Eval(context);
+            if (key_int <= INVALID_SHIP_PART_CLASS || key_int >= NUM_SHIP_PART_CLASSES)
+                return 0;
+
+            auto key_filter = [part_class = ShipPartClass(key_int)](const std::map<ShipPartClass, int>::value_type& e){ return e.first == part_class; };
+
+            if (empire)
+                return boost::accumulate(empire->ShipPartClassOwned() | filtered(key_filter) | map_values, 0);
+
+            int sum = 0;
+            for (const auto& empire_entry : Empires())
+                sum += boost::accumulate(empire_entry.second->ShipPartClassOwned() | filtered(key_filter) | map_values, 0);
+            return sum;
         }
 
-        // if no string specified, get sum of all entries (for single empire
-        // or summed for all empires)
-        return GetIntEmpirePropertySumAllStringKeys(empire_id, variable_name);
+        if (empire)
+            return boost::accumulate(empire_property_string_key(*empire) | filtered(key_filter) | map_values, 0);
+
+        int sum = 0;
+        for (const auto& empire_entry : Empires())
+            sum += boost::accumulate(empire_property_string_key(*(empire_entry.second)) | filtered(key_filter) | map_values, 0);
+        return sum;
     }
 
+    std::function<const std::map<int, int>& (const Empire&)> empire_property_int_key{nullptr};
+
+    if (variable_name == "EmpireShipsDestroyed")
+        empire_property_int_key = &Empire::EmpireShipsDestroyed;
+    if (variable_name == "ShipDesignsDestroyed")
+        empire_property_int_key = &Empire::ShipDesignsDestroyed;
+    if (variable_name == "ShipDesignsLost")
+        empire_property_int_key = &Empire::ShipDesignsLost;
+    if (variable_name == "ShipDesignsOwned")
+        empire_property_int_key = &Empire::ShipDesignsOwned;
+    if (variable_name == "ShipDesignsInProduction")
+        empire_property_int_key = &Empire::ShipDesignsInProduction;
+    if (variable_name == "ShipDesignsProduced")
+        empire_property_int_key = &Empire::ShipDesignsProduced;
+    if (variable_name == "ShipDesignsScrapped")
+        empire_property_int_key = &Empire::ShipDesignsScrapped;
+
     // empire properties indexed by integers
-    if (variable_name == "EmpireShipsDestroyed" ||
-        variable_name == "ShipDesignsDestroyed" ||
-        variable_name == "ShipDesignsInProduction" ||
-        variable_name == "ShipDesignsLost" ||
-        variable_name == "ShipDesignsOwned" ||
-        variable_name == "ShipDesignsProduced" ||
-        variable_name == "ShipDesignsScrapped")
-    {
-        int empire_id = ALL_EMPIRES;
+    if (empire_property_int_key) {
+        using namespace boost::adaptors;
+
+        Empire* empire{nullptr};
         if (m_int_ref1) {
-            empire_id = m_int_ref1->Eval(context);
+            int empire_id = m_int_ref1->Eval(context);
             if (empire_id == ALL_EMPIRES)
                 return 0;
+            empire = GetEmpire(empire_id);
         }
 
+        std::function<bool (const std::map<int, int>::value_type&)> key_filter{nullptr};
+        key_filter = [](auto e){ return true; };
+
         // if a key integer specified, get just that entry (for single empire or sum of all empires)
-        if (m_int_ref2) {
-            int key_int = m_int_ref2->Eval(context);
-            return GetIntEmpirePropertySingleKey(empire_id, variable_name, key_int);
-        }
+        if (m_int_ref2)
+            key_filter = [k = m_int_ref2->Eval(context)](auto e){ return k == e.first; };
 
         // although indexed by integers, some of these may be specified by a
         // string that needs to be looked up. if a key string specified, get
@@ -1773,77 +1540,46 @@ int ComplexVariable<int>::Eval(const ScriptingContext& context) const
             std::string key_string = m_string_ref1->Eval(context);
             if (key_string.empty())
                 return 0;
-            int key_int = GetIntKeyFromContentStringKey(variable_name, key_string);
-            return GetIntEmpirePropertySingleKey(empire_id, variable_name, key_int);
-        }
-
-        // if no key specified, get sum of all entries (for single empire or sum of all empires)
-        return GetIntEmpirePropertySumAllIntKeys(empire_id, variable_name);
-    }
-
-    // empire properties indexed by string or ShipPartClass (as int)
-    if (variable_name == "ShipPartsOwned") {
-        int empire_id = ALL_EMPIRES;
-        if (m_int_ref1) {
-            empire_id = m_int_ref1->Eval(context);
-            if (empire_id == ALL_EMPIRES)
-                return 0;
-        }
-
-        // get key if either was specified
-        std::string key_string;
-        int key_int = NUM_SHIP_PART_CLASSES;
-        if (m_string_ref1) {
-            key_string = m_string_ref1->Eval(context);
-            if (key_string.empty())
-                return 0;
-        } else if (m_int_ref2) {
-            key_int = m_int_ref2->Eval(context);
-            if (key_int <= INVALID_SHIP_PART_CLASS || key_int >= NUM_SHIP_PART_CLASSES)
-                return 0;
-        }
-
-        // if a key string specified, get just that entry (for single empire or sum of all empires)
-        if (m_string_ref1)
-            return GetIntEmpirePropertySingleKey(empire_id, variable_name, key_string);
-
-        // if a key integer specified, get just that entry (for single empire or sum of all empires)
-        if (m_int_ref2) {
-            ShipPartClass part_class = ShipPartClass(key_int);
-            int sum = 0;
-            // single empire
-            if (empire_id != ALL_EMPIRES) {
-                Empire* empire = GetEmpire(empire_id);
-                for (const auto& property_entry : empire->ShipPartClassOwned())
-                    if (part_class == NUM_SHIP_PART_CLASSES || property_entry.first == part_class)
-                        sum += property_entry.second;
-                return sum;
+            int key_int = -1;
+            if (boost::istarts_with(variable_name, "ShipDesign")) {
+                // look up ship design id corresponding to specified predefined ship design name
+                const ShipDesign* design = GetPredefinedShipDesign(key_string);
+                if (design)
+                    key_int = design->ID();
             }
-
-            // all empires summed
-            for (const auto& empire_entry : Empires()) {
-                Empire* empire = GetEmpire(empire_entry.first);
-                for (const auto& property_entry : empire->ShipPartClassOwned())
-                    if (part_class == NUM_SHIP_PART_CLASSES || property_entry.first == part_class)
-                        sum += property_entry.second;
-            }
-            return sum;
+            key_filter = [k = key_int](auto e){ return k == e.first; };
         }
 
-        // no key string or integer provided, get all (for single empire or sum of all empires)
-        return GetIntEmpirePropertySumAllStringKeys(empire_id, variable_name);
+        if (empire)
+            return boost::accumulate(empire_property_int_key(*empire) | filtered(key_filter) | map_values, 0);
+
+        int sum = 0;
+        for (const auto& empire_entry : Empires())
+            sum += boost::accumulate(empire_property_int_key(*(empire_entry.second)) | filtered(key_filter) | map_values, 0);
+        return sum;
     }
 
     // unindexed empire proprties
     if (variable_name == "OutpostsOwned") {
-        int empire_id = ALL_EMPIRES;
+        Empire* empire{nullptr};
         if (m_int_ref1) {
-            empire_id = m_int_ref1->Eval(context);
+            int empire_id = m_int_ref1->Eval(context);
             if (empire_id == ALL_EMPIRES)
+                return 0;
+            empire = GetEmpire(empire_id);
+            if (!empire)
                 return 0;
         }
 
-        return GetIntEmpirePropertyNoKey(empire_id, variable_name);
+        std::function<int (const Empire*)> empire_property{nullptr};
+        empire_property = &Empire::OutpostsOwned;
+
+        using namespace boost::adaptors;
+
+        if (!empire)
+            return boost::accumulate(Empires() | map_values | transformed(empire_property), 0);
+
+        return empire_property(empire);
     }
 
     // non-empire properties
@@ -1887,21 +1623,21 @@ int ComplexVariable<int>::Eval(const ScriptingContext& context) const
             return 0;
         }
 
-        std::string part_type_name;
+        std::string ship_part_name;
         if (m_string_ref1) {
-            part_type_name = m_string_ref1->Eval(context);
+            ship_part_name = m_string_ref1->Eval(context);
         }
 
         const ShipDesign* design = GetShipDesign(design_id);
         if (!design)
             return 0;
 
-        if (part_type_name.empty())
+        if (ship_part_name.empty())
             return design->PartCount();
 
         int count = 0;
         for (const std::string& part : design->Parts()) {
-            if (part_type_name == part)
+            if (ship_part_name == part)
                 count++;
         }
         return count;
@@ -1937,7 +1673,7 @@ int ComplexVariable<int>::Eval(const ScriptingContext& context) const
         for (const std::string& part_name : design->Parts()) {
             if (part_name.empty())
                 continue;
-            const PartType* part = GetPartType(part_name);
+            const ShipPart* part = GetShipPart(part_name);
             if (!part)
                 continue;
             if (part->Class() == part_class)
@@ -1980,16 +1716,16 @@ int ComplexVariable<int>::Eval(const ScriptingContext& context) const
         return retval;
     }
     else if (variable_name == "SlotsInHull") {
-        const HullType* hull_type = nullptr;
+        const ShipHull* ship_hull = nullptr;
         if (m_string_ref1) {
             std::string hull_name = m_string_ref1->Eval(context);
-            hull_type = GetHullType(hull_name);
-            if (!hull_type)
+            ship_hull = GetShipHull(hull_name);
+            if (!ship_hull)
                 return 0;
         } else {
             return 0;
         }
-        return hull_type->Slots().size();
+        return ship_hull->Slots().size();
     }
     else if (variable_name == "SlotsInShipDesign") {
         int design_id = INVALID_DESIGN_ID;
@@ -2005,10 +1741,10 @@ int ComplexVariable<int>::Eval(const ScriptingContext& context) const
         if (!design)
             return 0;
 
-        const HullType* hull_type = GetHullType(design->Hull());
-        if (!hull_type)
+        const ShipHull* ship_hull = GetShipHull(design->Hull());
+        if (!ship_hull)
             return 0;
-        return hull_type->Slots().size();
+        return ship_hull->Slots().size();
     }
     else if (variable_name == "SpecialAddedOnTurn") {
         int object_id = INVALID_OBJECT_ID;
@@ -2016,7 +1752,7 @@ int ComplexVariable<int>::Eval(const ScriptingContext& context) const
             object_id = m_int_ref1->Eval(context);
         if (object_id == INVALID_OBJECT_ID)
             return 0;
-        auto object = context.objects.get(object_id);
+        auto object = context.ContextObjects().get(object_id);
         if (!object)
             return 0;
 
@@ -2027,6 +1763,26 @@ int ComplexVariable<int>::Eval(const ScriptingContext& context) const
             return 0;
 
         return object->SpecialAddedOnTurn(special_name);
+
+    }
+    else if (variable_name == "TurnPolicyAdopted") {
+        if (!m_string_ref1)
+            return 0;
+        std::string policy_name = m_string_ref1->Eval();
+        if (policy_name.empty())
+            return 0;
+
+        int empire_id = ALL_EMPIRES;
+        if (m_int_ref1) {
+            empire_id = m_int_ref1->Eval(context);
+            if (empire_id == ALL_EMPIRES)
+                return 0;
+        }
+        const Empire* empire = GetEmpire(empire_id);
+        if (!empire)
+            return 0;
+
+        return empire->TurnPolicyAdopted(policy_name);
     }
 
     return 0;
@@ -2037,26 +1793,64 @@ double ComplexVariable<double>::Eval(const ScriptingContext& context) const
 {
     const std::string& variable_name = m_property_name.back();
 
+    std::function<float (const ShipHull&)> hull_property{nullptr};
+
+    if (variable_name == "HullFuel")
+        hull_property = &ShipHull::Fuel;
+    else if (variable_name == "HullStealth")
+        hull_property = &ShipHull::Stealth;
+    else if (variable_name == "HullStructure")
+        hull_property = &ShipHull::Structure;
+    else if (variable_name == "HullSpeed")
+        hull_property = &ShipHull::Speed;
+
+    if (hull_property) {
+        std::string ship_hull_name;
+        if (m_string_ref1)
+            ship_hull_name = m_string_ref1->Eval(context);
+
+        const ShipHull* ship_hull = GetShipHull(ship_hull_name);
+        if (!ship_hull)
+            return 0.0f;
+
+        return hull_property(*ship_hull);
+    }
+
     // empire properties indexed by integers
-    if (variable_name == "PropagatedSystemSupplyRange" ||
-        variable_name == "SystemSupplyRange" ||
-        variable_name == "PropagatedSystemSupplyDistance")
-    {
-        int empire_id = ALL_EMPIRES;
+    std::function<const std::map<int, float>& (const Empire&)> empire_property{nullptr};
+
+    if (variable_name == "PropagatedSystemSupplyRange")
+        empire_property = [](const Empire& empire){ return GetSupplyManager().PropagatedSupplyRanges(empire.EmpireID()); };
+    if (variable_name == "SystemSupplyRange")
+        empire_property = &Empire::SystemSupplyRanges;
+    if (variable_name == "PropagatedSystemSupplyDistance")
+        empire_property = [](const Empire& empire){ return GetSupplyManager().PropagatedSupplyDistances(empire.EmpireID()); };
+
+    if (empire_property) {
+        using namespace boost::adaptors;
+
+        Empire* empire{nullptr};
+
         if (m_int_ref1) {
-            empire_id = m_int_ref1->Eval(context);
+            int empire_id = m_int_ref1->Eval(context);
             if (empire_id == ALL_EMPIRES)
                 return 0.0;
+            empire = GetEmpire(empire_id);
         }
 
-        // if a key integer is specified, get just that entry (for single empire or sum of all empires)
-        if (m_int_ref2) {
-            int key_int = m_int_ref2->Eval(context);
-            return GetFloatEmpirePropertySingleKey(empire_id, variable_name, key_int);
-        }
+        std::function<bool (const std::map<int, float>::value_type&)> key_filter;
+        key_filter = [](auto k){ return true; };
 
-        // if no key specified, get sum of all entries (for single empire or sum of all empires)
-        return GetFloatEmpirePropertySumAllIntKeys(empire_id, variable_name);
+        if (m_int_ref2)
+            key_filter = [k = m_int_ref2->Eval(context)](auto e){ return k == e.first; };
+
+        if (empire)
+            return boost::accumulate(empire_property(*empire) | filtered(key_filter) | map_values, 0.0f);
+
+        float sum = 0.0f;
+        for (const auto& empire_entry : Empires())
+            sum += boost::accumulate(empire_property(*(empire_entry.second)) | filtered(key_filter) | map_values, 0.0f);
+        return sum;
     }
 
     // non-empire properties
@@ -2090,76 +1884,28 @@ double ComplexVariable<double>::Eval(const ScriptingContext& context) const
         }
         return 0.0;
     }
-    else if (variable_name == "HullFuel") {
-        std::string hull_type_name;
-        if (m_string_ref1)
-            hull_type_name = m_string_ref1->Eval(context);
-
-        const HullType* hull_type = GetHullType(hull_type_name);
-        if (!hull_type)
-            return 0.0;
-
-        return hull_type->Fuel();
-
-    }
-    else if (variable_name == "HullStealth") {
-        std::string hull_type_name;
-        if (m_string_ref1)
-            hull_type_name = m_string_ref1->Eval(context);
-
-        const HullType* hull_type = GetHullType(hull_type_name);
-        if (!hull_type)
-            return 0.0;
-
-        return hull_type->Stealth();
-
-    }
-    else if (variable_name == "HullStructure") {
-        std::string hull_type_name;
-        if (m_string_ref1)
-            hull_type_name = m_string_ref1->Eval(context);
-
-        const HullType* hull_type = GetHullType(hull_type_name);
-        if (!hull_type)
-            return 0.0f;
-
-        return hull_type->Structure();
-
-    }
-    else if (variable_name == "HullSpeed") {
-        std::string hull_type_name;
-        if (m_string_ref1)
-            hull_type_name = m_string_ref1->Eval(context);
-
-        const HullType* hull_type = GetHullType(hull_type_name);
-        if (!hull_type)
-            return 0.0;
-
-        return hull_type->Speed();
-
-    }
     else if (variable_name == "PartCapacity") {
-        std::string part_type_name;
+        std::string ship_part_name;
         if (m_string_ref1)
-            part_type_name = m_string_ref1->Eval(context);
+            ship_part_name = m_string_ref1->Eval(context);
 
-        const PartType* part_type = GetPartType(part_type_name);
-        if (!part_type)
+        const ShipPart* ship_part = GetShipPart(ship_part_name);
+        if (!ship_part)
             return 0.0;
 
-        return part_type->Capacity();
+        return ship_part->Capacity();
 
     }
     else if (variable_name == "PartSecondaryStat") {
-        std::string part_type_name;
+        std::string ship_part_name;
         if (m_string_ref1)
-            part_type_name = m_string_ref1->Eval(context);
+            ship_part_name = m_string_ref1->Eval(context);
 
-        const PartType* part_type = GetPartType(part_type_name);
-        if (!part_type)
+        const ShipPart* ship_part = GetShipPart(ship_part_name);
+        if (!ship_part)
             return 0.0;
 
-        return part_type->SecondaryStat();
+        return ship_part->SecondaryStat();
 
     }
     else if (variable_name == "ShipDesignCost") {
@@ -2202,14 +1948,14 @@ double ComplexVariable<double>::Eval(const ScriptingContext& context) const
         int object1_id = INVALID_OBJECT_ID;
         if (m_int_ref1)
             object1_id = m_int_ref1->Eval(context);
-        auto obj1 = context.objects.get(object1_id);
+        auto obj1 = context.ContextObjects().get(object1_id);
         if (!obj1)
             return 0.0;
 
         int object2_id = INVALID_OBJECT_ID;
         if (m_int_ref2)
             object2_id = m_int_ref2->Eval(context);
-        auto obj2 = context.objects.get(object2_id);
+        auto obj2 = context.ContextObjects().get(object2_id);
         if (!obj2)
             return 0.0;
 
@@ -2257,7 +2003,7 @@ double ComplexVariable<double>::Eval(const ScriptingContext& context) const
         int object_id = INVALID_OBJECT_ID;
         if (m_int_ref1)
             object_id = m_int_ref1->Eval(context);
-        auto object = context.objects.get(object_id);
+        auto object = context.ContextObjects().get(object_id);
         if (!object)
             return 0.0;
 
@@ -2273,7 +2019,7 @@ double ComplexVariable<double>::Eval(const ScriptingContext& context) const
         int object_id = INVALID_OBJECT_ID;
         if (m_int_ref1)
             object_id = m_int_ref1->Eval(context);
-        auto object = context.objects.get(object_id);
+        auto object = context.ContextObjects().get(object_id);
         if (!object)
             return 0.0;
         auto ship = std::dynamic_pointer_cast<const Ship>(object);
@@ -2306,25 +2052,22 @@ double ComplexVariable<double>::Eval(const ScriptingContext& context) const
 
 namespace {
     std::vector<std::string> TechsResearchedByEmpire(int empire_id) {
-        std::vector<std::string> retval;
         const Empire* empire = GetEmpire(empire_id);
-        if (!empire)
-            return retval;
-        for (const auto& tech : GetTechManager()) {
-            if (empire->TechResearched(tech->Name()))
-                retval.push_back(tech->Name());
-        }
-        return retval;
+        if (!empire) return {};
+
+        auto researched_techs_range = empire->ResearchedTechs() | boost::adaptors::map_keys;
+        return {researched_techs_range.begin(), researched_techs_range.end()};
     }
 
     std::vector<std::string> TechsResearchableByEmpire(int empire_id) {
-        std::vector<std::string> retval;
         const Empire* empire = GetEmpire(empire_id);
-        if (!empire)
-            return retval;
+        if (!empire) return {};
+
+        std::vector<std::string> retval;
+        retval.reserve(GetTechManager().size());
         for (const auto& tech : GetTechManager()) {
-            if (empire->ResearchableTech(tech->Name()))
-                retval.push_back(tech->Name());
+            if (tech && empire->ResearchableTech(tech->Name()))
+                retval.emplace_back(tech->Name());
         }
         return retval;
     }
@@ -2355,8 +2098,42 @@ std::string ComplexVariable<std::string>::Eval(const ScriptingContext& context) 
 {
     const std::string& variable_name = m_property_name.back();
 
+    std::function<std::string (const Empire&)> empire_property{nullptr};
+    auto null_property = [](const Empire&) -> std::string { return ""; };
+
     // unindexed empire properties
-    if (variable_name == "LowestCostEnqueuedTech") {
+    if (variable_name == "LowestCostEnqueuedTech")
+        empire_property = &Empire::LeastExpensiveEnqueuedTech;
+    else if (variable_name == "HighestCostEnqueuedTech")
+        empire_property = &Empire::MostExpensiveEnqueuedTech;
+    else if (variable_name == "TopPriorityEnqueuedTech")
+        empire_property = &Empire::TopPriorityEnqueuedTech;
+    else if (variable_name == "MostSpentEnqueuedTech")
+        empire_property = &Empire::MostRPSpentEnqueuedTech;
+    else if (variable_name == "LowestCostResearchableTech")
+        empire_property = &Empire::LeastExpensiveResearchableTech;
+    else if (variable_name == "HighestCostResearchableTech")
+        empire_property = &Empire::MostExpensiveResearchableTech;
+    else if (variable_name == "TopPriorityResearchableTech")
+        empire_property = &Empire::TopPriorityResearchableTech;
+    else if (variable_name == "MostSpentResearchableTech")
+        empire_property = &Empire::MostExpensiveResearchableTech;
+    else if (variable_name == "MostSpentTransferrableTech")
+        empire_property = null_property;
+    else if (variable_name == "RandomTransferrableTech")
+        empire_property = null_property;
+    else if (variable_name == "MostPopulousSpecies")
+        empire_property = null_property;
+    else if (variable_name == "MostHappySpecies")
+        empire_property = null_property;
+    else if (variable_name == "LeastHappySpecies")
+        empire_property = null_property;
+    else if (variable_name == "RandomColonizableSpecies")
+        empire_property = null_property;
+    else if (variable_name == "RandomControlledSpecies")
+        empire_property = null_property;
+
+    if (empire_property) {
         int empire_id = ALL_EMPIRES;
         if (m_int_ref1) {
             empire_id = m_int_ref1->Eval(context);
@@ -2366,45 +2143,11 @@ std::string ComplexVariable<std::string>::Eval(const ScriptingContext& context) 
         const Empire* empire = GetEmpire(empire_id);
         if (!empire)
             return "";
-        return empire->LeastExpensiveEnqueuedTech();
 
-    } else if (variable_name == "HighestCostEnqueuedTech") {
-        int empire_id = ALL_EMPIRES;
-        if (m_int_ref1) {
-            empire_id = m_int_ref1->Eval(context);
-            if (empire_id == ALL_EMPIRES)
-                return "";
-        }
-        const Empire* empire = GetEmpire(empire_id);
-        if (!empire)
-            return "";
-        return empire->MostExpensiveEnqueuedTech();
+        return empire_property(*empire);
+    }
 
-    } else if (variable_name == "TopPriorityEnqueuedTech") {
-        int empire_id = ALL_EMPIRES;
-        if (m_int_ref1) {
-            empire_id = m_int_ref1->Eval(context);
-            if (empire_id == ALL_EMPIRES)
-                return "";
-        }
-        const Empire* empire = GetEmpire(empire_id);
-        if (!empire)
-            return "";
-        return empire->TopPriorityEnqueuedTech();
-
-    } else if (variable_name == "MostSpentEnqueuedTech") {
-        int empire_id = ALL_EMPIRES;
-        if (m_int_ref1) {
-            empire_id = m_int_ref1->Eval(context);
-            if (empire_id == ALL_EMPIRES)
-                return "";
-        }
-        const Empire* empire = GetEmpire(empire_id);
-        if (!empire)
-            return "";
-        return empire->MostRPSpentEnqueuedTech();
-
-    } else if (variable_name == "RandomEnqueuedTech") {
+    if (variable_name == "RandomEnqueuedTech") {
         int empire_id = ALL_EMPIRES;
         if (m_int_ref1) {
             empire_id = m_int_ref1->Eval(context);
@@ -2415,59 +2158,12 @@ std::string ComplexVariable<std::string>::Eval(const ScriptingContext& context) 
         if (!empire)
             return "";
         // get all techs on queue, randomly pick one
-        const ResearchQueue& queue = empire->GetResearchQueue();
-        std::vector<std::string> all_enqueued_techs = queue.AllEnqueuedProjects();
+        const auto& queue = empire->GetResearchQueue();
+        auto all_enqueued_techs = queue.AllEnqueuedProjects();
         if (all_enqueued_techs.empty())
             return "";
         std::size_t idx = RandSmallInt(0, static_cast<int>(all_enqueued_techs.size()) - 1);
         return *std::next(all_enqueued_techs.begin(), idx);
-    } else if (variable_name == "LowestCostResearchableTech") {
-        int empire_id = ALL_EMPIRES;
-        if (m_int_ref1) {
-            empire_id = m_int_ref1->Eval(context);
-            if (empire_id == ALL_EMPIRES)
-                return "";
-        }
-        const Empire* empire = GetEmpire(empire_id);
-        if (!empire)
-            return "";
-        return empire->LeastExpensiveResearchableTech();
-
-    } else if (variable_name == "HighestCostResearchableTech") {
-        int empire_id = ALL_EMPIRES;
-        if (m_int_ref1) {
-            empire_id = m_int_ref1->Eval(context);
-            if (empire_id == ALL_EMPIRES)
-                return "";
-        }
-        const Empire* empire = GetEmpire(empire_id);
-        if (!empire)
-            return "";
-        return empire->MostExpensiveResearchableTech();
-
-    } else if (variable_name == "TopPriorityResearchableTech") {
-        int empire_id = ALL_EMPIRES;
-        if (m_int_ref1) {
-            empire_id = m_int_ref1->Eval(context);
-            if (empire_id == ALL_EMPIRES)
-                return "";
-        }
-        const Empire* empire = GetEmpire(empire_id);
-        if (!empire)
-            return "";
-        return empire->TopPriorityResearchableTech();
-
-    } else if (variable_name == "MostSpentResearchableTech") {
-        int empire_id = ALL_EMPIRES;
-        if (m_int_ref1) {
-            empire_id = m_int_ref1->Eval(context);
-            if (empire_id == ALL_EMPIRES)
-                return "";
-        }
-        const Empire* empire = GetEmpire(empire_id);
-        if (!empire)
-            return "";
-        return empire->MostExpensiveResearchableTech();
 
     } else if (variable_name == "RandomResearchableTech") {
         int empire_id = ALL_EMPIRES;
@@ -2480,7 +2176,7 @@ std::string ComplexVariable<std::string>::Eval(const ScriptingContext& context) 
         if (!empire)
             return "";
 
-        std::vector<std::string> researchable_techs = TechsResearchableByEmpire(empire_id);
+        auto researchable_techs = TechsResearchableByEmpire(empire_id);
         if (researchable_techs.empty())
             return "";
         std::size_t idx = RandSmallInt(0, static_cast<int>(researchable_techs.size()) - 1);
@@ -2496,7 +2192,7 @@ std::string ComplexVariable<std::string>::Eval(const ScriptingContext& context) 
         if (!empire)
             return "";
 
-        std::vector<std::string> complete_techs = TechsResearchedByEmpire(empire_id);
+        auto complete_techs = TechsResearchedByEmpire(empire_id);
         if (complete_techs.empty())
             return "";
         std::size_t idx = RandSmallInt(0, static_cast<int>(complete_techs.size()) - 1);
@@ -2593,83 +2289,6 @@ std::string ComplexVariable<std::string>::Eval(const ScriptingContext& context) 
             }
         }
         return retval;
-
-    } else if (variable_name == "MostSpentTransferrableTech") {
-        int empire_id = ALL_EMPIRES;
-        if (m_int_ref1) {
-            empire_id = m_int_ref1->Eval(context);
-            if (empire_id == ALL_EMPIRES)
-                return "";
-        }
-        const Empire* empire = GetEmpire(empire_id);
-        if (!empire)
-            return "";
-
-    } else if (variable_name == "RandomTransferrableTech") {
-        int empire_id = ALL_EMPIRES;
-        if (m_int_ref1) {
-            empire_id = m_int_ref1->Eval(context);
-            if (empire_id == ALL_EMPIRES)
-                return "";
-        }
-        const Empire* empire = GetEmpire(empire_id);
-        if (!empire)
-            return "";
-
-    } else if (variable_name == "MostPopulousSpecies") {
-        int empire_id = ALL_EMPIRES;
-        if (m_int_ref1) {
-            empire_id = m_int_ref1->Eval(context);
-            if (empire_id == ALL_EMPIRES)
-                return "";
-        }
-        const Empire* empire = GetEmpire(empire_id);
-        if (!empire)
-            return "";
-
-    } else if (variable_name == "MostHappySpecies") {
-        int empire_id = ALL_EMPIRES;
-        if (m_int_ref1) {
-            empire_id = m_int_ref1->Eval(context);
-            if (empire_id == ALL_EMPIRES)
-                return "";
-        }
-        const Empire* empire = GetEmpire(empire_id);
-        if (!empire)
-            return "";
-
-    } else if (variable_name == "LeastHappySpecies") {
-        int empire_id = ALL_EMPIRES;
-        if (m_int_ref1) {
-            empire_id = m_int_ref1->Eval(context);
-            if (empire_id == ALL_EMPIRES)
-                return "";
-        }
-        const Empire* empire = GetEmpire(empire_id);
-        if (!empire)
-            return "";
-
-    } else if (variable_name == "RandomColonizableSpecies") {
-        int empire_id = ALL_EMPIRES;
-        if (m_int_ref1) {
-            empire_id = m_int_ref1->Eval(context);
-            if (empire_id == ALL_EMPIRES)
-                return "";
-        }
-        const Empire* empire = GetEmpire(empire_id);
-        if (!empire)
-            return "";
-
-    } else if (variable_name == "RandomControlledSpecies") {
-        int empire_id = ALL_EMPIRES;
-        if (m_int_ref1) {
-            empire_id = m_int_ref1->Eval(context);
-            if (empire_id == ALL_EMPIRES)
-                return "";
-        }
-        const Empire* empire = GetEmpire(empire_id);
-        if (!empire)
-            return "";
     }
 
     // non-empire properties
@@ -2709,6 +2328,46 @@ std::string ComplexVariable<std::string>::Eval(const ScriptingContext& context) 
     }
 
     return "";
+}
+
+template <>
+std::vector<std::string> ComplexVariable<std::vector<std::string>>::Eval(
+    const ScriptingContext& context) const
+{
+    const std::string& variable_name = m_property_name.back();
+
+    // unindexed empire properties
+    if (variable_name == "EmpireAdoptedPolices") {
+        int empire_id = ALL_EMPIRES;
+        if (m_int_ref1) {
+            empire_id = m_int_ref1->Eval(context);
+            if (empire_id == ALL_EMPIRES)
+                return {};
+        }
+        const Empire* empire = GetEmpire(empire_id);
+        if (!empire)
+            return {};
+
+        return empire->AdoptedPolicies();
+
+    } else if (variable_name == "EmpireAvailablePolices") {
+        int empire_id = ALL_EMPIRES;
+        if (m_int_ref1) {
+            empire_id = m_int_ref1->Eval(context);
+            if (empire_id == ALL_EMPIRES)
+                return {};
+        }
+        const Empire* empire = GetEmpire(empire_id);
+        if (!empire)
+            return {};
+
+        std::vector<std::string> retval;
+        const auto& pols = empire->AvailablePolicies();
+        std::copy(pols.begin(), pols.end(), std::back_inserter(retval));
+        return retval;
+    }
+
+    return {};
 }
 
 #undef IF_CURRENT_VALUE
@@ -2814,7 +2473,7 @@ std::string ComplexVariable<int>::Dump(unsigned short ntabs) const
 {
     const std::string& variable_name = m_property_name.back();
     std::string retval = variable_name;
-
+    // todo: implement like <double> case
     return retval;
 }
 
@@ -2823,7 +2482,16 @@ std::string ComplexVariable<std::string>::Dump(unsigned short ntabs) const
 {
     const std::string& variable_name = m_property_name.back();
     std::string retval = variable_name;
+    // todo: implement like <double> case
+    return retval;
+}
 
+template <>
+std::string ComplexVariable<std::vector<std::string>>::Dump(unsigned short ntabs) const
+{
+    const std::string& variable_name = m_property_name.back();
+    std::string retval = variable_name;
+    // todo: implement like <double> case
     return retval;
 }
 
@@ -2959,7 +2627,7 @@ std::string NameLookup::Eval(const ScriptingContext& context) const {
 
     switch (m_lookup_type) {
     case OBJECT_NAME: {
-        auto obj = context.objects.get(m_value_ref->Eval(context));
+        auto obj = context.ContextObjects().get(m_value_ref->Eval(context));
         return obj ? obj->Name() : "";
         break;
     }

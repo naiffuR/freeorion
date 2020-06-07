@@ -1,4 +1,4 @@
-/* GG is a GUI for SDL and OpenGL.
+/* GG is a GUI for OpenGL.
    Copyright (C) 2003-2008 T. Zachary Laine
 
    This library is free software; you can redistribute it and/or
@@ -87,8 +87,8 @@ void GroupBox::Render()
 {
     Pt ul = UpperLeft(), lr = LowerRight() - Pt(X1, Y1);
     ul.y += TopOfFrame(m_label != nullptr, m_font);
-    Clr light = LightColor(m_color);
-    Clr dark = DarkColor(m_color);
+    Clr light = LightenClr(m_color);
+    Clr dark = DarkenClr(m_color);
     const int GAP_FROM_TEXT = 2;
     int vertices[24] = {
         Value(ul.x) + FRAME_THICK + PIXEL_MARGIN - GAP_FROM_TEXT, Value(ul.y),

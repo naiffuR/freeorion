@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* GG is a GUI for SDL and OpenGL.
+/* GG is a GUI for OpenGL.
    Copyright (C) 2003-2008 T. Zachary Laine
 
    This library is free software; you can redistribute it and/or
@@ -47,11 +47,11 @@ namespace GG {
 
 extern GG_API const bool INSTRUMENT_ALL_SIGNALS;
 
-template <class FlagType>
+template <typename FlagType>
 class Flags;
 class ModKey;
 
-template <class T>
+template <typename T>
 class ScopedAssign
 {
 public:

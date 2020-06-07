@@ -150,13 +150,15 @@ public:
     static const std::string PREDEFINED_DESIGN_TAG;
     //! Variable value is a Tech::Name().
     static const std::string TECH_TAG;
+    //! Variable value is a Policy::Name().
+    static const std::string POLICY_TAG;
     //! Variable value is a BuildingType::Name().
     static const std::string BUILDING_TYPE_TAG;
     //! Variable value is a Special::Name().
     static const std::string SPECIAL_TAG;
-    //! Variable value is a HullType::Name().
+    //! Variable value is a ShipHull::Name().
     static const std::string SHIP_HULL_TAG;
-    //! Variable value is a PartType::Name().
+    //! Variable value is a ShipPart::Name().
     static const std::string SHIP_PART_TAG;
     //! Variable value is a Species::Name().
     static const std::string SPECIES_TAG;
@@ -194,11 +196,11 @@ protected:
 
 private:
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
-template <class Archive>
+template <typename Archive>
 void VarText::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_NVP(m_template_string)

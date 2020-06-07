@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* GG is a GUI for SDL and OpenGL.
+/* GG is a GUI for OpenGL.
    Copyright (C) 2003-2008 T. Zachary Laine
 
    This library is free software; you can redistribute it and/or
@@ -37,12 +37,12 @@
 #include <GG/Texture.h>
 #include <GG/UnicodeCharsets.h>
 
-#include <boost/unordered_map.hpp>
 #include <boost/graph/graph_concepts.hpp>
 
 #include <memory>
 #include <set>
 #include <stack>
+#include <unordered_map>
 
 
 struct FT_FaceRec_;
@@ -185,11 +185,9 @@ public:
         Substring& operator+=(const IterPair& rhs);
 
     private:
-        const std::string* str;
-        std::ptrdiff_t first;
-        std::ptrdiff_t second;
-
-        static const std::string EMPTY_STRING;
+        const std::string* str = nullptr;
+        std::ptrdiff_t first{0};
+        std::ptrdiff_t second{0};
     };
 
     /** \brief Used to encapsulate a token-like piece of text to be rendered
@@ -267,7 +265,7 @@ public:
         TextElement();
 
     private:
-        mutable X cached_width;
+        mutable X cached_width{0};
     };
 
     /** \brief TextAndElementsAssembler is used to assemble a matched pair of text and a vector of
@@ -446,7 +444,6 @@ public:
         std::unique_ptr<GLRGBAColorBuffer> underline_colors;
 
         RenderCache();
-
         ~RenderCache();
     };
 
@@ -467,7 +464,7 @@ public:
         UnicodeCharsets in the range [first, last).  \throw Font::Exception
         Throws a subclass of Font::Exception if the condition specified for
         the subclass is met. */
-    template <class CharSetIter>
+    template <typename CharSetIter>
     Font(const std::string& font_filename, unsigned int pts,
          CharSetIter first, CharSetIter last);
 
@@ -476,7 +473,7 @@ public:
         contents \a file_contents.  \throw Font::Exception Throws a subclass
         of Font::Exception if the condition specified for the subclass is
         met. */
-    template <class CharSetIter>
+    template <typename CharSetIter>
     Font(const std::string& font_filename, unsigned int pts,
          const std::vector<unsigned char>& file_contents,
          CharSetIter first, CharSetIter last);
@@ -691,7 +688,7 @@ private:
         X           width;         ///< The width of the glyph only
     };
 
-    typedef boost::unordered_map<std::uint32_t, Glyph> GlyphMap;
+    typedef std::unordered_map<std::uint32_t, Glyph> GlyphMap;
 
     FT_Error          GetFace(FT_Face& face);
     FT_Error          GetFace(const std::vector<unsigned char>& file_contents, FT_Face& face);
@@ -800,7 +797,7 @@ public:
 
     /** Returns true iff this manager contains a font with the given filename
         and point size, containing the given charsets. */
-    template <class CharSetIter>
+    template <typename CharSetIter>
     bool HasFont(const std::string& font_filename, unsigned int pts,
                  CharSetIter first, CharSetIter last) const;
     //@}
@@ -820,7 +817,7 @@ public:
     /** Returns a shared_ptr to the requested font, supporting all the
         code points in the UnicodeCharsets in the range [first, last).  \note
         May load font if unavailable at time of request. */
-    template <class CharSetIter>
+    template <typename CharSetIter>
     std::shared_ptr<Font> GetFont(const std::string& font_filename, unsigned int pts,
                                   CharSetIter first, CharSetIter last);
 
@@ -828,7 +825,7 @@ public:
         points in the UnicodeCharsets in the range [first, last), from the
         in-memory contents \a file_contents.  \note May load font if
         unavailable at time of request. */
-    template <class CharSetIter>
+    template <typename CharSetIter>
     std::shared_ptr<Font> GetFont(const std::string& font_filename, unsigned int pts,
                                   const std::vector<unsigned char>& file_contents,
                                   CharSetIter first, CharSetIter last);
@@ -840,7 +837,7 @@ public:
 
 private:
     FontManager();
-    template <class CharSetIter>
+    template <typename CharSetIter>
     std::shared_ptr<Font> GetFontImpl(const std::string& font_filename, unsigned int pts,
                                       const std::vector<unsigned char>* file_contents,
                                       CharSetIter first, CharSetIter last);
@@ -859,17 +856,17 @@ GG_API FontManager& GetFontManager();
 GG_EXCEPTION(FailedFTLibraryInit);
 
 namespace detail {
-    template <class CharT, bool CharIsSigned = boost::is_signed<CharT>::value>
+    template <typename CharT, bool CharIsSigned = boost::is_signed<CharT>::value>
     struct ValidUTFChar;
 
-    template <class CharT>
+    template <typename CharT>
     struct ValidUTFChar<CharT, true>
     {
         bool operator()(CharT c)
             { return 0x0 <= c; }
     };
 
-    template <class CharT>
+    template <typename CharT>
     struct ValidUTFChar<CharT, false>
     {
         bool operator()(CharT c)
@@ -888,7 +885,7 @@ namespace detail {
 
 
 // template implementations
-template <class CharSetIter>
+template <typename CharSetIter>
 GG::Font::Font(const std::string& font_filename, unsigned int pts,
                CharSetIter first, CharSetIter last) :
     m_font_filename(font_filename),
@@ -913,7 +910,7 @@ GG::Font::Font(const std::string& font_filename, unsigned int pts,
     }
 }
 
-template <class CharSetIter>
+template <typename CharSetIter>
 GG::Font::Font(const std::string& font_filename, unsigned int pts,
                const std::vector<unsigned char>& file_contents,
                CharSetIter first, CharSetIter last) :
@@ -938,7 +935,7 @@ GG::Font::Font(const std::string& font_filename, unsigned int pts,
     Init(wrapper.m_face);
 }
 
-template <class CharSetIter>
+template <typename CharSetIter>
 bool GG::FontManager::HasFont(const std::string& font_filename, unsigned int pts,
                               CharSetIter first, CharSetIter last) const
 {
@@ -954,13 +951,13 @@ bool GG::FontManager::HasFont(const std::string& font_filename, unsigned int pts
     return retval;
 }
 
-template <class CharSetIter>
+template <typename CharSetIter>
 std::shared_ptr<GG::Font>
 GG::FontManager::GetFont(const std::string& font_filename, unsigned int pts,
                          CharSetIter first, CharSetIter last)
 { return GetFontImpl(font_filename, pts, nullptr, first, last); }
 
-template <class CharSetIter>
+template <typename CharSetIter>
 std::shared_ptr<GG::Font>
 GG::FontManager::GetFont(const std::string& font_filename, unsigned int pts,
                          const std::vector<unsigned char>& file_contents,
@@ -968,7 +965,7 @@ GG::FontManager::GetFont(const std::string& font_filename, unsigned int pts,
 { return GetFontImpl(font_filename, pts, &file_contents, first, last); }
 
 
-template <class CharSetIter>
+template <typename CharSetIter>
 std::shared_ptr<GG::Font>
 GG::FontManager::GetFontImpl(const std::string& font_filename, unsigned int pts,
                              const std::vector<unsigned char>* file_contents,

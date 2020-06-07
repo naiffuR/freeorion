@@ -1,12 +1,13 @@
 #ifndef _IDAllocator_h_
 #define _IDAllocator_h_
 
-#include "../util/Logger.h"
+
+#include <random>
 #include <unordered_map>
 #include <vector>
-#include <random>
-
 #include <boost/serialization/access.hpp>
+#include "../util/Logger.h"
+
 
 /** The IDAllocator coordinates the allocation of new IDs between the server
     and a number of empires, id consumers.
@@ -65,7 +66,7 @@ public:
     void ObfuscateBeforeSerialization();
 
     /** Serialize while stripping out information not known to \p empire_id. */
-    template <class Archive>
+    template <typename Archive>
         void SerializeForEmpire(Archive& ar, const unsigned int version, int empire_id);
 
 private:

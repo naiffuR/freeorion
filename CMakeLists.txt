@@ -36,7 +36,7 @@ include(GNUInstallDirs)
 include(UseCodeCoverage)
 include(TargetDependencies)
 
-set(FreeOrion_VERSION 0.4.9+)
+set(FreeOrion_VERSION 0.4.10+)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -95,7 +95,7 @@ if(APPLE)
     # Location of the FreeOrionSDK root
     set(CMAKE_PREFIX_PATH "${CMAKE_BINARY_DIR}/dep/")
     set(CMAKE_FRAMEWORK_PATH "${CMAKE_BINARY_DIR}/dep/Frameworks")
-    set(CMAKE_PROGRAM_PATH "${CMAKE_FRAMEWORK_PATH}/Python.framework/Versions/Current/bin")
+    set(CMAKE_PROGRAM_PATH "${CMAKE_FRAMEWORK_PATH}/Python.framework/Versions/3.5/bin")
 endif()
 
 if(UNIX)
@@ -212,12 +212,14 @@ if(UNIX AND NOT APPLE)
     add_definitions(-DENABLE_BINRELOC -DBINPATH=\"${CMAKE_INSTALL_FULL_BINDIR}\" -DSHAREPATH=\"${CMAKE_INSTALL_FULL_DATADIR}\")
 endif()
 
+include(TestForBug2795)
+
 
 ##
 ## Collect project dependencies.
 ##
 
-set(MINIMUM_PYTHON_VERSION 2.7)
+set(MINIMUM_PYTHON_VERSION 3.5)
 set(MINIMUM_BOOST_VERSION 1.58.0)
 
 find_package(Threads)
@@ -235,23 +237,15 @@ find_package(Boost ${MINIMUM_BOOST_VERSION}
         thread
     REQUIRED)
 
-if(${Boost_MAJOR_VERSION}.${Boost_MINOR_VERSION} VERSION_GREATER 1.66.0)
-    find_package(Boost COMPONENTS python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR} REQUIRED)
-    set(Boost_PYTHON_SUFFIX "${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
-else()
-    find_package(Boost COMPONENTS python REQUIRED)
-    set(Boost_PYTHON_SUFFIX "")
-endif()
+find_package(Boost COMPONENTS python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR} REQUIRED)
+set(Boost_PYTHON_SUFFIX "${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
 
 find_package(ZLIB REQUIRED)
 if(NOT BUILD_HEADLESS)
+    set(SDL_NO_MAIN true)
+    find_package(SDL REQUIRED)
     find_package(Freetype REQUIRED)
     find_package(OpenGL REQUIRED)
-
-    if(NOT OPENGL_GLU_FOUND)
-        message(FATAL_ERROR "OpenGL GLU library not found.")
-    endif()
-
     find_package(OpenAL REQUIRED)
     find_package(Ogg REQUIRED)
     find_package(Vorbis REQUIRED)
@@ -266,14 +260,12 @@ if(BUILD_TESTING)
     add_subdirectory(test)
 endif()
 
-if(NOT BUILD_HEADLESS)
-    set(BUILD_DEVEL_PACKAGE OFF CACHE INTERNAL "Disables installation of GiGi development files." FORCE)
-    set(_ORIG_CMAKE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
-    set(CMAKE_INSTALL_LIBDIR "${FreeOrion_INSTALL_LIBDIR}")
-    add_subdirectory(GG)
-    set(CMAKE_INSTALL_LIBDIR ${_ORIG_CMAKE_INSTALL_LIBDIR})
-    unset(_ORIG_CMAKE_INSTALL_LIBDIR)
-endif()
+set(BUILD_DEVEL_PACKAGE OFF CACHE INTERNAL "Disables installation of GiGi development files." FORCE)
+set(_ORIG_CMAKE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
+set(CMAKE_INSTALL_LIBDIR "${FreeOrion_INSTALL_LIBDIR}")
+add_subdirectory(GG)
+set(CMAKE_INSTALL_LIBDIR ${_ORIG_CMAKE_INSTALL_LIBDIR})
+unset(_ORIG_CMAKE_INSTALL_LIBDIR)
 
 set_property(DIRECTORY APPEND
     PROPERTY COMPILE_DEFINITIONS
@@ -355,13 +347,16 @@ if(APPLE)
 endif()
 
 target_compile_definitions(freeorioncommon
+    PUBLIC
+        -DBOOST_ALL_DYN_LINK
     PRIVATE
-    -DFREEORION_BUILD_COMMON
+        -DFREEORION_BUILD_COMMON
+        -DFREEORION_PYTHON_VERSION=\"${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}\"
 )
 
 target_include_directories(freeorioncommon SYSTEM
-    PRIVATE
-        ${CMAKE_SOURCE_DIR}
+    PUBLIC
+        $<TARGET_PROPERTY:GiGi::GiGi,INCLUDE_DIRECTORIES>
 )
 
 target_link_libraries(freeorioncommon
@@ -377,8 +372,6 @@ target_link_libraries(freeorioncommon
         Boost::thread
         Boost::serialization
         ZLIB::ZLIB
-    PUBLIC
-        GiGi::GiGi
     PRIVATE
         ${CORE_FOUNDATION_LIBRARY}
 )
@@ -415,6 +408,13 @@ target_include_directories(freeorionparseobj
         $<TARGET_PROPERTY:GiGi::GiGi,INCLUDE_DIRECTORIES>
 )
 
+if(NOT BUILD_HEADLESS)
+    target_link_libraries(freeorioncommon
+        PUBLIC
+            GiGi::GiGi
+    )
+endif()
+
 set_property(TARGET freeorionparseobj
     PROPERTY
     POSITION_INDEPENDENT_CODE ON
@@ -440,6 +440,8 @@ target_compile_options(freeorionparseobj
 )
 
 target_compile_definitions(freeorionparseobj
+    PUBLIC
+        -DBOOST_ALL_DYN_LINK
     PRIVATE
         -DNDEBUG
         -DFREEORION_BUILD_PARSE
@@ -608,6 +610,7 @@ if(NOT BUILD_HEADLESS)
 
     target_include_directories(freeorion SYSTEM
         PRIVATE
+            ${SDL_INCLUDE_DIRS}
             ${OPENGL_INCLUDE_DIR}
             ${OPENAL_INCLUDE_DIR}
             ${OGG_INCLUDE_DIRS}
@@ -618,9 +621,8 @@ if(NOT BUILD_HEADLESS)
     target_link_libraries(freeorion
         freeorioncommon
         freeorionparse
-        GiGi::GiGiSDL
+        ${SDL_LIBRARIES}
         ${OPENGL_gl_LIBRARY}
-        ${OPENGL_glu_LIBRARY}
         ${OPENAL_LIBRARY}
         ${OGG_LIBRARIES}
         ${VORBIS_LIBRARIES}
@@ -656,8 +658,6 @@ if(APPLE)
             ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:freeorionparse>" "$<TARGET_FILE_DIR:freeorion>/../SharedSupport"
         COMMAND
             ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:GiGi>" "$<TARGET_FILE_DIR:freeorion>/../SharedSupport"
-        COMMAND
-           ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:GiGiSDL>" "$<TARGET_FILE_DIR:freeorion>/../SharedSupport"
         COMMAND
            ${CMAKE_COMMAND} -E copy_if_different "${Boost_ATOMIC_LIBRARY}" "$<TARGET_FILE_DIR:freeorion>/../SharedSupport"
         COMMAND
@@ -746,26 +746,43 @@ if(UNIX AND NOT APPLE)
     if(NOT BUILD_HEADLESS)
         install(
             FILES
-            ${CMAKE_SOURCE_DIR}/packaging/freeorion.desktop
+            ${CMAKE_SOURCE_DIR}/packaging/org.freeorion.FreeOrion.desktop
             DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications
         )
     endif()
 
     install(
-        DIRECTORY default/
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/freeorion/default
-        PATTERN "*~" EXCLUDE
-        PATTERN "*.pyc" EXCLUDE
+        FILES
+        ${CMAKE_SOURCE_DIR}/packaging/org.freeorion.FreeOrion.metainfo.xml
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/metainfo
     )
 
-    foreach(SIZE 16 24 32 64 128 256)
+    if(NOT BUILD_HEADLESS)
         install(
-            FILES
-            ${CMAKE_SOURCE_DIR}/default/data/art/icons/FO_Icon_${SIZE}x${SIZE}.png
-            DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/${SIZE}x${SIZE}/apps/
-            RENAME freeorion.png
+            DIRECTORY default/
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/freeorion/default
+            PATTERN "*~" EXCLUDE
+            PATTERN "*.pyc" EXCLUDE
         )
-    endforeach()
+
+        foreach(SIZE 16 24 32 64 128 256)
+            install(
+                FILES
+                ${CMAKE_SOURCE_DIR}/default/data/art/icons/FO_Icon_${SIZE}x${SIZE}.png
+                DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/${SIZE}x${SIZE}/apps/
+                RENAME freeorion.png
+            )
+        endforeach()
+    else()
+        install(
+            DIRECTORY default/
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/freeorion/default
+            PATTERN "*~" EXCLUDE
+            PATTERN "*.pyc" EXCLUDE
+            PATTERN "*.png" EXCLUDE
+            PATTERN "*.ogg" EXCLUDE
+        )
+    endif()
 endif()
 
 if(WIN32)

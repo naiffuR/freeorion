@@ -1,36 +1,56 @@
 #include "Universe.h"
 
-#include "../util/OptionsDB.h"
-#include "../util/i18n.h"
-#include "../util/Logger.h"
-#include "../util/Random.h"
-#include "../util/RunQueue.h"
-#include "../util/ScopedTimer.h"
-#include "../util/CheckSums.h"
-#include "../util/GameRules.h"
-#include "../Empire/Empire.h"
-#include "../Empire/EmpireManager.h"
-#include "IDAllocator.h"
+#include <boost/algorithm/string.hpp>
+#include <boost/property_map/property_map.hpp>
+#include "BuildingType.h"
 #include "Building.h"
+#include "Conditions.h"
 #include "Effect.h"
-#include "Fleet.h"
-#include "Planet.h"
-#include "Ship.h"
-#include "System.h"
+#include "Encyclopedia.h"
+#include "Enums.h"
+#include "FieldType.h"
 #include "Field.h"
-#include "UniverseObject.h"
-#include "UniverseGenerator.h"
+#include "FleetPlan.h"
+#include "Fleet.h"
+#include "IDAllocator.h"
+#include "Pathfinder.h"
+#include "Planet.h"
 #include "Predicates.h"
+#include "ShipDesign.h"
+#include "ShipHull.h"
+#include "ShipPart.h"
+#include "Ship.h"
 #include "Special.h"
 #include "Species.h"
+#include "System.h"
 #include "Tech.h"
-#include "Conditions.h"
+#include "UniverseObject.h"
+#include "UnlockableItem.h"
 #include "ValueRef.h"
-#include "Enums.h"
-#include "Pathfinder.h"
-#include "Encyclopedia.h"
+#include "../Empire/EmpireManager.h"
+#include "../Empire/Empire.h"
+#include "../Empire/Government.h"
+#include "../util/CheckSums.h"
+#include "../util/GameRules.h"
+#include "../util/Logger.h"
+#include "../util/OptionsDB.h"
+#include "../util/Random.h"
+#include "../util/ScopedTimer.h"
+#include "../util/i18n.h"
 
-#include <boost/property_map/property_map.hpp>
+
+#if BOOST_VERSION >= 106600
+#  include <boost/asio/thread_pool.hpp>
+#  include <boost/asio/post.hpp>
+#else
+namespace boost { namespace asio {
+    struct thread_pool {
+        thread_pool(int) {}
+        void join() {}
+    };
+    void post(thread_pool, std::function<void()> func) { func(); }
+ } }
+#endif
 
 FO_COMMON_API extern const int INVALID_DESIGN_ID;
 
@@ -77,17 +97,20 @@ namespace {
     // determining how much of their speed is consumed by the jump
     // unused variable const double    WORMHOLE_TRAVEL_DISTANCE = 0.1;
 
-    template <class Key, class Value> struct constant_property
+    template <typename Key, typename Value>
+    struct constant_property
     { Value m_value; };
 }
 
 namespace boost {
-    template <class Key, class Value> struct property_traits<constant_property<Key, Value>> {
+    template <typename Key, typename Value>
+    struct property_traits<constant_property<Key, Value>> {
         typedef Value value_type;
         typedef Key key_type;
         typedef readable_property_map_tag category;
     };
-    template <class Key, class Value> const Value& get(const constant_property<Key, Value>& pmap, const Key&) { return pmap.m_value; }
+    template <typename Key, typename Value>
+    const Value& get(const constant_property<Key, Value>& pmap, const Key&) { return pmap.m_value; }
 }
 
 
@@ -146,7 +169,6 @@ void Universe::Clear() {
 }
 
 void Universe::ResetAllIDAllocation(const std::vector<int>& empire_ids) {
-
     // Find the highest already allocated id for saved games that did not partition ids by client
     int highest_allocated_id = INVALID_OBJECT_ID;
     for (const auto& obj: m_objects.all())
@@ -167,16 +189,16 @@ void Universe::ResetAllIDAllocation(const std::vector<int>& empire_ids) {
                   << " and highest design id = " << highest_allocated_design_id;
 }
 
-void Universe::SetInitiallyUnlockedItems(Pending::Pending<std::vector<ItemSpec>>&& future)
+void Universe::SetInitiallyUnlockedItems(Pending::Pending<std::vector<UnlockableItem>>&& future)
 { m_pending_items = std::move(future); }
 
-const std::vector<ItemSpec>& Universe::InitiallyUnlockedItems() const
+const std::vector<UnlockableItem>& Universe::InitiallyUnlockedItems() const
 { return Pending::SwapPending(m_pending_items, m_unlocked_items); }
 
-void Universe::SetInitiallyUnlockedBuildings(Pending::Pending<std::vector<ItemSpec>>&& future)
+void Universe::SetInitiallyUnlockedBuildings(Pending::Pending<std::vector<UnlockableItem>>&& future)
 { m_pending_buildings = std::move(future); }
 
-const std::vector<ItemSpec>& Universe::InitiallyUnlockedBuildings() const
+const std::vector<UnlockableItem>& Universe::InitiallyUnlockedBuildings() const
 { return Pending::SwapPending(m_pending_buildings, m_unlocked_buildings); }
 
 void Universe::SetInitiallyUnlockedFleetPlans(Pending::Pending<std::vector<std::unique_ptr<FleetPlan>>>&& future)
@@ -186,7 +208,7 @@ const std::vector<FleetPlan*> Universe::InitiallyUnlockedFleetPlans() const {
     Pending::SwapPending(m_pending_fleet_plans, m_unlocked_fleet_plans);
     std::vector<FleetPlan*> retval;
     for (const auto& plan : m_unlocked_fleet_plans)
-        retval.push_back(plan.get());
+        retval.emplace_back(plan.get());
     return retval;
 }
 
@@ -197,7 +219,7 @@ const std::vector<MonsterFleetPlan*> Universe::MonsterFleetPlans() const {
     Pending::SwapPending(m_pending_monster_fleet_plans, m_monster_fleet_plans);
     std::vector<MonsterFleetPlan*> retval;
     for (const auto& plan : m_monster_fleet_plans)
-        retval.push_back(plan.get());
+        retval.emplace_back(plan.get());
     return retval;
 }
 
@@ -433,6 +455,10 @@ bool Universe::InsertShipDesignID(ShipDesign* ship_design, boost::optional<int> 
         return false;
     }
 
+    if (m_ship_designs.count(id)) {
+        ErrorLogger() << "Ship design id " << id << " already exists.";
+        return false;
+    }
     ship_design->SetID(id);
     m_ship_designs[id] = ship_design;
     return true;
@@ -479,8 +505,8 @@ void Universe::ApplyAllEffectsAndUpdateMeters(bool do_accounting) {
     // cache all activation and scoping condition results before applying
     // Effects, since the application of these Effects may affect the activation
     // and scoping evaluations
-    Effect::TargetsCauses targets_causes;
-    GetEffectsAndTargets(targets_causes);
+    std::map<int, Effect::SourcesEffectsTargetsAndCausesVec> source_effects_targets_causes;
+    GetEffectsAndTargets(source_effects_targets_causes, false);
 
     // revert all current meter values (which are modified by effects) to
     // their initial state for this turn, so that max/target/unpaired meter
@@ -491,7 +517,7 @@ void Universe::ApplyAllEffectsAndUpdateMeters(bool do_accounting) {
     for (auto& entry : Empires())
         entry.second->ResetMeters();
 
-    ExecuteEffects(targets_causes, do_accounting, false, false, true);
+    ExecuteEffects(source_effects_targets_causes, do_accounting, false, false, true);
     // clamp max meters to [DEFAULT_VALUE, LARGE_VALUE] and current meters to [DEFAULT_VALUE, max]
     // clamp max and target meters to [DEFAULT_VALUE, LARGE_VALUE] and current meters to [DEFAULT_VALUE, max]
     for (const auto& object : m_objects.all())
@@ -508,8 +534,8 @@ void Universe::ApplyMeterEffectsAndUpdateMeters(const std::vector<int>& object_i
     }
     // cache all activation and scoping condition results before applying Effects, since the application of
     // these Effects may affect the activation and scoping evaluations
-    Effect::TargetsCauses targets_causes;
-    GetEffectsAndTargets(targets_causes, object_ids);
+    std::map<int, Effect::SourcesEffectsTargetsAndCausesVec> source_effects_targets_causes;
+    GetEffectsAndTargets(source_effects_targets_causes, object_ids, true);
 
     std::vector<std::shared_ptr<UniverseObject>> objects = m_objects.find(object_ids);
 
@@ -523,7 +549,7 @@ void Universe::ApplyMeterEffectsAndUpdateMeters(const std::vector<int>& object_i
     // recalculated, some targets that lead to empire meters being modified may
     // be missed, and estimated empire meters would be inaccurate
 
-    ExecuteEffects(targets_causes, do_accounting, true);
+    ExecuteEffects(source_effects_targets_causes, do_accounting, true);
 
     for (auto& object : objects)
         object->ClampMeters();
@@ -536,27 +562,27 @@ void Universe::ApplyMeterEffectsAndUpdateMeters(bool do_accounting) {
         do_accounting = GetOptionsDB().Get<bool>("effects.accounting.enabled");
     }
 
-    Effect::TargetsCauses targets_causes;
-    GetEffectsAndTargets(targets_causes);
+    std::map<int, Effect::SourcesEffectsTargetsAndCausesVec> source_effects_targets_causes;
+    GetEffectsAndTargets(source_effects_targets_causes, true);
 
     TraceLogger(effects) << "Universe::ApplyMeterEffectsAndUpdateMeters resetting...";
     for (const auto& object : m_objects.all()) {
         TraceLogger(effects) << "object " << object->Name() << " (" << object->ID() << ") before resetting meters: ";
         for (auto const& meter_pair : object->Meters()) {
-            TraceLogger(effects) << "    meter: " << boost::lexical_cast<std::string>(meter_pair.first)
+            TraceLogger(effects) << "    meter: " << meter_pair.first
                                  << "  value: " << meter_pair.second.Current();
         }
         object->ResetTargetMaxUnpairedMeters();
         object->ResetPairedActiveMeters();
         TraceLogger(effects) << "object " << object->Name() << " (" << object->ID() << ") after resetting meters: ";
         for (auto const& meter_pair : object->Meters()) {
-            TraceLogger(effects) << "    meter: " << boost::lexical_cast<std::string>(meter_pair.first)
+            TraceLogger(effects) << "    meter: " << meter_pair.first
                                  << "  value: " << meter_pair.second.Current();
         }
     }
     for (auto& entry : Empires())
         entry.second->ResetMeters();
-    ExecuteEffects(targets_causes, do_accounting, true, false, true);
+    ExecuteEffects(source_effects_targets_causes, do_accounting, true, false, true);
 
     for (const auto& object : m_objects.all())
         object->ClampMeters();
@@ -570,9 +596,9 @@ void Universe::ApplyAppearanceEffects(const std::vector<int>& object_ids) {
     // cache all activation and scoping condition results before applying
     // Effects, since the application of these Effects may affect the
     // activation and scoping evaluations
-    Effect::TargetsCauses targets_causes;
-    GetEffectsAndTargets(targets_causes, object_ids);
-    ExecuteEffects(targets_causes, false, false, true);
+    std::map<int, Effect::SourcesEffectsTargetsAndCausesVec> source_effects_targets_causes;
+    GetEffectsAndTargets(source_effects_targets_causes, object_ids, false);
+    ExecuteEffects(source_effects_targets_causes, false, false, true);
 }
 
 void Universe::ApplyAppearanceEffects() {
@@ -581,9 +607,9 @@ void Universe::ApplyAppearanceEffects() {
     // cache all activation and scoping condition results before applying
     // Effects, since the application of Effects in general (even if not these
     // particular Effects) may affect the activation and scoping evaluations
-    Effect::TargetsCauses targets_causes;
-    GetEffectsAndTargets(targets_causes);
-    ExecuteEffects(targets_causes, false, false, true);
+    std::map<int, Effect::SourcesEffectsTargetsAndCausesVec> source_effects_targets_causes;
+    GetEffectsAndTargets(source_effects_targets_causes, false);
+    ExecuteEffects(source_effects_targets_causes, false, false, true);
 }
 
 void Universe::ApplyGenerateSitRepEffects() {
@@ -592,9 +618,9 @@ void Universe::ApplyGenerateSitRepEffects() {
     // cache all activation and scoping condition results before applying
     // Effects, since the application of Effects in general (even if not these
     // particular Effects) may affect the activation and scoping evaluations
-    Effect::TargetsCauses targets_causes;
-    GetEffectsAndTargets(targets_causes);
-    ExecuteEffects(targets_causes, false, false, false, false, true);
+    std::map<int, Effect::SourcesEffectsTargetsAndCausesVec> source_effects_targets_causes;
+    GetEffectsAndTargets(source_effects_targets_causes, false);
+    ExecuteEffects(source_effects_targets_causes, false, false, false, false, true);
 }
 
 void Universe::InitMeterEstimatesAndDiscrepancies() {
@@ -687,7 +713,7 @@ void Universe::InitMeterEstimatesAndDiscrepancies() {
             // add discrepancy adjustment to meter accounting
             account_map[type].emplace_back(INVALID_OBJECT_ID, ECT_UNKNOWN_CAUSE, discrepancy, meter.Current());
 
-            TraceLogger(effects) << "... ... " << boost::lexical_cast<std::string>(type) << ": " << discrepancy;
+            TraceLogger(effects) << "... ... " << type << ": " << discrepancy;
         }
     }
 }
@@ -780,8 +806,9 @@ void Universe::UpdateMeterEstimatesImpl(const std::vector<int>& objects_vec, boo
     if (objects_vec.empty()) {
         object_ptrs.reserve(m_objects.ExistingObjects().size());
         std::transform(m_objects.ExistingObjects().begin(), m_objects.ExistingObjects().end(),
-                       std::back_inserter(object_ptrs),
-                       boost::bind(&std::map<int, std::shared_ptr<UniverseObject>>::value_type::second, _1));
+                       std::back_inserter(object_ptrs), [](const std::map<int, std::shared_ptr<const UniverseObject>>::value_type& p) {
+            return std::const_pointer_cast<UniverseObject>(p.second);
+        });
     }
 
     for (auto& obj : object_ptrs) {
@@ -813,11 +840,11 @@ void Universe::UpdateMeterEstimatesImpl(const std::vector<int>& objects_vec, boo
 
     // cache all activation and scoping condition results before applying Effects, since the application of
     // these Effects may affect the activation and scoping evaluations
-    Effect::TargetsCauses targets_causes;
-    GetEffectsAndTargets(targets_causes, objects_vec);
+    std::map<int, Effect::SourcesEffectsTargetsAndCausesVec> source_effects_targets_causes;
+    GetEffectsAndTargets(source_effects_targets_causes, objects_vec, true);
 
     // Apply and record effect meter adjustments
-    ExecuteEffects(targets_causes, do_accounting, true, false, false, false);
+    ExecuteEffects(source_effects_targets_causes, do_accounting, true, false, false, false);
 
     TraceLogger(effects) << "UpdateMeterEstimatesImpl after executing effects objects:";
     for (auto& obj : object_ptrs)
@@ -875,366 +902,340 @@ void Universe::BackPropagateObjectMeters() {
 }
 
 namespace {
-    /** Used by GetEffectsAndTargets to process a vector of effects groups.
-      * Stores target set of specified \a effects_groups and \a source_object_id
-      * in \a targets_causes
-      * NOTE: this method will modify target_objects temporarily, but restore
-      * its contents before returning.
-      * This is a calleable class instead of an ordinary method so that we can
-      * use it as work item in parallel scheduling.
-      */
-    class StoreTargetsAndCausesOfEffectsGroupsWorkItem {
-    public:
-        struct ConditionCache : public boost::noncopyable {
-        public:
-            std::pair<bool, Effect::TargetSet>* Find(const Condition::Condition* cond, bool insert);
-            void MarkComplete(std::pair<bool, Effect::TargetSet>* cache_entry);
-            void LockShared(boost::shared_lock<boost::shared_mutex>& guard);
-
-        private:
-            std::map<const Condition::Condition*, std::pair<bool, Effect::TargetSet>> m_entries;
-            boost::shared_mutex m_mutex;
-            boost::condition_variable_any m_state_changed;
-        };
-        StoreTargetsAndCausesOfEffectsGroupsWorkItem(
-            ObjectMap&                                                  the_object_map,
-            const std::shared_ptr<Effect::EffectsGroup>&                the_effects_group,
-            const std::vector<std::shared_ptr<const UniverseObject>>&   the_sources,
-            EffectsCauseType                                            the_effect_cause_type,
-            const std::string&                                          the_specific_cause_name,
-            Effect::TargetSet&                                          the_target_objects,
-            Effect::TargetsCauses&                                      the_targets_causes,
-            std::map<int, std::shared_ptr<ConditionCache>>&             the_source_cached_condition_matches,
-            ConditionCache&                                             the_invariant_cached_condition_matches,
-            boost::shared_mutex&                                        the_global_mutex
-        );
-        void operator ()();
-
-        /** Return a report of that state of this work item. */
-        std::string GenerateReport() const;
-
-    private:
-        // WARNING: do NOT copy the shared_pointers! Use raw pointers, shared_ptr may not be thread-safe.
-        ObjectMap&                                                  m_object_map;
-        std::shared_ptr<Effect::EffectsGroup>                       m_effects_group;
-        const std::vector<std::shared_ptr<const UniverseObject>>*   m_sources;
-        EffectsCauseType                                            m_effect_cause_type;
-        const std::string                                           m_specific_cause_name;
-        Effect::TargetSet*                                          m_target_objects;
-        Effect::TargetsCauses*                                      m_targets_causes;
-        std::map<int, std::shared_ptr<ConditionCache>>*             m_source_cached_condition_matches;
-        ConditionCache*                                             m_invariant_cached_condition_matches;
-        boost::shared_mutex*                                        m_global_mutex;
-
-        static Effect::TargetSet& GetConditionMatches(
-            const Condition::Condition*             cond,
-            ConditionCache&                         cached_condition_matches,
-            std::shared_ptr<const UniverseObject>   source,
-            const ScriptingContext&                 source_context,
-            Effect::TargetSet&                      target_objects,
-            std::string&                            match_log,
-            const std::string&                      specific_cause_name);
-    };
-
-    StoreTargetsAndCausesOfEffectsGroupsWorkItem::StoreTargetsAndCausesOfEffectsGroupsWorkItem(
-            ObjectMap&                                                  the_object_map,
-            const std::shared_ptr<Effect::EffectsGroup>&                the_effects_group,
-            const std::vector<std::shared_ptr<const UniverseObject>>&   the_sources,
-            EffectsCauseType                                            the_effect_cause_type,
-            const std::string&                                          the_specific_cause_name,
-            Effect::TargetSet&                                          the_target_objects,
-            Effect::TargetsCauses&                                      the_targets_causes,
-            std::map<int, std::shared_ptr<ConditionCache>>&             the_source_cached_condition_matches,
-            ConditionCache&                                             the_invariant_cached_condition_matches,
-            boost::shared_mutex&                                        the_global_mutex
-        ) :
-            m_object_map                            (the_object_map),
-            m_effects_group                         (the_effects_group),
-            m_sources                               (&the_sources),
-            m_effect_cause_type                     (the_effect_cause_type),
-            // create a deep copy just in case string methods do unlocked copy-on-write or other unsafe things
-            m_specific_cause_name                   (the_specific_cause_name.c_str()),
-            m_target_objects                        (&the_target_objects),
-            m_targets_causes                        (&the_targets_causes),
-            m_source_cached_condition_matches       (&the_source_cached_condition_matches),
-            m_invariant_cached_condition_matches    (&the_invariant_cached_condition_matches),
-            m_global_mutex                          (&the_global_mutex)
-    {}
-
-    std::pair<bool, Effect::TargetSet>*
-    StoreTargetsAndCausesOfEffectsGroupsWorkItem::ConditionCache::Find(
-        const Condition::Condition* cond, bool insert)
+    /** Evaluate activation, and scope conditions of \a effects_group for
+      * each of the objects in \a source_objects for the candidate target
+      * objects in \a candidate_objects_in (unless it is empty, in which case
+      * the default candidate objects for the scope condition is used. Stores
+      * the objects that matched the effects group's scope condition, for each
+      * source object, as a separate entry in \a targets_cases_out */
+    void StoreTargetsAndCausesOfEffectsGroup(
+        const ObjectMap&                            object_map,
+        const Effect::EffectsGroup*                 effects_group,
+        const Condition::ObjectSet&                 source_objects,
+        EffectsCauseType                            effect_cause_type,
+        const std::string&                          specific_cause_name,
+        const std::unordered_set<int>&              candidate_object_ids,   // TODO: Can this be removed along with scope is source test?
+        Effect::TargetSet&                          candidate_objects_in,   // may be empty: indicates to test for full universe of objects
+        Effect::SourcesEffectsTargetsAndCausesVec&  source_effects_targets_causes_out,
+        int n)
     {
-        // have to iterate through cached condition matches, rather than using
-        // find, since there is no operator< for comparing conditions by value
-        // and by pointer is irrelivant.
-        boost::unique_lock<boost::shared_mutex> unique_guard(m_mutex, boost::defer_lock_t());
-        boost::shared_lock<boost::shared_mutex> shared_guard(m_mutex, boost::defer_lock_t());
+        TraceLogger(effects) << "StoreTargetsAndCausesOfEffectsGroup < " << n << " >"
+                             << "  cause type: " << effect_cause_type
+                             << "  specific cause: " << specific_cause_name << " )";
 
-        if (insert)
-            unique_guard.lock();
-        else
-            shared_guard.lock();
-
-        for (auto& entry : m_entries) {
-            if (*cond == *(entry.first)) {
-                //DebugLogger() << "Reused target set!";
-
-                if (insert) {
-                    // no need to insert. downgrade lock
-                    unique_guard.unlock();
-                    shared_guard.lock();
-                }
-
-                // wait for cache fill
-                while (!entry.second.first)
-                    m_state_changed.wait(shared_guard);
-
-                return &entry.second;
-            }
-        }
-
-        // nothing found
-        if (insert)
-            // set up storage
-            return &m_entries[cond];
-
-        return nullptr;
-    }
-
-    void StoreTargetsAndCausesOfEffectsGroupsWorkItem::ConditionCache::MarkComplete(
-        std::pair<bool, Effect::TargetSet>* cache_entry)
-    {
-        boost::unique_lock<boost::shared_mutex> cache_guard(m_mutex); // make sure threads are waiting for completion, not checking for completion
-        cache_entry->first = true;
-        m_state_changed.notify_all(); // signal cachefill
-    }
-
-    void StoreTargetsAndCausesOfEffectsGroupsWorkItem::ConditionCache::LockShared(
-        boost::shared_lock<boost::shared_mutex>& guard)
-    {
-        boost::shared_lock<boost::shared_mutex> tmp_guard(m_mutex);
-        guard.swap(tmp_guard);
-    }
-
-    Effect::TargetSet EMPTY_TARGET_SET;
-
-    Effect::TargetSet& StoreTargetsAndCausesOfEffectsGroupsWorkItem::GetConditionMatches(
-        const Condition::Condition*                                     cond,
-        StoreTargetsAndCausesOfEffectsGroupsWorkItem::ConditionCache&   cached_condition_matches,
-        std::shared_ptr<const UniverseObject>                           source,
-        const ScriptingContext&                                         source_context,
-        Effect::TargetSet&                                              target_objects,
-        std::string&                                                    match_log, // output
-        const std::string&                                              specific_cause_name)
-    {
-        if (!cond)
-            return EMPTY_TARGET_SET;
-
-        // the passed-in cached_condition_matches are here expected be specific for the current source object
-        std::pair<bool, Effect::TargetSet>* cache_entry = cached_condition_matches.Find(cond, false);
-        if (cache_entry)
-            return cache_entry->second;
-
-        // no cached result (yet). create cache entry
-        cache_entry = cached_condition_matches.Find(cond, true);
-        if (cache_entry->first)
-            return cache_entry->second; // some other thread was faster creating the cache entry
-
-        // no cached result. calculate it...
-        Effect::TargetSet* target_set = &cache_entry->second;
-        Condition::ObjectSet& matched_target_objects = *reinterpret_cast<Condition::ObjectSet*>(target_set);
-
-
-        TraceLogger(conditions) << "Evaluating condition matches for source: " << (source ? source->Name() : "(null)")
-                                << "(" << (source ? source->ID() : INVALID_OBJECT_ID)
-                                << ") with specific cause: " << specific_cause_name;
-
-        if (target_objects.empty()) {
-            // move matches from default target candidates into target_set
-            cond->Eval(source_context, matched_target_objects);
-
-        } else {
-            // move matches from candidates in target_objects into target_set
-            Condition::ObjectSet& potential_target_objects = *reinterpret_cast<Condition::ObjectSet*>(&target_objects);
-
-            // move matches from candidates in target_objects into target_set
-            cond->Eval(source_context, matched_target_objects, potential_target_objects);
-            // restore target_objects by copying objects back from targets to target_objects
-            // this should be cheaper than doing a full copy because target_set is usually small
-            target_objects.insert(target_objects.end(), target_set->begin(), target_set->end());
-        }
-
-        // log condition scope matches, except for Source
-        if (!(dynamic_cast<const Condition::Source*>(cond))) {
-            std::stringstream ss;
-            ss << "\nGenerated new target set, for Source: " << source->Name() << "(" << source->ID()
-               << ") and Condition: " << cond->Dump() << "\n    targets: (";
-            for (const auto& obj : *target_set)
-                ss << obj->Name() << " (" << std::to_string(obj->ID()) << ")  ";
-            ss << ")";
-            match_log.append(ss.str());
-        }
-
-        cached_condition_matches.MarkComplete(cache_entry);
-
-        return *target_set;
-    }
-
-    std::string StoreTargetsAndCausesOfEffectsGroupsWorkItem::GenerateReport() const {
-        boost::unique_lock<boost::shared_mutex> guard(*m_global_mutex);
-        std::stringstream ss;
-        ss << "StoreTargetsAndCausesOfEffectsGroups:";
-        if (!m_effects_group->AccountingLabel().empty())
-            ss << "  accounting label: " << m_effects_group->AccountingLabel();
-        if (!m_effects_group->GetDescription().empty())
-            ss << "  description: " << m_effects_group->GetDescription();
-        if (!m_effects_group->TopLevelContent().empty())
-            ss << "  content: " << m_effects_group->TopLevelContent();
-        if (!m_specific_cause_name.empty())
-            ss << "  specific_cause: " << m_specific_cause_name;
-        ss << "  sources: ";
-        for (const auto& obj : *m_sources)
-            ss << obj->Name() << " (" << std::to_string(obj->ID()) << ")  ";
-        ss << ")";
-        return ss.str();
-    }
-
-    void StoreTargetsAndCausesOfEffectsGroupsWorkItem::operator()() {
-        ScopedTimer timer("StoreTargetsAndCausesOfEffectsGroups");
-
-        // get objects matched by scope
-        const auto* scope = m_effects_group->Scope();
-        if (!scope) {
-            TraceLogger(effects) << GenerateReport();
+        auto scope = effects_group->Scope();
+        if (!scope)
             return;
+        bool scope_is_just_source = dynamic_cast<Condition::Source*>(scope);
+
+        auto message{"StoreTargetsAndCausesOfEffectsGroup < " + std::to_string(n) + " >"
+                     + "  cause type: " + boost::lexical_cast<std::string>(effect_cause_type)
+                     + "  specific cause: " + specific_cause_name
+                     + "  sources: " + std::to_string(source_objects.size())
+                     + "  scope: " + boost::algorithm::erase_all_copy(effects_group->Scope()->Dump(), "\n")};
+
+        ScopedTimer timer(message, std::chrono::milliseconds(20));
+
+        source_effects_targets_causes_out.reserve(source_objects.size());
+        ScriptingContext source_context(object_map);
+
+        for (auto& source : source_objects) {
+            // assuming input sources objects set was already filtered with activation condition
+            source_context.source = source;
+            // construct output in-place
+
+            // SourcedEffectsGroup {int source_object_id; const EffectsGroup* effects_group;}
+            // EffectCause {EffectsCauseType cause_type; std::string specific_cause; std::string custom_label; }
+            // TargetsAndCause {TargetSet target_set; EffectCause effect_cause;}
+            // typedef std::vector<std::pair<SourcedEffectsGroup, TargetsAndCause>> SourcesEffectsTargetsAndCausesVec;
+            source_effects_targets_causes_out.emplace_back(
+                Effect::SourcedEffectsGroup{source->ID(), effects_group},
+                Effect::TargetsAndCause{
+                    {}, // empty Effect::TargetSet
+                    Effect::EffectCause{effect_cause_type, specific_cause_name, effects_group->AccountingLabel()}});
+
+            // extract output Effect::TargetSet
+            Effect::TargetSet& matched_targets{source_effects_targets_causes_out.back().second.target_set};
+
+            // move scope condition matches into output matches
+            if (candidate_objects_in.empty()) {
+                // condition default candidates will be tested
+                scope->Eval(source_context, matched_targets);
+
+            } else if (scope_is_just_source) {
+                // special case for condition that is just Source when a set of
+                // candidates is specified: only need to put the source in if
+                // it is in the candidates
+                if (candidate_object_ids.count(source->ID()))
+                    matched_targets.emplace_back(std::const_pointer_cast<UniverseObject>(source));
+
+            } else {
+                // input candidates will all be tested
+                scope->Eval(source_context, matched_targets, candidate_objects_in);
+            }
+
+            TraceLogger(effects) << "Scope Results " << n << "  source: " << source->ID()
+                                 << "  matches: " << [&]() {
+                std::stringstream ss;
+                for (auto& obj : matched_targets)
+                    ss << obj->ID() << ", ";
+                return ss.str();
+            }();
         }
+    }
 
-        // create temporary container for concurrent work
-        Effect::TargetSet target_objects(*m_target_objects);
-        std::string match_log;
-        // process all sources in set provided
-        for (auto& source : *m_sources) {
-            ScriptingContext source_context(source, &m_object_map);
-            int source_object_id = (source ? source->ID() : INVALID_OBJECT_ID);
-            ScopedTimer update_timer("... StoreTargetsAndCausesOfEffectsGroups done processing source " +
-                                     std::to_string(source_object_id) +
-                                     " cause: " + m_specific_cause_name);
 
-            // skip inactive sources
-            // FIXME: is it safe to move this out of the loop?
-            // Activation condition must not contain "Source" subconditions in that case
-            const auto* activation = m_effects_group->Activation();
-            if (activation && !activation->Eval(source_context, source))
+    /** Collect info for scope condition evaluations and dispatch those
+      * evaluations to \a thread_pool. Not thread-safe, but the individual
+      * condition evaluations should be safe to evaluate in parallel. */
+    void DispatchEffectsGroupScopeEvaluations(
+        EffectsCauseType effect_cause_type,
+        const std::string& specific_cause_name,
+        const Condition::ObjectSet& source_objects,
+        const std::vector<std::shared_ptr<Effect::EffectsGroup>>& effects_groups,
+        bool only_meter_effects,
+        const ObjectMap& object_map,
+        const Condition::ObjectSet& potential_targets,
+        const std::unordered_set<int>& potential_target_ids,
+        std::list<std::pair<Effect::SourcesEffectsTargetsAndCausesVec,
+                            Effect::SourcesEffectsTargetsAndCausesVec*>>& source_effects_targets_causes_reorder_buffer_out,
+        boost::asio::thread_pool& thread_pool,
+        int& n)
+    {
+        std::vector<std::pair<Condition::Condition*, int>> already_evaluated_activation_condition_idx;
+        already_evaluated_activation_condition_idx.reserve(effects_groups.size());
+
+        TraceLogger(effects) << "Checking activation condition for " << source_objects.size()
+                             << " sources and "
+                             << (potential_targets.empty() ? "full universe" : std::to_string(potential_targets.size()))
+                             << " potential targets";
+
+        // evaluate activation conditions of effects_groups on input source objects
+        std::vector<Condition::ObjectSet> active_sources{effects_groups.size()};
+        ScriptingContext source_context{object_map};
+        for (std::size_t i = 0; i < effects_groups.size(); ++i) {
+            const auto* effects_group = effects_groups.at(i).get();
+            if (only_meter_effects && !effects_group->HasMeterEffects())
+                continue;
+            if (!effects_group->Scope())
                 continue;
 
-            // if scope is source-invariant, use the source-invariant cache of condition results.
-            // if scope depends on the source object, use a cache of condition results for that souce object.
-            bool source_invariant = !source || scope->SourceInvariant();
-            ConditionCache* condition_cache = source_invariant ?
-                m_invariant_cached_condition_matches :
-                (*m_source_cached_condition_matches)[source_object_id].get();
+            if (!effects_group->Activation()) {
+                // no activation condition, leave all sources active
+                active_sources[i] = source_objects;
+                continue;
 
-            // look up scope condition in the cache. if not found, calculate it
-            // and store in the cache. either way, return the result.
-            auto& target_set = GetConditionMatches(scope, *condition_cache,
-                                                   source, source_context,
-                                                   target_objects, match_log,
-                                                   m_specific_cause_name);
+            } else {
+                // check if this activation condition has already been evaluated
+                bool cache_hit = false;
+                for (const auto& cond_idx : already_evaluated_activation_condition_idx) {
+                    if (*cond_idx.first == *(effects_group->Activation())) {
+                        active_sources[i] = active_sources[cond_idx.second];    // copy previous condition evaluation result
+                        cache_hit = true;
+                        break;
+                    }
+                }
+                if (cache_hit)
+                    continue;   // don't need to evaluate activation condition on these sources again
 
-            {
-                // As of this writing, this code is 4-5 years old and its author
-                // (cami) is long gone. I don't really understand the purpose
-                // of this lock and check of target_set, but my guess after a
-                // bit of looking at the code is that the above call to
-                // GetConditionMatches can be happening in several threads,
-                // and each could attempt to evaluate the same scope and source
-                // combination in parallel. Here, getting the shared_lock
-                // ensures that no other threads are currently modifying the
-                // cache. It should then be safe to check if the targets are
-                // empty, as it is assured that the emptiness is the result
-                // of evaluating the scope condition, and not an intermediate
-                // state of another thread's incomplete evaluation. After any
-                // thread has evaluated a scope/source combination, that result
-                // shouldn't be modified by any other thread, so can be used in
-                // the code below without access guards.
+                // no cache hit; need to evaluate activation condition on input source objects
+                if (effects_group->Activation()->SourceInvariant()) {
+                    // can apply condition to all source objects simultaneously
+                    Condition::ObjectSet rejected;
+                    rejected.reserve(source_objects.size());
+                    active_sources[i] = source_objects; // copy input source objects set
+                    source_context.source = nullptr;
+                    effects_group->Activation()->Eval(source_context, active_sources[i], rejected, Condition::MATCHES);
 
-                boost::shared_lock<boost::shared_mutex> cache_guard;
-                condition_cache->LockShared(cache_guard);
+                } else {
+                    // need to apply separately to each source object
+                    active_sources[i].reserve(source_objects.size());
+                    for (auto& obj : source_objects) {
+                        source_context.source = obj;
+                        if (effects_group->Activation()->Eval(source_context, obj))
+                            active_sources[i].emplace_back(obj);
+                    }
+                }
 
-                if (target_set.empty())
-                    continue;
-            }
-
-            {
-                TraceLogger(effects) << GenerateReport() << match_log;
-
-                // NOTE: std::shared_ptr copying is not thread-safe.
-                // FIXME: use std::shared_ptr here, or a dedicated lock
-                boost::unique_lock<boost::shared_mutex> guard(*m_global_mutex);
-
-                // combine effects group and source object id into a sourced effects group
-                Effect::SourcedEffectsGroup sourced_effects_group(source_object_id, m_effects_group);
-
-                // combine cause type and specific cause into effect cause
-                Effect::EffectCause effect_cause(m_effect_cause_type, m_specific_cause_name,
-                                                 m_effects_group->AccountingLabel());
-
-                // combine target set and effect cause
-                Effect::TargetsAndCause target_and_cause(target_set, effect_cause);
-
-                // store effect cause and targets info in map, indexed by sourced effects group
-                m_targets_causes->push_back({sourced_effects_group, target_and_cause});
+                // save evaluation lookup index in cache
+                already_evaluated_activation_condition_idx.emplace_back(effects_group->Activation(), i);
             }
         }
-    }
 
+
+        TraceLogger(effects) << "After activation condition, for " << effects_groups.size() << " effects groups "
+                             << "have # sources: " << [&active_sources]()
+        {
+            std::stringstream ss;
+            for (auto& src_set : active_sources)
+                ss << src_set.size() << ", ";
+            return ss.str();
+        }();
+
+
+        // TODO: is it faster to index by scope and activation condition or scope and filtered sources set?
+        std::vector<std::tuple<Condition::Condition*,
+                               Condition::ObjectSet,
+                               Effect::SourcesEffectsTargetsAndCausesVec*>>
+            already_dispatched_scope_condition_ptrs;
+        already_evaluated_activation_condition_idx.reserve(effects_groups.size());
+
+
+        // duplicate input ObjectSet potential_targets as local TargetSet
+        // that can be passed to StoreTargetsAndCausesOfEffectsGroup
+        Effect::TargetSet potential_targets_copy;
+        potential_targets_copy.reserve(potential_targets.size());
+        for (const auto& obj : potential_targets)
+            potential_targets_copy.emplace_back(std::const_pointer_cast<UniverseObject>(obj));
+
+
+        // evaluate scope conditions for source objects that are active
+        for (std::size_t i = 0; i < effects_groups.size(); ++i) {
+            if (active_sources[i].empty()) {
+                TraceLogger(effects) << "Skipping empty active sources set";
+                continue;
+            }
+            TraceLogger(effects) << "Handing active sources set of size: " << active_sources[i].size();
+
+            const auto* effects_group = effects_groups.at(i).get();
+            n++;
+
+            // allocate space to store output of effectsgroup targets evaluation
+            // for the sources and this effects group
+            source_effects_targets_causes_reorder_buffer_out.emplace_back();
+            source_effects_targets_causes_reorder_buffer_out.back().second = nullptr;   // default, may be overwritten
+
+
+            // check if the scope-condition + sources set has already been dispatched
+            bool cache_hit = false;
+            if (effects_group->Scope()) {
+                for (const auto& cond_sources_ptr : already_dispatched_scope_condition_ptrs) {
+                    if (*std::get<0>(cond_sources_ptr) == *(effects_group->Scope()) &&
+                         std::get<1>(cond_sources_ptr) == active_sources[i])
+                    {
+                        TraceLogger(effects) << "scope condition cache hit !";
+
+                        // record pointer to previously-dispatched result struct
+                        // that will contain the results to copy later, after
+                        // all dispatched condition evauations have resolved
+                        source_effects_targets_causes_reorder_buffer_out.back().second =
+                            std::get<2>(cond_sources_ptr);
+
+                        // allocate result structs that contain empty
+                        // Effect::TargetSets that will be filled later
+                        auto& vec_out{source_effects_targets_causes_reorder_buffer_out.back().first};
+                        for (auto& source : active_sources[i]) {
+                            source_context.source = source;
+                            vec_out.emplace_back(
+                                Effect::SourcedEffectsGroup{source->ID(), effects_group},
+                                Effect::TargetsAndCause{
+                                    {}, // empty Effect::TargetSet
+                                    Effect::EffectCause{effect_cause_type, specific_cause_name,
+                                                        effects_group->AccountingLabel()}});
+                        }
+
+                        cache_hit = true;
+                        break;
+                    }
+                }
+            }
+            if (cache_hit)
+                continue;
+            if (!cache_hit) {
+                TraceLogger(effects) << "scope condition cache miss idx: " << n;
+
+                // add cache entry for this combination, with pointer to the
+                // storage that will contain the to-be-dispatched scope
+                // condition evaluation results
+                already_dispatched_scope_condition_ptrs.emplace_back(
+                    effects_group->Scope(), active_sources[i],
+                    &source_effects_targets_causes_reorder_buffer_out.back().first);
+            }
+
+
+            TraceLogger(effects) << "Dispatching Scope Evaluations < " << n << " > sources: " << [&]() {
+                std::stringstream ss;
+                for (auto& obj : active_sources[i])
+                    ss << obj->ID() << ", ";
+                return ss.str();
+            }()
+                << "  cause type: " << effect_cause_type
+                << "  specific cause: " << specific_cause_name
+                << "  candidates: " << [&]() {
+                std::stringstream ss;
+                for (auto& obj : potential_targets)
+                    ss << obj->ID() << ", ";
+                return ss.str();
+            }();
+
+            // asynchronously evaluate targetset for effectsgroup for each source using worker threads
+            boost::asio::post(
+                thread_pool,
+                [
+                    &object_map,
+                    effects_group,
+                    active_source_objects{active_sources[i]},
+                    effect_cause_type,
+                    specific_cause_name,
+                    &potential_target_ids,
+                    potential_targets_copy, // by value, not reference, so each dispatched call has independent input TargetSet
+                    &source_effects_targets_causes_vec_out = source_effects_targets_causes_reorder_buffer_out.back().first,
+                    n
+                ]() mutable
+            {
+                StoreTargetsAndCausesOfEffectsGroup(object_map, effects_group, active_source_objects,
+                                                    effect_cause_type, specific_cause_name,
+                                                    potential_target_ids, potential_targets_copy,
+                                                    source_effects_targets_causes_vec_out, n);
+            });
+        }
+    }
 } // namespace
 
-void Universe::GetEffectsAndTargets(Effect::TargetsCauses& targets_causes) {
-    targets_causes.clear();
-    GetEffectsAndTargets(targets_causes, std::vector<int>());
+void Universe::GetEffectsAndTargets(std::map<int, Effect::SourcesEffectsTargetsAndCausesVec>& source_effects_targets_causes,
+                                    bool only_meter_effects) const
+{
+    source_effects_targets_causes.clear();
+    GetEffectsAndTargets(source_effects_targets_causes, std::vector<int>(), only_meter_effects);
 }
 
-void Universe::GetEffectsAndTargets(Effect::TargetsCauses& targets_causes,
-                                    const std::vector<int>& target_objects)
+void Universe::GetEffectsAndTargets(std::map<int, Effect::SourcesEffectsTargetsAndCausesVec>& source_effects_targets_causes,
+                                    const std::vector<int>& target_object_ids,
+                                    bool only_meter_effects) const
 {
-    ScopedTimer timer("Universe::GetEffectsAndTargets");
+    SectionedScopedTimer type_timer("Effect TargetSets Evaluation", std::chrono::microseconds(0));
 
-    // transfer target objects from input vector to a set
-    Effect::TargetSet all_potential_targets = m_objects.find(target_objects);
+    // assemble target objects from input vector of IDs
+    Condition::ObjectSet potential_targets{m_objects.find(target_object_ids)};
+    std::unordered_set<int> potential_ids_set{target_object_ids.begin(), target_object_ids.end()};
 
-    TraceLogger(effects) << "GetEffectsAndTargets target objects:";
-    for (auto& obj : all_potential_targets)
+    TraceLogger(effects) << "GetEffectsAndTargets input candidate target objects:";
+    for (auto& obj : potential_targets)
         TraceLogger(effects) << obj->Dump();
 
-    // caching space for each source object's results of finding matches for
-    // scope conditions. Index INVALID_OBJECT_ID stores results for
-    // source-invariant conditions
-    typedef StoreTargetsAndCausesOfEffectsGroupsWorkItem::ConditionCache ConditionCache;
-    std::map<int, std::shared_ptr<ConditionCache>> cached_source_condition_matches;
 
-    // prepopulate the cache for safe concurrent access
-    for (const auto& obj : m_objects.all())
-        cached_source_condition_matches[obj->ID()] = std::make_shared<ConditionCache>();
-    cached_source_condition_matches[INVALID_OBJECT_ID] = std::make_shared<ConditionCache>();
-    ConditionCache& invariant_condition_matches = *cached_source_condition_matches[INVALID_OBJECT_ID];
+    // list, not vector, to avoid invaliding iterators when pushing more items
+    // onto list due to vector reallocation.
+    // .first are results of evaluating an effectsgroups's activation and source
+    // conditions for a set of candidate source objects
+    // .second may be nullptr, in which case it is ignored, or may be a pointer
+    // to another earlier entry in this list, which contains the results of
+    // evaluating the same scope condition on the same set of activation-passing
+    // source objects, and which should be copied into the paired Vec
+    std::list<std::pair<Effect::SourcesEffectsTargetsAndCausesVec,
+                        Effect::SourcesEffectsTargetsAndCausesVec*>> source_effects_targets_causes_reorder_buffer;
 
-    std::list<Effect::TargetsCauses> targets_causes_reorder_buffer; // list not vector to avoid invaliding iterators when pushing more items onto list due to vector reallocation
-    unsigned int num_threads = static_cast<unsigned int>(std::max(1, EffectsProcessingThreads()));
-    RunQueue<StoreTargetsAndCausesOfEffectsGroupsWorkItem> run_queue(num_threads);
-    boost::shared_mutex global_mutex;
-    boost::unique_lock<boost::shared_mutex> global_lock(global_mutex); // create after run_queue, destroy before run_queue
+    const unsigned int num_threads = static_cast<unsigned int>(std::max(1, EffectsProcessingThreads()));
+    boost::asio::thread_pool thread_pool(num_threads);
 
-    SectionedScopedTimer type_timer("Effect TargetSets Evaluation", std::chrono::microseconds(0));
+    int n = 1;  // count dispatched condition evaluations
+
 
     // 1) EffectsGroups from Species
     type_timer.EnterSection("species");
     TraceLogger(effects) << "Universe::GetEffectsAndTargets for SPECIES";
-
-    // find each species planets in single pass, maintaining object map order per-species
     std::map<std::string, std::vector<std::shared_ptr<const UniverseObject>>> species_objects;
-
+    // find each species planets in single pass, maintaining object map order per-species
     for (auto& planet : m_objects.all<Planet>()) {
         if (m_destroyed_object_ids.count(planet->ID()))
             continue;
@@ -1246,9 +1247,8 @@ void Universe::GetEffectsAndTargets(Effect::TargetsCauses& targets_causes,
             ErrorLogger() << "GetEffectsAndTargets couldn't get Species " << species_name;
             continue;
         }
-        species_objects[species_name].push_back(planet);
+        species_objects[species_name].emplace_back(planet);
     }
-
     // find each species ships in single pass, maintaining object map order per-species
     for (auto& ship : m_objects.all<Ship>()) {
         if (m_destroyed_object_ids.count(ship->ID()))
@@ -1261,29 +1261,28 @@ void Universe::GetEffectsAndTargets(Effect::TargetsCauses& targets_causes,
             ErrorLogger() << "GetEffectsAndTargets couldn't get Species " << species_name;
             continue;
         }
-        species_objects[species_name].push_back(ship);
+        species_objects[species_name].emplace_back(ship);
     }
-
-    // enforce species effects order
+    // allocate storage for target sets and dispatch condition evaluations
     for (const auto& entry : GetSpeciesManager()) {
         const std::string& species_name = entry.first;
         const auto& species = entry.second;
         auto species_objects_it = species_objects.find(species_name);
-
         if (species_objects_it == species_objects.end())
             continue;
+        const auto& source_objects = species_objects_it->second;
+        if (source_objects.empty())
+            continue;
 
-        for (auto& effects_group : species->Effects()) {
-            targets_causes_reorder_buffer.push_back(Effect::TargetsCauses());
-            run_queue.AddWork(new StoreTargetsAndCausesOfEffectsGroupsWorkItem(
-                m_objects, effects_group, species_objects_it->second,
-                ECT_SPECIES, species_name,
-                all_potential_targets, targets_causes_reorder_buffer.back(),
-                cached_source_condition_matches,
-                invariant_condition_matches,
-                global_mutex));
-        }
+        DispatchEffectsGroupScopeEvaluations(ECT_SPECIES, species_name,
+                                             source_objects, species->Effects(),
+                                             only_meter_effects,
+                                             m_objects, potential_targets,
+                                             potential_ids_set,
+                                             source_effects_targets_causes_reorder_buffer,
+                                             thread_pool, n);
     }
+
 
     // 2) EffectsGroups from Specials
     type_timer.EnterSection("specials");
@@ -1300,54 +1299,84 @@ void Universe::GetEffectsAndTargets(Effect::TargetsCauses& targets_causes,
                 ErrorLogger() << "GetEffectsAndTargets couldn't get Special " << special_name;
                 continue;
             }
-            specials_objects[special_name].push_back(obj);
+            specials_objects[special_name].emplace_back(obj);
         }
     }
-    // enforce specials effects order
+    // dispatch condition evaluations
     for (const std::string& special_name : SpecialNames()) {
         const Special* special = GetSpecial(special_name);
         auto specials_objects_it = specials_objects.find(special_name);
-
         if (specials_objects_it == specials_objects.end())
             continue;
+        const auto& source_objects = specials_objects_it->second;
+        if (source_objects.empty())
+            continue;
 
-        for (auto& effects_group : special->Effects()) {
-            targets_causes_reorder_buffer.push_back(Effect::TargetsCauses());
-            run_queue.AddWork(new StoreTargetsAndCausesOfEffectsGroupsWorkItem(
-                m_objects, effects_group, specials_objects_it->second,
-                ECT_SPECIAL, special_name,
-                all_potential_targets, targets_causes_reorder_buffer.back(),
-                cached_source_condition_matches,
-                invariant_condition_matches,
-                global_mutex));
-        }
+        DispatchEffectsGroupScopeEvaluations(ECT_SPECIAL, special_name,
+                                             source_objects, special->Effects(),
+                                             only_meter_effects,
+                                             m_objects, potential_targets,
+                                             potential_ids_set,
+                                             source_effects_targets_causes_reorder_buffer,
+                                             thread_pool, n);
     }
+
 
     // 3) EffectsGroups from Techs
     type_timer.EnterSection("techs");
     TraceLogger(effects) << "Universe::GetEffectsAndTargets for TECHS";
-    std::list<std::vector<std::shared_ptr<const UniverseObject>>> tech_sources;
+    std::list<Condition::ObjectSet> tech_sources;   // for each empire, a set with a single source object for all its techs
+    // select a source object for each empire and dispatch condition evaluations
     for (auto& entry : Empires()) {
         const Empire* empire = entry.second;
         auto source = empire->Source();
         if (!source)
             continue;
 
-        tech_sources.push_back(std::vector<std::shared_ptr<const UniverseObject>>(1U, source));
+        // unlike species and special effectsgroups, all techs for an empire have the same source object
+        tech_sources.emplace_back(Condition::ObjectSet{1U, source});
+        const auto& source_objects = tech_sources.back();
+
         for (const auto tech_entry : empire->ResearchedTechs()) {
-            const Tech* tech = GetTech(tech_entry.first);
+            const std::string& tech_name{tech_entry.first};
+            const Tech* tech = GetTech(tech_name);
             if (!tech) continue;
 
-            for (auto& effects_group : tech->Effects()) {
-                targets_causes_reorder_buffer.push_back(Effect::TargetsCauses());
-                run_queue.AddWork(new StoreTargetsAndCausesOfEffectsGroupsWorkItem(
-                    m_objects, effects_group, tech_sources.back(),
-                    ECT_TECH, tech->Name(),
-                    all_potential_targets, targets_causes_reorder_buffer.back(),
-                    cached_source_condition_matches,
-                    invariant_condition_matches,
-                    global_mutex));
-            }
+            DispatchEffectsGroupScopeEvaluations(ECT_TECH, tech_name,
+                                                 source_objects, tech->Effects(),
+                                                 only_meter_effects,
+                                                 m_objects, potential_targets,
+                                                 potential_ids_set,
+                                                 source_effects_targets_causes_reorder_buffer,
+                                                 thread_pool, n);
+        }
+    }
+
+    // 3.5) EffectsGroups from Policies
+    type_timer.EnterSection("policies");
+    TraceLogger(effects) << "Universe::GetEffectsAndTargets for POLICIES";
+    std::list<Condition::ObjectSet> policy_sources; // for each empire, a set with a single source object for all its policies
+    for (auto& entry : Empires()) {
+        const Empire* empire = entry.second;
+        auto source = empire->Source();
+        if (!source)
+            continue;
+
+        // like techs, all policies for an empire have the same source object
+        policy_sources.emplace_back(Condition::ObjectSet{1U, source});
+        const auto& source_objects = policy_sources.back();
+
+        for (const auto& policy_name : empire->AdoptedPolicies()) {
+            const Policy* policy = GetPolicy(policy_name);
+            if (!policy) continue;
+
+            DispatchEffectsGroupScopeEvaluations(ECT_POLICY, policy_name,
+                                                 source_objects, policy->Effects(),
+                                                 only_meter_effects,
+                                                 m_objects, potential_targets,
+                                                 potential_ids_set,
+                                                 source_effects_targets_causes_reorder_buffer,
+                                                 thread_pool, n);
         }
     }
 
@@ -1366,29 +1395,28 @@ void Universe::GetEffectsAndTargets(Effect::TargetsCauses& targets_causes,
             continue;
         }
 
-        buildings_by_type[building_type_name].push_back(building);
+        buildings_by_type[building_type_name].emplace_back(building);
     }
-
-    // enforce building types effects order
+    // dispatch condition evaluations
     for (const auto& entry : GetBuildingTypeManager()) {
         const std::string& building_type_name = entry.first;
         const BuildingType* building_type = entry.second.get();
         auto buildings_by_type_it = buildings_by_type.find(building_type_name);
-
         if (buildings_by_type_it == buildings_by_type.end())
             continue;
+        const auto& source_objects = buildings_by_type_it->second;
+        if (source_objects.empty())
+            continue;
 
-        for (auto& effects_group : building_type->Effects()) {
-            targets_causes_reorder_buffer.push_back(Effect::TargetsCauses());
-            run_queue.AddWork(new StoreTargetsAndCausesOfEffectsGroupsWorkItem(
-                m_objects, effects_group, buildings_by_type_it->second,
-                ECT_BUILDING, building_type_name,
-                all_potential_targets, targets_causes_reorder_buffer.back(),
-                cached_source_condition_matches,
-                invariant_condition_matches,
-                global_mutex));
-        }
+        DispatchEffectsGroupScopeEvaluations(ECT_BUILDING, building_type_name,
+                                             source_objects, building_type->Effects(),
+                                             only_meter_effects,
+                                             m_objects, potential_targets,
+                                             potential_ids_set,
+                                             source_effects_targets_causes_reorder_buffer,
+                                             thread_pool, n);
     }
+
 
     // 5) EffectsGroups from Ship Hull and Ship Parts
     type_timer.EnterSection("ship hull/parts");
@@ -1396,77 +1424,73 @@ void Universe::GetEffectsAndTargets(Effect::TargetsCauses& targets_causes,
     // determine ship hulls and parts of each type in a single pass
     // the same ship might be added multiple times if it contains the part multiple times
     // recomputing targets for the same ship and part is kind of silly here, but shouldn't hurt
-    std::map<std::string, std::vector<std::shared_ptr<const UniverseObject>>> ships_by_hull_type;
-    std::map<std::string, std::vector<std::shared_ptr<const UniverseObject>>> ships_by_part_type;
+    std::map<std::string, std::vector<std::shared_ptr<const UniverseObject>>> ships_by_ship_hull;
+    std::map<std::string, std::vector<std::shared_ptr<const UniverseObject>>> ships_by_ship_part;
 
     for (auto& ship : m_objects.all<Ship>()) {
         if (m_destroyed_object_ids.count(ship->ID()))
             continue;
-
         const ShipDesign* ship_design = ship->Design();
         if (!ship_design)
             continue;
-        const HullType* hull_type = ship_design->GetHull();
-        if (!hull_type) {
-            ErrorLogger() << "GetEffectsAndTargets couldn't get HullType";
+        const ShipHull* ship_hull = GetShipHull(ship_design->Hull());
+        if (!ship_hull) {
+            ErrorLogger() << "GetEffectsAndTargets couldn't get ShipHull";
             continue;
         }
-
-        ships_by_hull_type[hull_type->Name()].push_back(ship);
+        ships_by_ship_hull[ship_hull->Name()].emplace_back(ship);
 
         for (const std::string& part : ship_design->Parts()) {
             if (part.empty())
                 continue;
-            const PartType* part_type = GetPartType(part);
-            if (!part_type) {
-                ErrorLogger() << "GetEffectsAndTargets couldn't get PartType";
+            const ShipPart* ship_part = GetShipPart(part);
+            if (!ship_part) {
+                ErrorLogger() << "GetEffectsAndTargets couldn't get ShipPart";
                 continue;
             }
-
-            ships_by_part_type[part].push_back(ship);
+            ships_by_ship_part[part].emplace_back(ship);
         }
     }
 
-    // enforce hull types effects order
-    for (const auto& entry : GetHullTypeManager()) {
-        const std::string& hull_type_name = entry.first;
-        const auto& hull_type = entry.second;
-        auto ships_by_hull_type_it = ships_by_hull_type.find(hull_type_name);
-
-        if (ships_by_hull_type_it == ships_by_hull_type.end())
+    // dispatch hull condition evaluations
+    for (const auto& entry : GetShipHullManager()) {
+        const std::string& ship_hull_name = entry.first;
+        const auto& ship_hull = entry.second;
+        auto ships_by_hull_it = ships_by_ship_hull.find(ship_hull_name);
+        if (ships_by_hull_it == ships_by_ship_hull.end())
+            continue;
+        const auto& source_objects = ships_by_hull_it->second;
+        if (source_objects.empty())
             continue;
 
-        for (auto& effects_group : hull_type->Effects()) {
-            targets_causes_reorder_buffer.push_back(Effect::TargetsCauses());
-            run_queue.AddWork(new StoreTargetsAndCausesOfEffectsGroupsWorkItem(
-                m_objects, effects_group, ships_by_hull_type_it->second,
-                ECT_SHIP_HULL, hull_type_name,
-                all_potential_targets, targets_causes_reorder_buffer.back(),
-                cached_source_condition_matches,
-                invariant_condition_matches,
-                global_mutex));
-        }
+        DispatchEffectsGroupScopeEvaluations(ECT_SHIP_HULL, ship_hull_name,
+                                             source_objects, ship_hull->Effects(),
+                                             only_meter_effects,
+                                             m_objects, potential_targets,
+                                             potential_ids_set,
+                                             source_effects_targets_causes_reorder_buffer,
+                                             thread_pool, n);
     }
-    // enforce part types effects order
-    for (const auto& entry : GetPartTypeManager()) {
-        const std::string& part_type_name = entry.first;
-        const auto& part_type = entry.second;
-        auto ships_by_part_type_it = ships_by_part_type.find(part_type_name);
-
-        if (ships_by_part_type_it == ships_by_part_type.end())
+    // dispatch part condition evaluations
+    for (const auto& entry : GetShipPartManager()) {
+        const std::string& ship_part_name = entry.first;
+        const ShipPart* ship_part = entry.second.get();
+        auto ships_by_ship_part_it = ships_by_ship_part.find(ship_part_name);
+        if (ships_by_ship_part_it == ships_by_ship_part.end())
+            continue;
+        const auto& source_objects = ships_by_ship_part_it->second;
+        if (source_objects.empty())
             continue;
 
-        for (auto& effects_group : part_type->Effects()) {
-            targets_causes_reorder_buffer.push_back(Effect::TargetsCauses());
-            run_queue.AddWork(new StoreTargetsAndCausesOfEffectsGroupsWorkItem(
-                m_objects, effects_group, ships_by_part_type_it->second,
-                ECT_SHIP_PART, part_type_name,
-                all_potential_targets, targets_causes_reorder_buffer.back(),
-                cached_source_condition_matches,
-                invariant_condition_matches,
-                global_mutex));
-        }
+        DispatchEffectsGroupScopeEvaluations(ECT_SHIP_PART, ship_part_name,
+                                             source_objects, ship_part->Effects(),
+                                             only_meter_effects,
+                                             m_objects, potential_targets,
+                                             potential_ids_set,
+                                             source_effects_targets_causes_reorder_buffer,
+                                             thread_pool, n);
     }
+
 
     // 6) EffectsGroups from Fields
     type_timer.EnterSection("fields");
@@ -1476,7 +1500,6 @@ void Universe::GetEffectsAndTargets(Effect::TargetsCauses& targets_causes,
     for (auto& field : m_objects.all<Field>()) {
         if (m_destroyed_object_ids.count(field->ID()))
             continue;
-
         const std::string& field_type_name = field->FieldTypeName();
         const FieldType* field_type = GetFieldType(field_type_name);
         if (!field_type) {
@@ -1484,42 +1507,69 @@ void Universe::GetEffectsAndTargets(Effect::TargetsCauses& targets_causes,
             continue;
         }
 
-        fields_by_type[field_type_name].push_back(field);
+        fields_by_type[field_type_name].emplace_back(field);
     }
 
-    // enforce field types effects order
+    // dispatch field condition evaluations
     for (const auto& entry : GetFieldTypeManager()) {
         const std::string& field_type_name = entry.first;
-        const auto& field_type = entry.second;
+        const FieldType* field_type = entry.second.get();
         auto fields_by_type_it = fields_by_type.find(field_type_name);
-
         if (fields_by_type_it == fields_by_type.end())
             continue;
+        const auto& source_objects = fields_by_type_it->second;
+        if (source_objects.empty())
+            continue;
 
-        for (auto effects_group : field_type->Effects()) {
-            targets_causes_reorder_buffer.push_back(Effect::TargetsCauses());
-            run_queue.AddWork(new StoreTargetsAndCausesOfEffectsGroupsWorkItem(
-                m_objects, effects_group, fields_by_type_it->second,
-                ECT_FIELD, field_type_name,
-                all_potential_targets, targets_causes_reorder_buffer.back(),
-                cached_source_condition_matches,
-                invariant_condition_matches,
-                global_mutex));
-        }
+        DispatchEffectsGroupScopeEvaluations(ECT_FIELD, field_type_name,
+                                             source_objects, field_type->Effects(),
+                                             only_meter_effects,
+                                             m_objects, potential_targets,
+                                             potential_ids_set,
+                                             source_effects_targets_causes_reorder_buffer,
+                                             thread_pool, n);
     }
 
-    type_timer.EnterSection("eval waiting");
-    run_queue.Wait(global_lock);
 
-    // add results to targets_causes in issue order
-    // FIXME: each job is an effectsgroup, and we need that separation for execution anyway, so maintain it here instead of merging.
+    // wait for evaluation of conditions dispatched above
+    type_timer.EnterSection("eval waiting");
+    thread_pool.join();
+
+
+    // add results to source_effects_targets_causes, sorted by effect priority, then in issue order
     type_timer.EnterSection("reordering");
-    for (const auto& job_results : targets_causes_reorder_buffer)
-        for (const auto& result : job_results)
-            targets_causes.push_back(result);   // looping over targets_causes_reorder_buffer to sum up the sizes of job_results in order to reserve space in targets_causes was slower than just push_back into targets_causes and letting it reallocate itself as needed, in my test
+    for (const auto& job_results : source_effects_targets_causes_reorder_buffer) {
+        if (job_results.second) {
+            // entry in reorder buffer contains empty Effect::TargetSets that
+            // should be populated from the pointed-to earlier entry
+            const auto& resolved_scope_target_sets{*job_results.second};
+            TraceLogger(effects) << "Reordering using cached result of size " << resolved_scope_target_sets.size()
+                                 << "  for expected result of size: " << job_results.first.size();
+
+            for (std::size_t i = 0; i < std::min(job_results.first.size(), resolved_scope_target_sets.size()); ++i) {
+                // create entry in output with empty TargetSet
+                auto& result{job_results.first[i]};
+                int priority = result.first.effects_group->Priority();
+                source_effects_targets_causes[priority].emplace_back(result);
+
+                // overwrite empty placeholder TargetSet with contents of
+                // pointed-to earlier entry
+                source_effects_targets_causes[priority].back().second.target_set =
+                    resolved_scope_target_sets.at(i).second.target_set;
+            }
+
+        } else {
+            // entry in reorder buffer contains the results of an effectsgroup
+            // scope/activation being evaluatied with a set of source objects
+            for (const auto& result : job_results.first) {
+                int priority = result.first.effects_group->Priority();
+                source_effects_targets_causes[priority].emplace_back(result);
+            }
+        }
+    }
 }
 
-void Universe::ExecuteEffects(const Effect::TargetsCauses& targets_causes,
+void Universe::ExecuteEffects(std::map<int, Effect::SourcesEffectsTargetsAndCausesVec>& source_effects_targets_causes,
                               bool update_effect_accounting,
                               bool only_meter_effects/* = false*/,
                               bool only_appearance_effects/* = false*/,
@@ -1529,33 +1579,22 @@ void Universe::ExecuteEffects(const Effect::TargetsCauses& targets_causes,
     ScopedTimer timer("Universe::ExecuteEffects", true);
 
     m_marked_destroyed.clear();
-    std::map<std::string, std::set<int>> executed_nonstacking_effects;
+    std::map<std::string, std::set<int>> executed_nonstacking_effects;  // for each stacking group, which objects have had effects executed on them
 
-    // grouping targets causes by effects group
-    // sorting by effects group has already been done in GetEffectsAndTargets()
-    // FIXME: GetEffectsAndTargets already produces this separation, exploit that
-    std::map<int, std::vector<std::pair<Effect::EffectsGroup*, Effect::TargetsCauses>>> dispatched_targets_causes;
-    {
-        const Effect::EffectsGroup* last_effects_group   = nullptr;
-        Effect::TargetsCauses*      group_targets_causes = nullptr;
 
-        for (const auto& targets_cause : targets_causes) {
-            const Effect::SourcedEffectsGroup& sourced_effects_group = targets_cause.first;
-            Effect::EffectsGroup* effects_group = sourced_effects_group.effects_group.get();
+    // within each priority group, execute effects in dispatch order
+    for (auto& priority_group : source_effects_targets_causes) {
+        //int priority = priority_group.first;
+        Effect::SourcesEffectsTargetsAndCausesVec& setc{priority_group.second};
 
-            if (effects_group != last_effects_group) {
-                last_effects_group = effects_group;
-                dispatched_targets_causes[effects_group->Priority()].push_back({effects_group, Effect::TargetsCauses()});
-                group_targets_causes = &dispatched_targets_causes[effects_group->Priority()].back().second;
-            }
-            group_targets_causes->push_back(targets_cause);
-        }
-    }
+        // construct a source context, which is updated for each entry in sources-effects-targets.
+        // execute each effectsgroup on its target set
+        ScriptingContext source_context;
+        for (std::pair<Effect::SourcedEffectsGroup, Effect::TargetsAndCause>& effect_group_entry : setc) {
+            Effect::TargetsAndCause& targets_and_cause{effect_group_entry.second};
+            Effect::TargetSet& target_set{targets_and_cause.target_set};
 
-    // execute each effects group one by one
-    for (auto& priority_group : dispatched_targets_causes) {
-        for (auto& effect_group_entry : priority_group.second) {
-            Effect::EffectsGroup* effects_group = effect_group_entry.first;
+            const Effect::EffectsGroup* effects_group = effect_group_entry.first.effects_group;
 
             if (only_meter_effects && !effects_group->HasMeterEffects())
                 continue;
@@ -1564,61 +1603,44 @@ void Universe::ExecuteEffects(const Effect::TargetsCauses& targets_causes,
             if (only_generate_sitrep_effects && !effects_group->HasSitrepEffects())
                 continue;
 
-            Effect::TargetsCauses&  group_targets_causes = effect_group_entry.second;
-            std::string             stacking_group       = effects_group->StackingGroup();
-            ScopedTimer update_timer(
-                "Universe::ExecuteEffects effgrp (" + effects_group->AccountingLabel() + ") from "
-                + std::to_string(group_targets_causes.size()) + " sources"
-            );
+            const std::string& stacking_group{effects_group->StackingGroup()};
 
-            // if other EffectsGroups or sources with the same stacking group have affected some of the
-            // targets in the scope of the current EffectsGroup, skip them
-            // and add the remaining objects affected by it to executed_nonstacking_effects
+            // 1) If other EffectsGroups or sources with the same stacking group
+            // have acted on some of the targets in the scope of the current
+            // EffectsGroup, skip them.
+            // 2) Add remaining objects to executed_nonstacking_effects, as effects
+            // with the starting group are now acting on them
             if (!stacking_group.empty()) {
                 std::set<int>& non_stacking_targets = executed_nonstacking_effects[stacking_group];
 
-                for (auto targets_it = group_targets_causes.begin();
-                     targets_it != group_targets_causes.end();)
-                {
-                    Effect::TargetsAndCause& targets_and_cause = targets_it->second;
-                    Effect::TargetSet& targets = targets_and_cause.target_set;
+                // this is a set difference/union algorithm:
+                // targets              -= non_stacking_targets
+                // non_stacking_targets += targets
+                for (auto object_it = target_set.begin(); object_it != target_set.end();) {
+                    int object_id = (*object_it)->ID();
+                    auto it = non_stacking_targets.find(object_id);
 
-                    // this is a set difference/union algorithm:
-                    // targets              -= non_stacking_targets
-                    // non_stacking_targets += targets
-                    for (auto object_it = targets.begin();
-                         object_it != targets.end();)
-                    {
-                        int object_id = (*object_it)->ID();
-                        auto it = non_stacking_targets.find(object_id);
-
-                        if (it != non_stacking_targets.end()) {
-                            *object_it = targets.back();
-                            targets.pop_back();
-                        } else {
-                            non_stacking_targets.insert(object_id);
-                            ++object_it;
-                        }
-                    }
-
-                    if (targets.empty()) {
-                        *targets_it = group_targets_causes.back();
-                        group_targets_causes.pop_back();
+                    if (it != non_stacking_targets.end()) {
+                        *object_it = target_set.back();
+                        target_set.pop_back();
                     } else {
-                        ++targets_it;
+                        non_stacking_targets.insert(object_id);
+                        ++object_it;
                     }
                 }
             }
 
-            if (group_targets_causes.empty())
+            // were all objects in target set removed due to stacking? If so, skip to next effect / source / target set
+            if (target_set.empty())
                 continue;
 
             TraceLogger(effects) << "\n\n * * * * * * * * * * * (new effects group log entry)(" << effects_group->TopLevelContent()
                                  << " " << effects_group->AccountingLabel() << " " << effects_group->StackingGroup() << ")";
 
             // execute Effects in the EffectsGroup
-            effects_group->Execute(ScriptingContext(nullptr, m_objects),
-                                   group_targets_causes,
+            source_context.source = source_context.ContextObjects().get(effect_group_entry.first.source_object_id);
+            effects_group->Execute(source_context,
+                                   targets_and_cause,
                                    update_effect_accounting ? &m_effect_accounting_map : nullptr,
                                    only_meter_effects,
                                    only_appearance_effects,
@@ -1634,7 +1656,6 @@ void Universe::ExecuteEffects(const Effect::TargetsCauses& targets_causes,
     // but, do now collect info about source objects for destruction, to sure
     // their info is available even if they are destroyed by the upcoming effect
     // destruction
-
     for (auto& entry : m_marked_destroyed) {
         int obj_id = entry.first;
         auto obj = m_objects.get(obj_id);
@@ -1661,34 +1682,6 @@ void Universe::ExecuteEffects(const Effect::TargetsCauses& targets_causes,
     }
 }
 
-namespace {
-    static const std::string EMPTY_STRING;
-
-    const std::string& GetSpeciesFromObject(std::shared_ptr<const UniverseObject> obj) {
-        switch (obj->ObjectType()) {
-        case OBJ_PLANET: {
-            auto obj_planet = std::static_pointer_cast<const Planet>(obj);
-            return obj_planet->SpeciesName();
-            break;
-        }
-        case OBJ_SHIP: {
-            auto obj_ship = std::static_pointer_cast<const Ship>(obj);
-            return obj_ship->SpeciesName();
-            break;
-        }
-        default:
-            return EMPTY_STRING;
-        }
-    }
-
-    int GetDesignIDFromObject(std::shared_ptr<const UniverseObject> obj) {
-        if (obj->ObjectType() != OBJ_SHIP)
-            return INVALID_DESIGN_ID;
-        auto shp = std::static_pointer_cast<const Ship>(obj);
-        return shp->DesignID();
-    }
-}
-
 void Universe::CountDestructionInStats(int object_id, int source_object_id) {
     auto obj = m_objects.get(object_id);
     if (!obj)
@@ -1696,30 +1689,11 @@ void Universe::CountDestructionInStats(int object_id, int source_object_id) {
     auto source = m_objects.get(source_object_id);
     if (!source)
         return;
-
-    const std::string& species_for_obj = GetSpeciesFromObject(obj);
-
-    int empire_for_obj_id = obj->Owner();
-    int empire_for_source_id = source->Owner();
-
-    int design_for_obj_id = GetDesignIDFromObject(obj);
-
-    if (Empire* source_empire = GetEmpire(empire_for_source_id)) {
-        source_empire->EmpireShipsDestroyed()[empire_for_obj_id]++;
-
-        if (design_for_obj_id != INVALID_DESIGN_ID)
-            source_empire->ShipDesignsDestroyed()[design_for_obj_id]++;
-
-        if (species_for_obj.empty())
-            source_empire->SpeciesShipsDestroyed()[species_for_obj]++;
-    }
-
-    if (Empire* obj_empire = GetEmpire(empire_for_obj_id)) {
-        if (!species_for_obj.empty())
-            obj_empire->SpeciesShipsLost()[species_for_obj]++;
-
-        if (design_for_obj_id != INVALID_DESIGN_ID)
-            obj_empire->ShipDesignsLost()[design_for_obj_id]++;
+    if (auto shp = std::dynamic_pointer_cast<const Ship>(obj)) {
+        if (auto source_empire = GetEmpire(source->Owner()))
+            source_empire->RecordShipShotDown(*shp);
+        if (auto obj_empire = GetEmpire(obj->Owner()))
+            obj_empire->RecordShipLost(*shp);
     }
 }
 
@@ -1732,7 +1706,7 @@ void Universe::SetEffectDerivedVisibility(int empire_id, int object_id, int sour
         return;
     if (!vis)
         return;
-    m_effect_specified_empire_object_visibilities[empire_id][object_id].push_back({source_id, vis});
+    m_effect_specified_empire_object_visibilities[empire_id][object_id].emplace_back(source_id, vis);
 }
 
 void Universe::ApplyEffectDerivedVisibilities() {
@@ -1864,11 +1838,6 @@ void Universe::SetEmpireSpecialVisibility(int empire_id, int object_id,
 {
     if (empire_id == ALL_EMPIRES || special_name.empty() || object_id == INVALID_OBJECT_ID)
         return;
-    //auto obj = m_objects.get(object_id);
-    //if (!obj)
-    //    return;
-    //if (!obj->HasSpecial(special_name))
-    //    return;
     if (visible)
         m_empire_object_visible_specials[empire_id][object_id].insert(special_name);
     else
@@ -1967,7 +1936,7 @@ namespace {
             // low enough stealth (0 or below the empire's detection strength)
             for (const auto& empire_entry : empire_detection_strengths) {
                 if (object_stealth <= empire_entry.second || object_stealth == 0.0f || obj->OwnedBy(empire_entry.first))
-                    retval[empire_entry.first][object_pos].push_back(obj->ID());
+                    retval[empire_entry.first][object_pos].emplace_back(obj->ID());
             }
         }
         return retval;
@@ -2137,6 +2106,8 @@ namespace {
         // set every object visible to all empires
         for (const auto& obj : universe.Objects().all()) {
             for (auto& empire_entry : Empires()) {
+                if (empire_entry.second->Eliminated())
+                    continue;
                 // objects
                 universe.SetEmpireObjectVisibility(empire_entry.first, obj->ID(), VIS_FULL_VISIBILITY);
                 // specials on objects
@@ -2465,8 +2436,11 @@ void Universe::UpdateEmpireObjectVisibilities() {
     for (auto& empire_entry : Empires()) {
         int empire_id = empire_entry.first;
         const Empire* empire = empire_entry.second;
-        for (int design_id : empire->ShipDesigns()) {
-            m_empire_known_ship_design_ids[empire_id].insert(design_id);
+        if (empire->Eliminated()) {
+            m_empire_known_ship_design_ids.erase(empire_id);
+        } else {
+            for (int design_id : empire->ShipDesigns())
+                m_empire_known_ship_design_ids[empire_id].insert(design_id);
         }
     }
 
@@ -2817,12 +2791,15 @@ std::set<int> Universe::RecursiveDestroy(int object_id) {
         }
 
         // remove fleets / ships moving along destroyed starlane
+        std::vector<std::shared_ptr<Fleet>> fleets_to_destroy;
         for (auto& fleet : m_objects.all<Fleet>()) {
             if (fleet->SystemID() == INVALID_OBJECT_ID && (
                 fleet->NextSystemID() == this_sys_id ||
                 fleet->PreviousSystemID() == this_sys_id))
-            { RecursiveDestroy(fleet->ID()); }
+            { fleets_to_destroy.emplace_back(fleet); }
         }
+        for (auto& fleet : fleets_to_destroy)
+            RecursiveDestroy(fleet->ID());
 
         // then destroy system itself
         Destroy(object_id);
@@ -2880,7 +2857,7 @@ void Universe::EffectDestroy(int object_id, int source_object_id) {
 void Universe::InitializeSystemGraph(int for_empire_id) {
     std::vector<int> system_ids;
     for (const auto& system : ::EmpireKnownObjects(for_empire_id).all<System>()) {
-        system_ids.push_back(system->ID());
+        system_ids.emplace_back(system->ID());
     }
 
     m_pathfinder->InitializeSystemGraph(system_ids, for_empire_id);
@@ -3140,8 +3117,8 @@ std::map<std::string, unsigned int> CheckSumContent() {
     checksums["BuildingTypeManager"] = GetBuildingTypeManager().GetCheckSum();
     checksums["Encyclopedia"] = GetEncyclopedia().GetCheckSum();
     checksums["FieldTypeManager"] = GetFieldTypeManager().GetCheckSum();
-    checksums["HullTypeManager"] = GetHullTypeManager().GetCheckSum();
-    checksums["PartTypeManager"] = GetPartTypeManager().GetCheckSum();
+    checksums["ShipHullManager"] = GetShipHullManager().GetCheckSum();
+    checksums["ShipPartManager"] = GetShipPartManager().GetCheckSum();
     checksums["PredefinedShipDesignManager"] = GetPredefinedShipDesignManager().GetCheckSum();
     checksums["SpeciesManager"] = GetSpeciesManager().GetCheckSum();
     checksums["TechManager"] = GetTechManager().GetCheckSum();

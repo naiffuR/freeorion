@@ -17,13 +17,12 @@ BuildingType
                 Object id = Source.PlanetID
                 Planet
             ]
-            activation = Source
             stackinggroup = "BLD_MEGALITH_EFFECT"
             effects = [
                 SetTargetConstruction value = Value + 30
                 SetEmpireCapital
                 SetIndustry value = Target.TargetIndustry
-                SetTrade value = Target.TargetTrade
+                SetInfluence value = Target.TargetInfluence
                 SetResearch value = Target.TargetResearch
             ]
 
@@ -33,7 +32,6 @@ BuildingType
                 OwnedBy empire = Source.Owner
                 TargetPopulation low = 1
             ]
-            activation = Source
             stackinggroup = "BLD_MEGALITH_EFFECT"
             effects = SetMaxSupply value = Value + 1
 

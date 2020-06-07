@@ -1,22 +1,18 @@
 #ifndef _MapWnd_h_
 #define _MapWnd_h_
 
-#include <GG/GGFwd.h>
-#include <GG/GLClientAndServerBuffer.h>
-
-#include "CUIWnd.h"
-#include "CUISlider.h"
-#include "../universe/EnumsFwd.h"
-#include "../universe/Fleet.h"
-#include "FleetButton.h"
-
-#include <boost/unordered_map.hpp>
-#include <boost/functional/hash.hpp>
-
 #include <chrono>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <boost/functional/hash.hpp>
+#include <GG/GGFwd.h>
+#include <GG/GLClientAndServerBuffer.h>
+#include "CUISlider.h"
+#include "CUIWnd.h"
+#include "FleetButton.h"
+#include "../universe/EnumsFwd.h"
+#include "../universe/Fleet.h"
 
 
 class FleetWnd;
@@ -24,6 +20,7 @@ class MapWndPopup;
 class DesignWnd;
 class ProductionWnd;
 class ResearchWnd;
+class GovernmentWnd;
 class EncyclopediaDetailPanel;
 class CombatReportWnd;
 class ObjectListWnd;
@@ -159,9 +156,17 @@ public:
     void ShowPlanet(int planet_id);                              //!< brings up encyclopedia panel and displays info about the planet
     void ShowCombatLog(int log_id);                              //!< brings up encyclopedia panel and displays info about the combat
     void ShowTech(const std::string& tech_name);                 //!< brings up the research screen and centers the tech tree on \a tech_name
+    void ShowPolicy(const std::string& policy_name);             //!< brings up ??? and displays info about the policy with name \a policy_name
     void ShowBuildingType(const std::string& building_type_name);//!< brings up the production screen and displays info about the buildtype \a type_name
-    void ShowPartType(const std::string& part_type_name);        //!< brings up the production screen and displays info about the buildtype \a type_name
-    void ShowHullType(const std::string& hull_type_name);        //!< brings up the production screen and displays info about the buildtype \a type_name
+
+    //! Brings up the production screen and displays info about
+    //! the ShipPart @a ship_part_name.
+    void ShowShipPart(const std::string& ship_part_name);
+
+    //! Brings up the production screen and displays info about the ShipHull
+    //! @p ship_hull_name
+    void ShowShipHull(const std::string& ship_hull_name);
+
     void ShowShipDesign(int design_id);                          //!< brings up the production screen and displays info about the buildtype \a type_name
     void ShowSpecial(const std::string& special_name);           //!< brings up encyclopedia panel and displays info about the special with name \a special_name
     void ShowSpecies(const std::string& species_name);           //!< brings up encyclopedia panel and displays info about the species with name \a species_name
@@ -178,10 +183,10 @@ public:
     /** Programatically selects fleets. */
     void SelectFleet(std::shared_ptr<Fleet> fleet);
 
-    void ReselectLastFleet();                    //!< re-selects the most recent selected fleet, if a valid one exists
+    void ReselectLastFleet();                   //!< re-selects the most recent selected fleet, if a valid one exists
 
-    void RemoveFleet(int fleet_id); //!< removes specified fleet.
-    void SetFleetMovementLine(int fleet_id);     //!< creates fleet movement line for a single fleet.  Move lines originate from the fleet's button location.
+    void RemoveFleet(int fleet_id);             //!< removes specified fleet.
+    void SetFleetMovementLine(int fleet_id);    //!< creates fleet movement line for a single fleet.  Move lines originate from the fleet's button location.
 
     /* creates specially-coloured projected fleet movement line for specified
      * fleet following the specified route.  Move line originates from the
@@ -199,7 +204,7 @@ public:
 
     void ResetEmpireShown();                     //!< auto-resets the shown empire in any contained Wnds, to the current client's empire (if any)
 
-    void RegisterPopup(const std::shared_ptr<MapWndPopup>& popup);              //!< registers a MapWndPopup, which can be cleaned up with a call to DeleteAllPopups( )
+    void RegisterPopup(const std::shared_ptr<MapWndPopup>& popup);  //!< registers a MapWndPopup, which can be cleaned up with a call to DeleteAllPopups( )
     void RemovePopup(MapWndPopup* popup);        //!< removes a MapWndPopup from the list cleaned up on a call to DeleteAllPopups( )
     void Sanitize();                             //!< sanitizes the MapWnd after a game
     void ResetTimeoutClock(int timeout);         //!< start count down \a timeout seconds
@@ -214,7 +219,7 @@ public:
 private:
     void RefreshTurnButtonTooltip();
 
-    void RefreshTradeResourceIndicator();
+    void RefreshInfluenceResourceIndicator();
     void RefreshFleetResourceIndicator();
     void RefreshResearchResourceIndicator();
     void RefreshIndustryResourceIndicator();
@@ -244,22 +249,22 @@ private:
 
     class MapScaleLine;
 
-    void            InitializeWindows();
+    void InitializeWindows();
 
-    void            Zoom(int delta);                            //!< changes the zoom level of the main map by zoom step size to the power of \a delta (adds delta to the current zoom exponent)
-    void            Zoom(int delta, const GG::Pt& position);    //!< changes the zoom level of the main map by zoom step size to the power of \a delta (adds delta to the current zoom exponent) Keeps the screen position \a position in the same place after zooming
-    void            SetZoom(double steps_in, bool update_slide);//!< sets zoom level of the main map to zoom step size to the power of \a steps_in and updates zoom slider position if \a update_slide is true
-    void            SetZoom(double steps_in, bool update_slide, const GG::Pt& position);//!< sets zoom level of the main map to zoom step size to the power of \a steps_in and updates zoom slider position if \a update_slide is true. Keeps the screen position \a position in the same place after zooming
+    void Zoom(int delta);                            //!< changes the zoom level of the main map by zoom step size to the power of \a delta (adds delta to the current zoom exponent)
+    void Zoom(int delta, const GG::Pt& position);    //!< changes the zoom level of the main map by zoom step size to the power of \a delta (adds delta to the current zoom exponent) Keeps the screen position \a position in the same place after zooming
+    void SetZoom(double steps_in, bool update_slide);//!< sets zoom level of the main map to zoom step size to the power of \a steps_in and updates zoom slider position if \a update_slide is true
+    void SetZoom(double steps_in, bool update_slide, const GG::Pt& position);//!< sets zoom level of the main map to zoom step size to the power of \a steps_in and updates zoom slider position if \a update_slide is true. Keeps the screen position \a position in the same place after zooming
 
-    void            Pan(const GG::Pt& delta);                   //!< pans map
-    bool            PanX(GG::X x = GG::X(50));
-    bool            PanY(GG::Y y = GG::Y(50));
+    void Pan(const GG::Pt& delta);                   //!< pans map
+    bool PanX(GG::X x = GG::X(50));
+    bool PanY(GG::Y y = GG::Y(50));
 
     /** Mark all fleet buttons for a refresh. */
-    void            RefreshFleetButtons();
+    void RefreshFleetButtons();
     /** Removes old / existing and create new fleet buttons. Only called once
       * per render interval.*/
-    void            DeferredRefreshFleetButtons();
+    void DeferredRefreshFleetButtons();
 
     /** Use the vectors of fleet ids from \p fleets_map to create fleet buttons
       * in \p type_fleet_buttons and record the fleet buttons in
@@ -414,6 +419,10 @@ private:
     void ShowDesign();
     void HideDesign();
 
+    bool ToggleGovernment();
+    void ShowGovernment();
+    void HideGovernment();
+
     bool ShowMenu();
 
     bool CloseSystemView(); //!< closes off the current system view
@@ -444,22 +453,23 @@ private:
     std::set<int>                               m_selected_fleet_ids;
     std::set<int>                               m_selected_ship_ids;
 
-    double                                      m_zoom_steps_in = 1.0;          //!< number of zoom steps in.  each 1.0 step increases display scaling by the same zoom step factor
-    std::shared_ptr<SidePanel>                  m_side_panel = nullptr;         //!< planet view panel on the side of the main map
-    boost::unordered_map<int, std::shared_ptr<SystemIcon>> m_system_icons;      //!< system icons in the main map, indexed by system id
-    std::map<int, std::shared_ptr<FieldIcon>>   m_field_icons;                  //!< field icons in the main map, indexed by field id
-    std::shared_ptr<SitRepPanel>                m_sitrep_panel = nullptr;       //!< sitrep panel
-    std::shared_ptr<ResearchWnd>                m_research_wnd = nullptr;       //!< research screen
-    std::shared_ptr<ProductionWnd>              m_production_wnd = nullptr;     //!< production screen
-    std::shared_ptr<DesignWnd>                  m_design_wnd = nullptr;         //!< design screen
-    std::shared_ptr<EncyclopediaDetailPanel>    m_pedia_panel = nullptr;        //!< encyclpedia panel
-    std::shared_ptr<ObjectListWnd>              m_object_list_wnd = nullptr;    //!< filterable list of objects in universe
-    std::shared_ptr<ModeratorActionsWnd>        m_moderator_wnd = nullptr;      //!< buttons to select moderator actions
-    std::shared_ptr<CombatReportWnd>            m_combat_report_wnd = nullptr;  //!< shows graphical reports of combats
+    double                                      m_zoom_steps_in = 1.0;      //!< number of zoom steps in.  each 1.0 step increases display scaling by the same zoom step factor
+    std::shared_ptr<SidePanel>                  m_side_panel;               //!< planet view panel on the side of the main map
+    std::unordered_map<int, std::shared_ptr<SystemIcon>> m_system_icons;    //!< system icons in the main map, indexed by system id
+    std::map<int, std::shared_ptr<FieldIcon>>   m_field_icons;              //!< field icons in the main map, indexed by field id
+    std::shared_ptr<SitRepPanel>                m_sitrep_panel;             //!< sitrep panel
+    std::shared_ptr<ResearchWnd>                m_research_wnd;             //!< research screen
+    std::shared_ptr<ProductionWnd>              m_production_wnd;           //!< production screen
+    std::shared_ptr<DesignWnd>                  m_design_wnd;               //!< design screen
+    std::shared_ptr<GovernmentWnd>              m_government_wnd;           //!< government screen
+    std::shared_ptr<EncyclopediaDetailPanel>    m_pedia_panel;              //!< encyclpedia panel
+    std::shared_ptr<ObjectListWnd>              m_object_list_wnd;          //!< filterable list of objects in universe
+    std::shared_ptr<ModeratorActionsWnd>        m_moderator_wnd;            //!< buttons to select moderator actions
+    std::shared_ptr<CombatReportWnd>            m_combat_report_wnd;        //!< shows graphical reports of combats
 
-    std::vector<std::weak_ptr<GG::Wnd>>         m_wnd_stack;        //!< stack of open windows, to allow closing them with escape in a LIFO order
+    std::vector<std::weak_ptr<GG::Wnd>>         m_wnd_stack;                //!< stack of open windows, to allow closing them with escape in a LIFO order
 
-    std::map<std::pair<int, int>, LaneEndpoints>m_starlane_endpoints;//!< map from starlane start and end system IDs (stored in pair in increasing order) to the universe coordiates at which to draw the starlane ends
+    std::map<std::pair<int, int>, LaneEndpoints>m_starlane_endpoints;       //!< map from starlane start and end system IDs (stored in pair in increasing order) to the universe coordiates at which to draw the starlane ends
 
     /** Icons representing fleets at a system that are not departing, indexed
         by system. */
@@ -492,12 +502,12 @@ private:
                        boost::hash<std::pair<double, double>>>
         m_offroad_fleet_buttons;
 
-    boost::unordered_map<int, std::shared_ptr<FleetButton>>
+    std::unordered_map<int, std::shared_ptr<FleetButton>>
         m_fleet_buttons;                        //!< fleet icons, index by fleet
 
-    boost::unordered_map<int, boost::signals2::connection>
+    std::unordered_map<int, boost::signals2::connection>
         m_fleet_state_change_signals;
-    boost::unordered_map<int, std::vector<boost::signals2::connection>>
+    std::unordered_map<int, std::vector<boost::signals2::connection>>
         m_system_fleet_insert_remove_signals;
 
     std::map<int, MovementLineData> m_fleet_lines;                  //!< lines used for moving fleets in the main map
@@ -544,11 +554,11 @@ private:
     GG::Pt                          m_drag_offset = {-GG::X1, -GG::Y1}; //!< distance the cursor is from the upper-left corner of the window during a drag ((-1, -1) if no drag is occurring)
     bool                            m_dragged = false;          //!< tracks whether or not a drag occurs during a left button down sequence of events
 
-    std::shared_ptr<GG::Button>     m_btn_turn = nullptr;       //!< button that updates player's turn;
-    std::shared_ptr<GG::Button>     m_btn_auto_turn = nullptr;  //!< button that toggles whether to automatically end turns;
+    std::shared_ptr<GG::Button>     m_btn_turn;                 //!< button that updates player's turn;
+    std::shared_ptr<GG::Button>     m_btn_auto_turn;            //!< button that toggles whether to automatically end turns;
     bool                            m_auto_end_turn = false;    //!< should turns be ended automatically by this client?
     bool                            m_ready_turn = false;       //!< is turn orders are ready and sent to server?
-    std::shared_ptr<GG::Label>      m_timeout_remain = nullptr; //!< label to show remaining time
+    std::shared_ptr<GG::Label>      m_timeout_remain;           //!< label to show remaining time
     GG::Timer                       m_timeout_clock{1000};      //!< clock to update remaining time
     std::list<std::weak_ptr<MapWndPopup>> m_popups;             //!< list of currently active popup windows
     bool                            m_menu_showing = false;     //!< set during ShowMenu() to prevent reentrency
@@ -558,19 +568,19 @@ private:
 
     bool                            m_sidepanel_open_before_showing_other = false;  //!< was the sidepanel open before switching to production, research or design screens?  If so, it should be restored when leaving them.
 
-    std::shared_ptr<CUIToolBar>     m_toolbar = nullptr;
-    std::shared_ptr<StatisticIcon>  m_trade = nullptr, m_population = nullptr, m_research = nullptr,
-                                    m_industry = nullptr, m_stockpile = nullptr, m_detection = nullptr,
-                                    m_fleet = nullptr;
-    std::shared_ptr<GG::Button>     m_industry_wasted = nullptr, m_research_wasted = nullptr,
-                                    m_btn_moderator = nullptr, m_btn_messages = nullptr, m_btn_empires = nullptr,
-                                    m_btn_siterep = nullptr, m_btn_research = nullptr, m_btn_production = nullptr,
-                                    m_btn_design = nullptr, m_btn_pedia = nullptr, m_btn_graphs = nullptr,
-                                    m_btn_objects = nullptr, m_btn_menu = nullptr;
-    std::shared_ptr<GG::Label>      m_FPS = nullptr;
+    std::shared_ptr<CUIToolBar>     m_toolbar;
+    std::shared_ptr<StatisticIcon>  m_influence, m_population, m_research,
+                                    m_industry, m_stockpile, m_detection,
+                                    m_fleet;
+    std::shared_ptr<GG::Button>     m_industry_wasted, m_research_wasted,
+                                    m_btn_moderator, m_btn_messages, m_btn_empires,
+                                    m_btn_siterep, m_btn_research, m_btn_production,
+                                    m_btn_design, m_btn_government, m_btn_pedia,
+                                    m_btn_graphs, m_btn_objects, m_btn_menu;
+    std::shared_ptr<GG::Label>      m_FPS;
 
-    std::shared_ptr<MapScaleLine>       m_scale_line = nullptr;     //!< indicates the on-screen distance that reprensents an in-universe distance
-    std::shared_ptr<GG::Slider<double>> m_zoom_slider = nullptr;    //!< allows user to set zoom level;
+    std::shared_ptr<MapScaleLine>       m_scale_line;   //!< indicates the on-screen distance that reprensents an in-universe distance
+    std::shared_ptr<GG::Slider<double>> m_zoom_slider;  //!< allows user to set zoom level;
 
     std::set<int>                   m_fleets_exploring;
 

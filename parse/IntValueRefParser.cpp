@@ -2,7 +2,7 @@
 
 #include "Parse.h"
 #include "MovableEnvelope.h"
-#include "../universe/ValueRefs.h"
+#include "../universe/ValueRef.h"
 
 #include <boost/spirit/include/phoenix.hpp>
 
@@ -33,6 +33,7 @@ parse::detail::simple_int_parser_rules::simple_int_parser_rules(const parse::lex
         |   tok.FleetID_
         |   tok.PlanetID_
         |   tok.SystemID_
+        |   tok.ContainerID_
         |   tok.FinalDestinationID_
         |   tok.NextSystemID_
         |   tok.NearestSystemID_
@@ -42,6 +43,7 @@ parse::detail::simple_int_parser_rules::simple_int_parser_rules(const parse::lex
         |   tok.LastTurnActiveInBattle_
         |   tok.LastTurnAttackedByShip_
         |   tok.LastTurnBattleHere_
+        |   tok.LastTurnColonized_
         |   tok.LastTurnConquered_
         |   tok.LastTurnResupplied_
         |   tok.Orbit_

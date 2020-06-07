@@ -1,13 +1,13 @@
 #ifndef _System_h_
 #define _System_h_
 
-#include "UniverseObject.h"
-
-#include "../util/AppInterface.h"
-#include "../util/Export.h"
 
 #include <map>
+#include "UniverseObject.h"
+#include "../util/Export.h"
 
+
+class Fleet;
 
 FO_COMMON_API extern const int INVALID_OBJECT_ID;
 namespace {
@@ -131,24 +131,16 @@ protected:
     friend class ObjectMap;
 
     /** \name Structors */ //@{
-    System();
+    explicit System();
 
 public:
-    /** general ctor.  \throw std::invalid_arugment May throw
-      * std::invalid_arugment if \a star is out of the range of StarType,
-      * \a orbits is negative, or either x or y coordinate is outside the map
-      * area.*/
     System(StarType star, const std::string& name, double x, double y);
 
 protected:
-    /** general ctor.  \throw std::invalid_arugment May throw
-      * std::invalid_arugment if \a star is out of the range of StarType,
-      * \a orbits is negative, or either x or y coordinate is outside the map
-      * area.*/
     System(StarType star, const std::map<int, bool>& lanes_and_holes,
            const std::string& name, double x, double y);
 
-    template <class T> friend void boost::python::detail::value_destroyer<false>::execute(T const volatile* p);
+    template <typename T> friend void boost::python::detail::value_destroyer<false>::execute(T const volatile* p);
 
 public:
     ~System() {}
@@ -174,7 +166,7 @@ private:
     double              m_overlay_size = 1.0;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 

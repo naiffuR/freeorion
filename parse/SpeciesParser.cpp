@@ -11,10 +11,9 @@
 #include "../universe/Condition.h"
 #include "../universe/Effect.h"
 #include "../universe/Species.h"
+#include "../util/Directories.h"
 
 #include <boost/spirit/include/phoenix.hpp>
-//TODO: replace with std::make_unique when transitioning to C++14
-#include <boost/smart_ptr/make_unique.hpp>
 
 
 #define DEBUG_PARSERS 0
@@ -63,7 +62,7 @@ namespace {
         const SpeciesStuff& foci_preferred_tags_graphic,
         bool& pass)
     {
-        auto species_ptr = boost::make_unique<Species>(
+        auto species_ptr = std::make_unique<Species>(
             strings,
             (foci_preferred_tags_graphic.foci ? *foci_preferred_tags_graphic.foci : std::vector<FocusType>()),
             (foci_preferred_tags_graphic.preferred_focus ? *foci_preferred_tags_graphic.preferred_focus : std::string()),
@@ -290,18 +289,20 @@ namespace parse {
 
         boost::filesystem::path manifest_file;
 
-        for (const boost::filesystem::path& file : ListScripts(path)) {
+        ScopedTimer timer("Species Parsing", true);
+
+        for (const auto& file : ListDir(path, IsFOCScript)) {
             if (file.filename() == "SpeciesCensusOrdering.focs.txt" ) {
                 manifest_file = file;
                 continue;
             }
 
-            /*auto success =*/ detail::parse_file<grammar, start_rule_payload::first_type>(lexer, file, species_);
+            detail::parse_file<grammar, start_rule_payload::first_type>(lexer, file, species_);
         }
 
         if (!manifest_file.empty()) {
             try {
-                /*auto success =*/ detail::parse_file<manifest_grammar, start_rule_payload::second_type>(
+                detail::parse_file<manifest_grammar, start_rule_payload::second_type>(
                     lexer, manifest_file, ordering);
 
             } catch (const std::runtime_error& e) {

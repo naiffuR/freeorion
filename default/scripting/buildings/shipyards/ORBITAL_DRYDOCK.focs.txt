@@ -28,18 +28,19 @@ BuildingType
                 Or [
                     OwnedBy empire = Source.Owner
                     And [
-                        ((GameRule name = "RULE_ENABLE_ALLIED_REPAIR") > 0)
+                        // either ally providing repair or owner of ship beign repaired must adopt policy to share repairs
+                        Or [
+                            EmpireHasAdoptedPolicy empire = Source.Owner name = "PLC_ALLIED_REPAIR"
+                            EmpireHasAdoptedPolicy empire = LocalCandidate.Owner name = "PLC_ALLIED_REPAIR"
+                        ]
                         OwnedBy affiliation = AllyOf empire = Source.Owner
                     ]
                 ]
                 Structure high = LocalCandidate.MaxStructure - 0.001
             ]
-            activation = And [
-                Source
-                ContainedBy And [
-                    [[PLANET_OWNED_DRYDOCK_HIGHEST_HAPPINESS]]
-                    Population high = 0
-                ]
+            activation = ContainedBy And [
+                [[PLANET_OWNED_DRYDOCK_HIGHEST_HAPPINESS]]
+                Population high = 0
             ]
             stackinggroup = "SHIP_REPAIR"
             priority = 75
@@ -63,7 +64,11 @@ BuildingType
                 Or [
                     OwnedBy empire = Source.Owner
                     And [
-                        ((GameRule name = "RULE_ENABLE_ALLIED_REPAIR") > 0)
+                        // either ally providing repair or owner of ship beign repaired must adopt policy to share repairs
+                        Or [
+                            EmpireHasAdoptedPolicy empire = Source.Owner name = "PLC_ALLIED_REPAIR"
+                            EmpireHasAdoptedPolicy empire = LocalCandidate.Owner name = "PLC_ALLIED_REPAIR"
+                        ]
                         OwnedBy affiliation = AllyOf empire = Source.Owner
                     ]
                 ]
@@ -100,7 +105,11 @@ BuildingType
                 Or [
                     OwnedBy empire = Source.Owner
                     And [
-                        ((GameRule name = "RULE_ENABLE_ALLIED_REPAIR") > 0)
+                        // either ally providing repair or owner of ship beign repaired must adopt policy to share repairs
+                        Or [
+                            EmpireHasAdoptedPolicy empire = Source.Owner name = "PLC_ALLIED_REPAIR"
+                            EmpireHasAdoptedPolicy empire = LocalCandidate.Owner name = "PLC_ALLIED_REPAIR"
+                        ]
                         OwnedBy affiliation = AllyOf empire = Source.Owner
                     ]
                 ]
@@ -136,7 +145,11 @@ BuildingType
                 Or [
                     OwnedBy empire = Source.Owner
                     And [
-                        ((GameRule name = "RULE_ENABLE_ALLIED_REPAIR") > 0)
+                        // either ally providing repair or owner of ship beign repaired must adopt policy to share repairs
+                        Or [
+                            EmpireHasAdoptedPolicy empire = Source.Owner name = "PLC_ALLIED_REPAIR"
+                            EmpireHasAdoptedPolicy empire = LocalCandidate.Owner name = "PLC_ALLIED_REPAIR"
+                        ]
                         OwnedBy affiliation = AllyOf empire = Source.Owner
                     ]
                 ]
@@ -203,7 +216,11 @@ PLANET_OWNED_DRYDOCK_HIGHEST_HAPPINESS
     Or [
         OwnedBy empire = Source.Owner
         And [
-            ((GameRule name = "RULE_ENABLE_ALLIED_REPAIR") > 0)
+            // either ally providing repair or owner of ship beign repaired must adopt policy to share repairs
+            Or [
+                EmpireHasAdoptedPolicy empire = Source.Owner name = "PLC_ALLIED_REPAIR"
+                EmpireHasAdoptedPolicy empire = LocalCandidate.Owner name = "PLC_ALLIED_REPAIR"
+            ]
             OwnedBy affiliation = AllyOf empire = Source.Owner
         ]
     ]

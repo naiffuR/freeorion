@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* GG is a GUI for SDL and OpenGL.
+/* GG is a GUI for OpenGL.
    Copyright (C) 2003-2008 T. Zachary Laine
 
    This library is free software; you can redistribute it and/or
@@ -134,7 +134,7 @@ public:
 
         /** \name Structors */ ///@{
         Row();
-        Row(X w, Y h, const std::string& drag_drop_data_type, Alignment align = ALIGN_VCENTER, unsigned int margin = 2);
+        Row(X w, Y h);
         virtual ~Row();
         //@}
 
@@ -187,15 +187,14 @@ public:
         void GrowWidthsStretchesAlignmentsTo(std::size_t nn);
         void RClick(const Pt& pt, GG::Flags<GG::ModKey> mod) override;
 
-        std::vector<std::shared_ptr<Control>>  m_cells;          ///< the Controls in this Row (each may be null)
-        Alignment              m_row_alignment;  ///< row alignment; one of ALIGN_TOP, ALIGN_VCENTER, or ALIGN_BOTTOM
-        std::vector<Alignment> m_col_alignments; ///< column alignments; each is one of ALIGN_TOP, ALIGN_VCENTER, or ALIGN_BOTTOM
-        std::vector<X>         m_col_widths;     ///< column widths
-        std::vector<double>    m_col_stretches;  ///< the stretch factor of each column
-        unsigned int           m_margin;         ///< the amount of space left between the contents of adjacent cells, in pixels
-
-        bool                   m_ignore_adjust_layout;
-        bool                   m_is_normalized;
+        std::vector<std::shared_ptr<Control>>   m_cells;                    ///< the Controls in this Row (each may be null)
+        Alignment                               m_row_alignment;            ///< row alignment; one of ALIGN_TOP, ALIGN_VCENTER, or ALIGN_BOTTOM
+        std::vector<Alignment>                  m_col_alignments;           ///< column alignments; each is one of ALIGN_TOP, ALIGN_VCENTER, or ALIGN_BOTTOM
+        std::vector<X>                          m_col_widths;               ///< column widths
+        std::vector<double>                     m_col_stretches;            ///< the stretch factor of each column
+        unsigned int                            m_margin = DEFAULT_MARGIN;  ///< the amount of space left between the contents of adjacent cells, in pixels
+        bool                                    m_ignore_adjust_layout = false;
+        bool                                    m_is_normalized = false;
     };
 
     typedef std::list<std::shared_ptr<Row>>::iterator iterator;
@@ -415,7 +414,7 @@ public:
         row sorting.  Note that \a sort_cmp is assumed to produce an ascending
         order when used to sort; setting the LIST_SORTDESCENDING style can be
         used to produce a reverse sort. */
-    void SetSortCmp(const boost::function<bool (const Row&, const Row&, std::size_t)>& sort_cmp);
+    void SetSortCmp(const std::function<bool (const Row&, const Row&, std::size_t)>& sort_cmp);
 
     /** Fixes the column widths; by default, an empty ListBox will take on the
         number of columns of its first added row. \note The number of columns
@@ -489,7 +488,7 @@ public:
 
         If you want to use operator<() with a Row subclass DerivedRow that has
         a custom SortKeyType, use DefaultRowCmp<DerivedRow>. */
-    template <class RowType>
+    template <typename RowType>
     struct DefaultRowCmp
     {
         /** Returns true iff lhs.SortKey( \a column ) < rhs.SortKey( \a column ). */
@@ -634,7 +633,7 @@ private:
     bool                    m_clip_cells = false;       ///< if true, the contents of each cell will be clipped to the visible area of that cell (TODO: currently unused)
     std::size_t             m_sort_col = 0;             ///< the index of the column data used to sort the list
 
-    boost::function<bool (const Row&, const Row&, std::size_t)>
+    std::function<bool (const Row&, const Row&, std::size_t)>
                             m_sort_cmp;                 ///< the predicate used to sort the values in the m_sort_col column of two rows
 
     bool                    m_allow_drops = false;      ///< are we accepting drops
@@ -663,7 +662,7 @@ private:
 
 
 // template implementations
-template <class RowType>
+template <typename RowType>
 bool GG::ListBox::DefaultRowCmp<RowType>::operator()(const GG::ListBox::Row& lhs, const GG::ListBox::Row& rhs, std::size_t column) const
 {
     return static_cast<const RowType&>(lhs).SortKey(column) < static_cast<const RowType&>(rhs).SortKey(column);

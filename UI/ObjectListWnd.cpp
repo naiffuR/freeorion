@@ -25,12 +25,10 @@
 #include "../universe/ValueRefs.h"
 #include "../universe/Enums.h"
 
-#include <GG/DrawUtil.h>
 #include <GG/Layout.h>
 
 #include <boost/lexical_cast.hpp>
-//TODO: replace with std::make_unique when transitioning to C++14
-#include <boost/smart_ptr/make_unique.hpp>
+#include <boost/uuid/random_generator.hpp>
 
 #include <iterator>
 #include <sstream>
@@ -50,7 +48,7 @@ namespace {
             {"SIZE_AS_DOUBLE",   8*12}};
 
         for (unsigned int i = default_columns_widths.size(); i < NUM_COLUMNS; ++i)
-            default_columns_widths.push_back({"", 8*12});   // arbitrary default width
+            default_columns_widths.emplace_back("", 8*12);  // arbitrary default width
 
         for (unsigned int i = 0; i < default_columns_widths.size(); ++i) {
             db.Add<std::string>("ui.objects.columns.c" + std::to_string(i) + ".stringkey",
@@ -69,15 +67,15 @@ namespace {
         const std::vector<UniverseObjectType>& object_types)
     {
         if (object_types.empty())
-            return boost::make_unique<Condition::None>();
+            return std::make_unique<Condition::None>();
 
         if (object_types.size() == 1)
-            return boost::make_unique<Condition::Type>(*object_types.begin());
+            return std::make_unique<Condition::Type>(*object_types.begin());
 
         std::vector<std::unique_ptr<Condition::Condition>> subconditions;
         for (auto obj_type : object_types)
-            subconditions.emplace_back(boost::make_unique<Condition::Type>(obj_type));
-        return boost::make_unique<Condition::Or>(std::move(subconditions));
+            subconditions.emplace_back(std::make_unique<Condition::Type>(obj_type));
+        return std::make_unique<Condition::Or>(std::move(subconditions));
     }
 
     // returns default value (eg. 0 or an empty string) unless object is of
@@ -89,15 +87,15 @@ namespace {
         std::unique_ptr<ValueRef::ValueRef<T>>&& value_ref)
     {
         if (object_types.empty())
-            return boost::make_unique<ValueRef::Constant<T>>(T());
+            return std::make_unique<ValueRef::Constant<T>>(T());
 
-        return boost::make_unique<ValueRef::Operation<T>>(  // evaluates and returns value_ref if contained Statistic returns a non-empty string
+        return std::make_unique<ValueRef::Operation<T>>(  // evaluates and returns value_ref if contained Statistic returns a non-empty string
             ValueRef::TIMES,
-            boost::make_unique<ValueRef::Statistic<T>>(     // returns non-empty string if the source object matches the object type condition
+            std::make_unique<ValueRef::Statistic<T>>(     // returns non-empty string if the source object matches the object type condition
                 nullptr,                                    // property value value ref not used for IF statistic
                 ValueRef::IF,
-                boost::make_unique<Condition::And>(         // want this statistic to return true only if the source object has the specified object type, if there exists any object of that type in the universe
-                    boost::make_unique<Condition::Source>(),
+                std::make_unique<Condition::And>(         // want this statistic to return true only if the source object has the specified object type, if there exists any object of that type in the universe
+                    std::make_unique<Condition::Source>(),
                     ConditionForObjectTypes(object_types)
                 )
             ),
@@ -105,57 +103,47 @@ namespace {
         );
     }
 
-    std::unique_ptr<ValueRef::Variable<std::string>> StringValueRef(
-        const std::string& token)
-    {
-        return boost::make_unique<ValueRef::Variable<std::string>>(
+    std::unique_ptr<ValueRef::Variable<std::string>> StringValueRef(const char* token) {
+        return std::make_unique<ValueRef::Variable<std::string>>(
             ValueRef::SOURCE_REFERENCE, token);
     }
 
-    std::unique_ptr<ValueRef::Variable<std::string>> UserStringValueRef(
-        const std::string& token)
-    {
-        return boost::make_unique<ValueRef::UserStringLookup<std::string>>(
-            boost::make_unique<ValueRef::Variable<std::string>>(
+    std::unique_ptr<ValueRef::Variable<std::string>> UserStringValueRef(const char* token) {
+        return std::make_unique<ValueRef::UserStringLookup<std::string>>(
+            std::make_unique<ValueRef::Variable<std::string>>(
                 ValueRef::SOURCE_REFERENCE, token));
     }
 
-    std::unique_ptr<ValueRef::Variable<std::string>> UserStringVecValueRef(
-        const std::string& token)
-    {
-        return boost::make_unique<ValueRef::UserStringLookup<std::vector<std::string>>>(
-            boost::make_unique<ValueRef::Variable<std::vector<std::string>>>(
+    std::unique_ptr<ValueRef::Variable<std::string>> UserStringVecValueRef(const char* token) {
+        return std::make_unique<ValueRef::UserStringLookup<std::vector<std::string>>>(
+            std::make_unique<ValueRef::Variable<std::vector<std::string>>>(
                 ValueRef::SOURCE_REFERENCE, token));
     }
 
     template <typename T>
-    std::unique_ptr<ValueRef::Variable<std::string>> StringCastedValueRef(
-        const std::string& token)
-    {
-        return boost::make_unique<ValueRef::StringCast<T>>(
-            boost::make_unique<ValueRef::Variable<T>>(
+    std::unique_ptr<ValueRef::Variable<std::string>> StringCastedValueRef(const char* token) {
+        return std::make_unique<ValueRef::StringCast<T>>(
+            std::make_unique<ValueRef::Variable<T>>(
                 ValueRef::SOURCE_REFERENCE, token));
     }
 
-    std::unique_ptr<ValueRef::Variable<std::string>> StringCastedImmediateValueRef(
-        const std::string& token)
-    {
-        return boost::make_unique<ValueRef::StringCast<double>>(
-            boost::make_unique<ValueRef::Variable<double>>(
-                ValueRef::SOURCE_REFERENCE, token, true));
+    std::unique_ptr<ValueRef::Variable<std::string>> StringCastedImmediateValueRef(std::string token) {
+        return std::make_unique<ValueRef::StringCast<double>>(
+            std::make_unique<ValueRef::Variable<double>>(
+                ValueRef::SOURCE_REFERENCE, std::move(token), true));
     }
 
     template <typename T>
     std::unique_ptr<ValueRef::Variable<std::string>> StringCastedComplexValueRef(
-        const std::string& token,
+        const char* token,
         std::unique_ptr<ValueRef::ValueRef<int>>&& int_ref1 = nullptr,
         std::unique_ptr<ValueRef::ValueRef<int>>&& int_ref2 = nullptr,
         std::unique_ptr<ValueRef::ValueRef<int>>&& int_ref3 = nullptr,
         std::unique_ptr<ValueRef::ValueRef<std::string>>&& string_ref1 = nullptr,
         std::unique_ptr<ValueRef::ValueRef<std::string>>&& string_ref2 = nullptr)
     {
-        return boost::make_unique<ValueRef::StringCast<T>>(
-            boost::make_unique<ValueRef::ComplexVariable<T>>(
+        return std::make_unique<ValueRef::StringCast<T>>(
+            std::make_unique<ValueRef::ComplexVariable<T>>(
                 token, std::move(int_ref1), std::move(int_ref2),
                 std::move(int_ref3), std::move(string_ref1), std::move(string_ref2))
         );
@@ -165,71 +153,61 @@ namespace {
         return StringCastedComplexValueRef<double>(
             propagated ? "PropagatedSystemSupplyRange" :"SystemSupplyRange",
             nullptr,
-            boost::make_unique<ValueRef::Variable<int>>(ValueRef::SOURCE_REFERENCE, "SystemID"));
+            std::make_unique<ValueRef::Variable<int>>(ValueRef::SOURCE_REFERENCE, "SystemID"));
     }
 
     std::unique_ptr<ValueRef::Variable<std::string>> SystemSupplyDistanceValueRef() {
         return StringCastedComplexValueRef<double>(
             "PropagatedSystemSupplyDistance",
             nullptr,
-            boost::make_unique<ValueRef::Variable<int>>(ValueRef::SOURCE_REFERENCE, "SystemID"));
+            std::make_unique<ValueRef::Variable<int>>(ValueRef::SOURCE_REFERENCE, "SystemID"));
     }
 
 
     std::unique_ptr<ValueRef::Variable<std::string>> DesignCostValueRef() {
         return StringCastedComplexValueRef<double>(
             "ShipDesignCost",
-            boost::make_unique<ValueRef::Variable<int>>(ValueRef::SOURCE_REFERENCE, "DesignID"),
-            boost::make_unique<ValueRef::Variable<int>>(ValueRef::SOURCE_REFERENCE, "ProducedByEmpireID"),
+            std::make_unique<ValueRef::Variable<int>>(ValueRef::SOURCE_REFERENCE, "DesignID"),
+            std::make_unique<ValueRef::Variable<int>>(ValueRef::SOURCE_REFERENCE, "ProducedByEmpireID"),
             nullptr);   // TODO: try to get a valid production location for the owner empire?
     }
 
-    std::unique_ptr<ValueRef::ValueRef<std::string>> PlanetEnvForSpecies(
-        const std::string& species_name)
-    {
+    std::unique_ptr<ValueRef::ValueRef<std::string>> PlanetEnvForSpecies(const std::string& species_name) {
         return ObjectTypeFilteredRef<std::string>({OBJ_PLANET},
-            boost::make_unique<ValueRef::UserStringLookup<PlanetEnvironment>>(
-                boost::make_unique<ValueRef::ComplexVariable<PlanetEnvironment>>(
+            std::make_unique<ValueRef::UserStringLookup<PlanetEnvironment>>(
+                std::make_unique<ValueRef::ComplexVariable<PlanetEnvironment>>(
                     "PlanetEnvironmentForSpecies",
-                    boost::make_unique<ValueRef::Variable<int>>(ValueRef::SOURCE_REFERENCE, "ID"),
+                    std::make_unique<ValueRef::Variable<int>>(ValueRef::SOURCE_REFERENCE, "ID"),
                     nullptr,
                     nullptr,
-                    boost::make_unique<ValueRef::Constant<std::string>>(species_name))));
+                    std::make_unique<ValueRef::Constant<std::string>>(species_name))));
     }
 
     template <typename T>
-    std::unique_ptr<ValueRef::Variable<std::string>> UserStringCastedValueRef(
-        const std::string& token)
-    {
-        return boost::make_unique<ValueRef::UserStringLookup<std::string>>(
-            boost::make_unique<ValueRef::StringCast<T>>(
-                boost::make_unique<ValueRef::Variable<T>>(
+    std::unique_ptr<ValueRef::Variable<std::string>> UserStringCastedValueRef(const char* token) {
+        return std::make_unique<ValueRef::UserStringLookup<std::string>>(
+            std::make_unique<ValueRef::StringCast<T>>(
+                std::make_unique<ValueRef::Variable<T>>(
                     ValueRef::SOURCE_REFERENCE, token)));
     }
 
-    std::unique_ptr<ValueRef::Variable<std::string>> ObjectNameValueRef(
-        const std::string& token)
-    {
-        return boost::make_unique<ValueRef::NameLookup>(
-            boost::make_unique<ValueRef::Variable<int>>(
+    std::unique_ptr<ValueRef::Variable<std::string>> ObjectNameValueRef(const char* token) {
+        return std::make_unique<ValueRef::NameLookup>(
+            std::make_unique<ValueRef::Variable<int>>(
                 ValueRef::SOURCE_REFERENCE, token),
             ValueRef::NameLookup::OBJECT_NAME);
     }
 
-    std::unique_ptr<ValueRef::Variable<std::string>> EmpireNameValueRef(
-        const std::string& token)
-    {
-        return boost::make_unique<ValueRef::NameLookup>(
-            boost::make_unique<ValueRef::Variable<int>>(
+    std::unique_ptr<ValueRef::Variable<std::string>> EmpireNameValueRef(const char* token) {
+        return std::make_unique<ValueRef::NameLookup>(
+            std::make_unique<ValueRef::Variable<int>>(
                 ValueRef::SOURCE_REFERENCE, token),
             ValueRef::NameLookup::EMPIRE_NAME);
     }
 
-    std::unique_ptr<ValueRef::Variable<std::string>> DesignNameValueRef(
-        const std::string& token)
-    {
-        return boost::make_unique<ValueRef::NameLookup>(
-            boost::make_unique<ValueRef::Variable<int>>(
+    std::unique_ptr<ValueRef::Variable<std::string>> DesignNameValueRef(const char* token) {
+        return std::make_unique<ValueRef::NameLookup>(
+            std::make_unique<ValueRef::Variable<int>>(
                 ValueRef::SOURCE_REFERENCE, token),
             ValueRef::NameLookup::SHIP_DESIGN_NAME);
     }
@@ -279,6 +257,7 @@ namespace {
             col_types[{UserStringNop("PLANET_ENVIRONMENT"),         UserStringNop("PLANETS_SUBMENU")}]= UserStringCastedValueRef<PlanetEnvironment>("PlanetEnvironment");
             col_types[{UserStringNop("SUPPLY_RANGE"),               UserStringNop("PLANETS_SUBMENU")}]= StringCastedValueRef<double>("PropagatedSupplyRange");
             col_types[{UserStringNop("AVAILABLE_FOCI"),             UserStringNop("PLANETS_SUBMENU")}]= UserStringVecValueRef("AvailableFoci");
+            col_types[{UserStringNop("LAST_TURN_COLONIZED"),        UserStringNop("PLANETS_SUBMENU")}]= StringCastedValueRef<int>("LastTurnColonized");
             col_types[{UserStringNop("LAST_TURN_CONQUERED"),        UserStringNop("PLANETS_SUBMENU")}]= StringCastedValueRef<int>("LastTurnConquered");
             col_types[{UserStringNop("LAST_TURN_ATTACKED_BY_SHIP"), UserStringNop("PLANETS_SUBMENU")}]= StringCastedValueRef<int>("LastTurnAttackedByShip");
 
@@ -402,11 +381,11 @@ namespace {
 
     const std::string FILTER_OPTIONS_WND_NAME = "object-list-filter";
 
-    template <class enumT>
+    template <typename enumT>
     std::unique_ptr<ValueRef::ValueRef<enumT>> CopyEnumValueRef(const ValueRef::ValueRef<enumT>* const value_ref) {
         if (auto constant = dynamic_cast<const ValueRef::Constant<enumT>*>(value_ref))
-            return boost::make_unique<ValueRef::Constant<enumT>>(constant->Value());
-        return boost::make_unique<ValueRef::Constant<enumT>>(enumT(-1));
+            return std::make_unique<ValueRef::Constant<enumT>>(constant->Value());
+        return std::make_unique<ValueRef::Constant<enumT>>(enumT(-1));
     }
 
     std::map<std::string, std::string> object_list_cond_description_map;
@@ -444,7 +423,7 @@ namespace {
             return EXPLOREDBYEMPIRE_CONDITION;
         else if (dynamic_cast<const Condition::ContainedBy* const>(condition))
             return CONTAINEDBY_CONDITION;
-        else if (dynamic_cast<const Condition::InSystem* const>(condition))
+        else if (dynamic_cast<const Condition::InOrIsSystem* const>(condition))
             return INSYSTEM_CONDITION;
         else if (dynamic_cast<const Condition::ObjectID* const>(condition))
             return OBJECTID_CONDITION;
@@ -472,7 +451,7 @@ namespace {
     std::vector<std::string> StringsFromEnums(const std::vector<enumT>& enum_vals) {
         std::vector<std::string> retval;
         for (const enumT& enum_val : enum_vals)
-            retval.push_back(boost::lexical_cast<std::string>(enum_val));
+            retval.emplace_back(boost::lexical_cast<std::string>(enum_val));
         return retval;
     }
 }
@@ -488,7 +467,7 @@ public:
         GG::Control(x, y, CONDITION_WIDGET_WIDTH, GG::Y1, GG::INTERACTIVE)
     {
         if (!initial_condition) {
-            auto init_condition = boost::make_unique<Condition::All>();
+            auto init_condition = std::make_unique<Condition::All>();
             Init(init_condition.get());
         } else {
             Init(initial_condition);
@@ -511,21 +490,21 @@ public:
     std::unique_ptr<Condition::Condition> GetCondition() {
         auto row_it = m_class_drop->CurrentItem();
         if (row_it == m_class_drop->end())
-            return boost::make_unique<Condition::All>();
+            return std::make_unique<Condition::All>();
         ConditionRow* condition_row = dynamic_cast<ConditionRow*>(row_it->get());
         if (!condition_row)
-            return boost::make_unique<Condition::All>();
+            return std::make_unique<Condition::All>();
         const std::string& condition_key = condition_row->GetKey();
 
         if (condition_key == ALL_CONDITION) {
-            return boost::make_unique<Condition::All>();
+            return std::make_unique<Condition::All>();
 
         } else if (condition_key == EMPIREAFFILIATION_CONDITION) {
             EmpireAffiliationType affil = AFFIL_SELF;
 
             const std::string& empire_name = GetString();
             if (empire_name.empty())
-                return boost::make_unique<Condition::EmpireAffiliation>(affil);
+                return std::make_unique<Condition::EmpireAffiliation>(affil);
 
             // get id of empire matching name
             int empire_id = ALL_EMPIRES;
@@ -535,25 +514,25 @@ public:
                     break;
                 }
             }
-            return boost::make_unique<Condition::EmpireAffiliation>(
-                boost::make_unique<ValueRef::Constant<int>>(empire_id), affil);
+            return std::make_unique<Condition::EmpireAffiliation>(
+                std::make_unique<ValueRef::Constant<int>>(empire_id), affil);
 
         } else if (condition_key == HOMEWORLD_CONDITION) {
             const std::string& species_name = GetString();
             if (species_name.empty())
-                return boost::make_unique<Condition::Homeworld>();
+                return std::make_unique<Condition::Homeworld>();
             std::vector<std::unique_ptr<ValueRef::ValueRef<std::string>>> names;
-            names.push_back(boost::make_unique<ValueRef::Constant<std::string>>(species_name));
-            return boost::make_unique<Condition::Homeworld>(std::move(names));
+            names.emplace_back(std::make_unique<ValueRef::Constant<std::string>>(species_name));
+            return std::make_unique<Condition::Homeworld>(std::move(names));
 
         } else if (condition_key == CANCOLONIZE_CONDITION) {
-            return boost::make_unique<Condition::CanColonize>();
+            return std::make_unique<Condition::CanColonize>();
 
         } else if (condition_key == CANPRODUCESHIPS_CONDITION) {
-            return boost::make_unique<Condition::CanProduceShips>();
+            return std::make_unique<Condition::CanProduceShips>();
 
         } else if (condition_key == HASSPECIAL_CONDITION) {
-            return boost::make_unique<Condition::HasSpecial>(GetString());
+            return std::make_unique<Condition::HasSpecial>(GetString());
 
         } else if (condition_key == HASGROWTHSPECIAL_CONDITION) {
             std::vector<std::unique_ptr<Condition::Condition>> operands;
@@ -561,30 +540,30 @@ public:
             std::istringstream template_stream(UserString("FUNCTIONAL_GROWTH_SPECIALS_LIST"));
             for (auto stream_it = std::istream_iterator<std::string>(template_stream);
                  stream_it != std::istream_iterator<std::string>(); stream_it++)
-            { operands.push_back(boost::make_unique<Condition::HasSpecial>(*stream_it)); }
+            { operands.emplace_back(std::make_unique<Condition::HasSpecial>(*stream_it)); }
 
-            std::unique_ptr<Condition::Condition> this_cond = boost::make_unique<Condition::Or>(std::move(operands));
+            std::unique_ptr<Condition::Condition> this_cond = std::make_unique<Condition::Or>(std::move(operands));
             object_list_cond_description_map[this_cond->Description()] = HASGROWTHSPECIAL_CONDITION;
             return this_cond;
 
         } else if (condition_key == ASTWITHPTYPE_CONDITION) { // And [Planet PlanetType PT_ASTEROIDS ContainedBy And [System Contains PlanetType X]]
             std::vector<std::unique_ptr<Condition::Condition>> operands1;
-            operands1.push_back(boost::make_unique<Condition::Type>(boost::make_unique<ValueRef::Constant<UniverseObjectType>>(OBJ_PLANET)));
+            operands1.emplace_back(std::make_unique<Condition::Type>(std::make_unique<ValueRef::Constant<UniverseObjectType>>(OBJ_PLANET)));
             const std::string& text = GetString();
             if (text == UserString("CONDITION_ANY")) {
                 std::vector<std::unique_ptr<ValueRef::ValueRef<PlanetType>>> copytype;
-                copytype.push_back(boost::make_unique<ValueRef::Constant<PlanetType>>(PT_ASTEROIDS));
-                operands1.push_back(boost::make_unique<Condition::Not>(boost::make_unique<Condition::PlanetType>(std::move(copytype))));
+                copytype.emplace_back(std::make_unique<ValueRef::Constant<PlanetType>>(PT_ASTEROIDS));
+                operands1.emplace_back(std::make_unique<Condition::Not>(std::make_unique<Condition::PlanetType>(std::move(copytype))));
             } else {
-                operands1.push_back(boost::make_unique<Condition::PlanetType>(GetEnumValueRefVec< ::PlanetType>()));
+                operands1.emplace_back(std::make_unique<Condition::PlanetType>(GetEnumValueRefVec< ::PlanetType>()));
             }
             std::vector<std::unique_ptr<Condition::Condition>> operands2;
-            operands2.push_back(boost::make_unique<Condition::Type>(boost::make_unique<ValueRef::Constant<UniverseObjectType>>(OBJ_SYSTEM)));
+            operands2.emplace_back(std::make_unique<Condition::Type>(std::make_unique<ValueRef::Constant<UniverseObjectType>>(OBJ_SYSTEM)));
             std::vector<std::unique_ptr<ValueRef::ValueRef<PlanetType>>> maintype;
-            maintype.push_back(boost::make_unique<ValueRef::Constant<PlanetType>>(PT_ASTEROIDS));
-            operands2.push_back(boost::make_unique<Condition::Contains>(boost::make_unique<Condition::PlanetType>(std::move(maintype))));
-            operands1.push_back(boost::make_unique<Condition::ContainedBy>(boost::make_unique<Condition::And>(std::move(operands2))));
-            std::unique_ptr<Condition::Condition> this_cond = boost::make_unique<Condition::And>(std::move(operands1));
+            maintype.emplace_back(std::make_unique<ValueRef::Constant<PlanetType>>(PT_ASTEROIDS));
+            operands2.emplace_back(std::make_unique<Condition::Contains>(std::make_unique<Condition::PlanetType>(std::move(maintype))));
+            operands1.emplace_back(std::make_unique<Condition::ContainedBy>(std::make_unique<Condition::And>(std::move(operands2))));
+            std::unique_ptr<Condition::Condition> this_cond = std::make_unique<Condition::And>(std::move(operands1));
             object_list_cond_description_map[this_cond->Description()] = ASTWITHPTYPE_CONDITION;
             return this_cond;
 
@@ -593,55 +572,55 @@ public:
             const std::string& text = GetString();
             if (text == UserString("CONDITION_ANY")) {
                 std::vector<std::unique_ptr<ValueRef::ValueRef<PlanetType>>> copytype;
-                    copytype.push_back(boost::make_unique<ValueRef::Constant<PlanetType>>(PT_GASGIANT));
-                    operands1.push_back(boost::make_unique<Condition::Not>(boost::make_unique<Condition::PlanetType>(std::move(copytype))));
+                    copytype.emplace_back(std::make_unique<ValueRef::Constant<PlanetType>>(PT_GASGIANT));
+                    operands1.emplace_back(std::make_unique<Condition::Not>(std::make_unique<Condition::PlanetType>(std::move(copytype))));
             } else
-                operands1.push_back(boost::make_unique<Condition::PlanetType>(GetEnumValueRefVec< ::PlanetType>()));
+                operands1.emplace_back(std::make_unique<Condition::PlanetType>(GetEnumValueRefVec< ::PlanetType>()));
             std::vector<std::unique_ptr<Condition::Condition>> operands2;
-            operands2.push_back(boost::make_unique<Condition::Type>(boost::make_unique<ValueRef::Constant<UniverseObjectType>>(OBJ_SYSTEM)));
+            operands2.emplace_back(std::make_unique<Condition::Type>(std::make_unique<ValueRef::Constant<UniverseObjectType>>(OBJ_SYSTEM)));
             std::vector<std::unique_ptr<ValueRef::ValueRef<PlanetType>>> maintype;
-            maintype.push_back(boost::make_unique<ValueRef::Constant<PlanetType>>(PT_GASGIANT));
-            operands2.push_back(boost::make_unique<Condition::Contains>(boost::make_unique<Condition::PlanetType>(std::move(maintype))));
-            operands1.push_back(boost::make_unique<Condition::ContainedBy>(boost::make_unique<Condition::And>(std::move(operands2))));
-            std::unique_ptr<Condition::Condition> this_cond = boost::make_unique<Condition::And>(std::move(operands1));
+            maintype.emplace_back(std::make_unique<ValueRef::Constant<PlanetType>>(PT_GASGIANT));
+            operands2.emplace_back(std::make_unique<Condition::Contains>(std::make_unique<Condition::PlanetType>(std::move(maintype))));
+            operands1.emplace_back(std::make_unique<Condition::ContainedBy>(std::make_unique<Condition::And>(std::move(operands2))));
+            std::unique_ptr<Condition::Condition> this_cond = std::make_unique<Condition::And>(std::move(operands1));
             object_list_cond_description_map[this_cond->Description()] = GGWITHPTYPE_CONDITION;
             return this_cond;
 
         } else if (condition_key == HASTAG_CONDITION) {
-            return boost::make_unique<Condition::HasTag>(GetString());
+            return std::make_unique<Condition::HasTag>(GetString());
 
         } else if (condition_key == MONSTER_CONDITION) {
-            return boost::make_unique<Condition::Monster>();
+            return std::make_unique<Condition::Monster>();
 
         } else if (condition_key == CAPITAL_CONDITION) {
-            return boost::make_unique<Condition::Capital>();
+            return std::make_unique<Condition::Capital>();
 
         } else if (condition_key == ARMED_CONDITION) {
-            return boost::make_unique<Condition::Armed>();
+            return std::make_unique<Condition::Armed>();
 
         } else if (condition_key == STATIONARY_CONDITION) {
-            return boost::make_unique<Condition::Stationary>();
+            return std::make_unique<Condition::Stationary>();
 
         } else if (condition_key == SPECIES_CONDITION) {
-            return boost::make_unique<Condition::Species>(GetStringValueRefVec());
+            return std::make_unique<Condition::Species>(GetStringValueRefVec());
 
         } else if (condition_key == PLANETSIZE_CONDITION) {
-            return boost::make_unique<Condition::PlanetSize>(GetEnumValueRefVec< ::PlanetSize>());
+            return std::make_unique<Condition::PlanetSize>(GetEnumValueRefVec< ::PlanetSize>());
 
         } else if (condition_key == PLANETTYPE_CONDITION) {
-            return boost::make_unique<Condition::PlanetType>(GetEnumValueRefVec< ::PlanetType>());
+            return std::make_unique<Condition::PlanetType>(GetEnumValueRefVec< ::PlanetType>());
 
         } else if (condition_key == FOCUSTYPE_CONDITION) {
-            return boost::make_unique<Condition::FocusType>(GetStringValueRefVec());
+            return std::make_unique<Condition::FocusType>(GetStringValueRefVec());
 
         } else if (condition_key == STARTYPE_CONDITION) {
-            return boost::make_unique<Condition::StarType>(GetEnumValueRefVec< ::StarType>());
+            return std::make_unique<Condition::StarType>(GetEnumValueRefVec< ::StarType>());
 
         } else if (condition_key == METERVALUE_CONDITION) {
-            return boost::make_unique<Condition::MeterValue>(GetEnum< ::MeterType>(), GetDouble1ValueRef(), GetDouble2ValueRef());
+            return std::make_unique<Condition::MeterValue>(GetEnum< ::MeterType>(), GetDouble1ValueRef(), GetDouble2ValueRef());
         }
 
-        return boost::make_unique<Condition::All>();
+        return std::make_unique<Condition::All>();
     }
 
     void Render() override
@@ -651,7 +630,7 @@ private:
     class ConditionRow : public GG::ListBox::Row {
     public:
         ConditionRow(const std::string& key, GG::Y row_height) :
-            GG::ListBox::Row(GG::X1, row_height, ""),
+            GG::ListBox::Row(GG::X1, row_height),
             m_condition_key(key),
             m_label(GG::Wnd::Create<CUILabel>(UserString(m_condition_key), GG::FORMAT_LEFT | GG::FORMAT_NOWRAP))
         {}
@@ -672,7 +651,7 @@ private:
     class StringRow : public GG::ListBox::Row {
     public:
         StringRow(const std::string& text, GG::Y row_height, bool stringtable_lookup = true) :
-            GG::ListBox::Row(GG::X1, row_height, ""),
+            GG::ListBox::Row(GG::X1, row_height),
             m_string(text)
         {
             const std::string& label = (text.empty() ? EMPTY_STRING :
@@ -706,11 +685,11 @@ private:
     }
 
     std::unique_ptr<ValueRef::ValueRef<std::string>> GetStringValueRef()
-    { return boost::make_unique<ValueRef::Constant<std::string>>(GetString()); }
+    { return std::make_unique<ValueRef::Constant<std::string>>(GetString()); }
 
     std::vector<std::unique_ptr<ValueRef::ValueRef<std::string>>> GetStringValueRefVec() {
         std::vector<std::unique_ptr<ValueRef::ValueRef<std::string>>> retval;
-        retval.push_back(GetStringValueRef());
+        retval.emplace_back(GetStringValueRef());
         return retval;
     }
 
@@ -722,7 +701,7 @@ private:
     }
 
     std::unique_ptr<ValueRef::ValueRef<int>> GetInt1ValueRef()
-    { return boost::make_unique<ValueRef::Constant<int>>(GetInt1()); }
+    { return std::make_unique<ValueRef::Constant<int>>(GetInt1()); }
 
     int GetInt2() {
         if (m_param_spin2)
@@ -732,7 +711,7 @@ private:
     }
 
     std::unique_ptr<ValueRef::ValueRef<int>> GetInt2ValueRef()
-    { return boost::make_unique<ValueRef::Constant<int>>(GetInt2()); }
+    { return std::make_unique<ValueRef::Constant<int>>(GetInt2()); }
 
     double GetDouble1() {
         if (m_param_spin1)
@@ -742,7 +721,7 @@ private:
     }
 
     std::unique_ptr<ValueRef::ValueRef<double>> GetDouble1ValueRef()
-    { return boost::make_unique<ValueRef::Constant<double>>(GetDouble1()); }
+    { return std::make_unique<ValueRef::Constant<double>>(GetDouble1()); }
 
     double GetDouble2() {
         if (m_param_spin2)
@@ -752,7 +731,7 @@ private:
     }
 
     std::unique_ptr<ValueRef::ValueRef<double>> GetDouble2ValueRef()
-    { return boost::make_unique<ValueRef::Constant<double>>(GetDouble2()); }
+    { return std::make_unique<ValueRef::Constant<double>>(GetDouble2()); }
 
     template <typename T>
     T GetEnum() {
@@ -768,12 +747,12 @@ private:
 
     template <typename T>
     std::unique_ptr<ValueRef::ValueRef<T>> GetEnumValueRef()
-    { return boost::make_unique<ValueRef::Constant<T>>(GetEnum<T>()); }
+    { return std::make_unique<ValueRef::Constant<T>>(GetEnum<T>()); }
 
     template <typename T>
     std::vector<std::unique_ptr<ValueRef::ValueRef<T>>> GetEnumValueRefVec() {
         std::vector<std::unique_ptr<ValueRef::ValueRef<T>>> retval;
-        retval.push_back(std::move(GetEnumValueRef<T>()));
+        retval.emplace_back(std::move(GetEnumValueRef<T>()));
         return retval;
     }
 
@@ -817,7 +796,7 @@ private:
         }
 
         m_class_drop->SelChangedSignal.connect(
-            boost::bind(&ConditionWidget::ConditionClassSelected, this, _1));
+            boost::bind(&ConditionWidget::ConditionClassSelected, this, boost::placeholders::_1));
 
         if (select_row_it != m_class_drop->end())
             m_class_drop->Select(select_row_it);
@@ -940,7 +919,7 @@ private:
             std::vector< ::PlanetSize> planet_sizes;
             planet_sizes.reserve(NUM_PLANET_SIZES);
             for (auto size = SZ_TINY; size != NUM_PLANET_SIZES; size = ::PlanetSize(size + 1))
-                planet_sizes.push_back(size);
+                planet_sizes.emplace_back(size);
 
             auto row_it = m_string_drop->end();
             for (const std::string& text : StringsFromEnums(planet_sizes))
@@ -960,7 +939,7 @@ private:
             std::vector< ::PlanetType> planet_types;
             planet_types.reserve(NUM_PLANET_TYPES);
             for (::PlanetType type = PT_SWAMP; type != NUM_PLANET_TYPES; type = ::PlanetType(type + 1))
-                planet_types.push_back(type);
+                planet_types.emplace_back(type);
 
             auto row_it = m_string_drop->end();
             if (condition_key == GGWITHPTYPE_CONDITION || condition_key == ASTWITHPTYPE_CONDITION )
@@ -985,7 +964,7 @@ private:
             std::vector< ::StarType> star_types;
             star_types.reserve(NUM_STAR_TYPES);
             for (::StarType type = STAR_BLUE; type != NUM_STAR_TYPES; type = ::StarType(type + 1))
-                star_types.push_back(type);
+                star_types.emplace_back(type);
 
             auto row_it = m_string_drop->end();
             for (const std::string& text : StringsFromEnums(star_types)) {
@@ -1032,7 +1011,7 @@ private:
             std::vector< ::MeterType> meter_types;
             meter_types.reserve(NUM_METER_TYPES);
             for (auto type = METER_TARGET_POPULATION; type != NUM_METER_TYPES; type = ::MeterType(type + 1))
-                meter_types.push_back(type);
+                meter_types.emplace_back(type);
 
             auto row_it = m_string_drop->end();
             for (auto& text : StringsFromEnums(meter_types)) {
@@ -1077,10 +1056,10 @@ private:
         Resize(GG::Pt(Width(), param_widget_top));
     }
 
-    std::shared_ptr<GG::DropDownList>   m_class_drop = nullptr;
-    std::shared_ptr<GG::DropDownList>   m_string_drop = nullptr;
-    std::shared_ptr<GG::Spin<int>>      m_param_spin1 = nullptr;
-    std::shared_ptr<GG::Spin<int>>      m_param_spin2 = nullptr;
+    std::shared_ptr<GG::DropDownList>   m_class_drop;
+    std::shared_ptr<GG::DropDownList>   m_string_drop;
+    std::shared_ptr<GG::Spin<int>>      m_param_spin1;
+    std::shared_ptr<GG::Spin<int>>      m_param_spin2;
 };
 
 ////////////////////////////////////////////////
@@ -1113,10 +1092,10 @@ private:
                       std::shared_ptr<GG::StateButton>>>    m_filter_buttons;
     bool                                                    m_accept_changes = false;
 
-    std::shared_ptr<ConditionWidget>    m_condition_widget = nullptr;
-    std::shared_ptr<GG::Layout>         m_filters_layout = nullptr;
-    std::shared_ptr<GG::Button>         m_cancel_button = nullptr;
-    std::shared_ptr<GG::Button>         m_apply_button = nullptr;
+    std::shared_ptr<ConditionWidget>    m_condition_widget;
+    std::shared_ptr<GG::Layout>         m_filters_layout;
+    std::shared_ptr<GG::Button>         m_cancel_button;
+    std::shared_ptr<GG::Button>         m_apply_button;
 };
 
 
@@ -1190,7 +1169,7 @@ void FilterDialog::CompleteConstruction() {
             button->SetCheck(vis_display.count(visibility));
             m_filters_layout->Add(button, row, col, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
             button->CheckedSignal.connect(
-                boost::bind(&FilterDialog::UpdateVisFiltersFromStateButtons, this, _1));
+                boost::bind(&FilterDialog::UpdateVisFiltersFromStateButtons, this, boost::placeholders::_1));
             m_filter_buttons[uot][visibility] = button;
 
             ++row;
@@ -1209,10 +1188,8 @@ void FilterDialog::CompleteConstruction() {
     AttachChild(m_cancel_button);
     AttachChild(m_apply_button);
 
-    m_cancel_button->LeftClickedSignal.connect(
-        boost::bind(&FilterDialog::CancelClicked, this));
-    m_apply_button->LeftClickedSignal.connect(
-        boost::bind(&FilterDialog::AcceptClicked, this));
+    m_cancel_button->LeftClickedSignal.connect(boost::bind(&FilterDialog::CancelClicked, this));
+    m_apply_button->LeftClickedSignal.connect(boost::bind(&FilterDialog::AcceptClicked, this));
 
     ResetDefaultPosition();
 
@@ -1328,16 +1305,16 @@ namespace {
             auto ship = std::dynamic_pointer_cast<const Ship>(obj);
             if (ship) {
                 if (const ShipDesign* design = ship->Design())
-                    retval.push_back(ClientUI::ShipDesignIcon(design->ID()));
+                    retval.emplace_back(ClientUI::ShipDesignIcon(design->ID()));
             }
             if (retval.empty()) {
-                retval.push_back(ClientUI::ShipDesignIcon(INVALID_OBJECT_ID));  // default icon
+                retval.emplace_back(ClientUI::ShipDesignIcon(INVALID_OBJECT_ID));  // default icon
             }
         } else if (obj->ObjectType() == OBJ_FLEET) {
             if (auto fleet = std::dynamic_pointer_cast<const Fleet>(obj)) {
                 auto size_icon = FleetSizeIcon(fleet, FleetButton::SizeType::LARGE);
                 if (size_icon)
-                    retval.push_back(size_icon);
+                    retval.emplace_back(size_icon);
                 auto head_icons = FleetHeadIcons(fleet, FleetButton::SizeType::LARGE);
                 std::copy(head_icons.begin(), head_icons.end(), std::back_inserter(retval));
             }
@@ -1348,24 +1325,24 @@ namespace {
                 auto disc_texture = ui->GetModuloTexture(
                     ClientUI::ArtDir() / "stars", ClientUI::StarTypeFilePrefixes()[star_type], system->ID());
                 if (disc_texture)
-                    retval.push_back(disc_texture);
+                    retval.emplace_back(disc_texture);
                 auto halo_texture = ui->GetModuloTexture(
                     ClientUI::ArtDir() / "stars", ClientUI::HaloStarTypeFilePrefixes()[star_type], system->ID());
                 if (halo_texture)
-                    retval.push_back(halo_texture);
+                    retval.emplace_back(halo_texture);
             }
         } else if (obj->ObjectType() == OBJ_PLANET) {
             if (auto planet = std::dynamic_pointer_cast<const Planet>(obj))
-                retval.push_back(ClientUI::PlanetIcon(planet->Type()));
+                retval.emplace_back(ClientUI::PlanetIcon(planet->Type()));
         } else if (obj->ObjectType() == OBJ_BUILDING) {
             if (auto building = std::dynamic_pointer_cast<const Building>(obj))
-                retval.push_back(ClientUI::BuildingIcon(building->BuildingTypeName()));
+                retval.emplace_back(ClientUI::BuildingIcon(building->BuildingTypeName()));
         } else if (obj->ObjectType() == OBJ_FIELD) {
             if (auto field = std::dynamic_pointer_cast<const Field>(obj))
-                retval.push_back(ClientUI::FieldTexture(field->FieldTypeName()));
+                retval.emplace_back(ClientUI::FieldTexture(field->FieldTypeName()));
         } // OBJ_FIGHTER shouldn't exist outside of combat, so ignored here
         if (retval.empty())
-            retval.push_back(ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "generic_object.png", true));
+            retval.emplace_back(ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "generic_object.png", true));
         return retval;
     }
 
@@ -1540,7 +1517,7 @@ private:
         m_controls.clear();
 
         for (auto& control : GetControls()) {
-            m_controls.push_back(control);
+            m_controls.emplace_back(control);
             AttachChild(control);
         }
 
@@ -1555,7 +1532,7 @@ private:
             std::string col_val = SortKey(i);
             auto control = GG::Wnd::Create<CUILabel>(col_val, GG::FORMAT_LEFT);
             control->Resize(GG::Pt(GG::X(GetColumnWidth(i)), ClientHeight()));
-            retval.push_back(control);
+            retval.emplace_back(control);
         }
 
         return retval;
@@ -1583,13 +1560,16 @@ public:
     ObjectRow(GG::X w, GG::Y h, std::shared_ptr<const UniverseObject> obj, bool expanded,
               int container_object_panel, const id_range& contained_object_panels,
               int indent) :
-        GG::ListBox::Row(w, h, "", GG::ALIGN_CENTER, 1),
+        GG::ListBox::Row(w, h),
         m_container_object_panel(container_object_panel),
         m_contained_object_panels(contained_object_panels.begin(), contained_object_panels.end()),
         m_obj_init(obj),
         m_expanded_init(expanded),
         m_indent_init(indent)
-    {}
+    {
+        SetMargin(1);
+        SetRowAlignment(GG::ALIGN_VCENTER);
+    }
 
     void CompleteConstruction() override {
         GG::ListBox::Row::CompleteConstruction();
@@ -1687,7 +1667,7 @@ public:
         auto&& controls = GetControls();
         m_controls.reserve(controls.size());
         for (int i = 0; i < static_cast<int>(controls.size()); ++i) {
-            m_controls.push_back(controls[i]);
+            m_controls.emplace_back(controls[i]);
             AttachChild(controls[i]);
             controls[i]->LeftClickedSignal.connect(
                 [this, i](){ this->ColumnButtonLeftClickSignal(i - 1); });
@@ -1730,10 +1710,7 @@ private:
             return;
 
         std::string current_column_type = GetColumnName(column_id);
-
         const auto& available_column_types = AvailableColumnTypes();
-
-        int index = 1;
 
         auto popup = GG::Wnd::Create<CUIPopupMenu>(clicked_button->Left(), clicked_button->Bottom());
 
@@ -1763,18 +1740,13 @@ private:
             if (entry.first.second.empty())
                 popup->AddMenuItem(GG::MenuItem(menu_label, false, check, col_action));
             else if (entry.first.second == "METERS_SUBMENU")
-                meters_submenu.next_level.push_back(
-                    GG::MenuItem(menu_label,  false, check, col_action));
+                meters_submenu.next_level.emplace_back(menu_label,  false, check, col_action);
             else if (entry.first.second == "PLANETS_SUBMENU")
-                planets_submenu.next_level.push_back(
-                    GG::MenuItem(menu_label, false, check, col_action));
+                planets_submenu.next_level.emplace_back(menu_label, false, check, col_action);
             else if (entry.first.second == "PLANET_ENVIRONMENTS_SUBMENU")
-                env_submenu.next_level.push_back(
-                    GG::MenuItem(menu_label,  false, check, col_action));
+                env_submenu.next_level.emplace_back(menu_label,  false, check, col_action);
             else if (entry.first.second == "FLEETS_SUBMENU")
-                fleets_submenu.next_level.push_back(
-                    GG::MenuItem(menu_label,  false, check, col_action));
-            ++index;
+                fleets_submenu.next_level.emplace_back(menu_label,  false, check, col_action);
         }
         popup->AddMenuItem(std::move(meters_submenu));
         popup->AddMenuItem(std::move(planets_submenu));
@@ -1789,7 +1761,7 @@ private:
         retval.reserve(NUM_COLUMNS);
 
         auto control = Wnd::Create<CUIButton>("-");
-        retval.push_back(control);
+        retval.emplace_back(control);
 
         for (unsigned int i = 0; i < NUM_COLUMNS; ++i) {
             std::string text;
@@ -1797,7 +1769,7 @@ private:
             if (!header_name.empty())
                 text = UserString(header_name);
             control = Wnd::Create<CUIButton>(text);
-            retval.push_back(control);
+            retval.emplace_back(control);
         }
 
         return retval;
@@ -1812,8 +1784,10 @@ private:
 class ObjectHeaderRow : public GG::ListBox::Row {
 public:
     ObjectHeaderRow(GG::X w, GG::Y h) :
-        GG::ListBox::Row(w, h, "", GG::ALIGN_CENTER, 1)
+        GG::ListBox::Row(w, h)
     {
+        SetMargin(1);
+        SetRowAlignment(GG::ALIGN_CENTER);
         m_panel = GG::Wnd::Create<ObjectHeaderPanel>(w, h);
     }
 
@@ -1821,10 +1795,8 @@ public:
         GG::ListBox::Row::CompleteConstruction();
 
         push_back(m_panel);
-        m_panel->ColumnButtonLeftClickSignal.connect(
-            ColumnHeaderLeftClickSignal);
-        m_panel->ColumnsChangedSignal.connect(
-            ColumnsChangedSignal);
+        m_panel->ColumnButtonLeftClickSignal.connect(ColumnHeaderLeftClickSignal);
+        m_panel->ColumnsChangedSignal.connect(ColumnsChangedSignal);
     }
 
     void SizeMove(const GG::Pt& ul, const GG::Pt& lr) override {
@@ -1889,7 +1861,7 @@ public:
 
         SetVScrollWheelIncrement(Value(ListRowHeight())*4);
 
-        m_filter_condition = boost::make_unique<Condition::All>();
+        m_filter_condition = std::make_unique<Condition::All>();
 
         //m_visibilities[OBJ_BUILDING].insert(SHOW_VISIBLE);
         //m_visibilities[OBJ_BUILDING].insert(SHOW_PREVIOUSLY_VISIBLE);
@@ -2063,9 +2035,9 @@ public:
             std::vector<int> system_contents;
             system_contents.reserve(system_planets[system->ID()].size() + system_fleets[system->ID()].size());
             for (const auto& planet : system_planets[system->ID()])
-                system_contents.push_back(planet->ID());
+                system_contents.emplace_back(planet->ID());
             for (const auto& fleet : system_fleets[system->ID()])
-                system_contents.push_back(fleet->ID());
+                system_contents.emplace_back(fleet->ID());
 
             AddObjectRow(system, INVALID_OBJECT_ID, system_contents, indent);
             if (ObjectCollapsed(system->ID())) {
@@ -2085,7 +2057,7 @@ public:
                 std::vector<int> planet_contents;
                 planet_contents.reserve(planet_buildings[planet->ID()].size());
                 for (const auto& building : planet_buildings[planet->ID()])
-                    planet_contents.push_back(building->ID());
+                    planet_contents.emplace_back(building->ID());
 
                 AddObjectRow(planet, system->ID(), planet_contents, indent);
                 if (ObjectCollapsed(planet->ID())) {
@@ -2109,7 +2081,7 @@ public:
                 std::vector<int> fleet_contents;
                 fleet_contents.reserve(fleet_ships[fleet->ID()].size());
                 for (const auto& ship : fleet_ships[fleet->ID()])
-                    fleet_contents.push_back(ship->ID());
+                    fleet_contents.emplace_back(ship->ID());
 
                 AddObjectRow(fleet, system->ID(), fleet_contents, indent);
                 if (ObjectCollapsed(fleet->ID())) {
@@ -2143,7 +2115,7 @@ public:
                 std::vector<int> planet_contents;
                 planet_contents.reserve(planet_buildings[planet->ID()].size());
                 for (const auto& building : planet_buildings[planet->ID()])
-                    planet_contents.push_back(building->ID());
+                    planet_contents.emplace_back(building->ID());
 
                 AddObjectRow(planet, sys_planets.first, planet_contents, indent);
                 if (ObjectCollapsed(planet->ID())) {
@@ -2174,7 +2146,7 @@ public:
                 std::vector<int> fleet_contents;
                 fleet_contents.reserve(fleet_ships[fleet->ID()].size());
                 for (const auto& ship : fleet_ships[fleet->ID()])
-                    fleet_contents.push_back(ship->ID());
+                    fleet_contents.emplace_back(ship->ID());
 
                 AddObjectRow(fleet, sys_fleets.first, fleet_contents, indent);
                 if (ObjectCollapsed(fleet->ID())) {
@@ -2273,7 +2245,8 @@ private:
         this->Insert(object_row);
         object_row->Resize(row_size);
         object_row->ExpandCollapseSignal.connect(
-            boost::bind(&ObjectListBox::ObjectExpandCollapseClicked, this, _1), boost::signals2::at_front);
+            boost::bind(&ObjectListBox::ObjectExpandCollapseClicked, this, boost::placeholders::_1),
+            boost::signals2::at_front);
         m_object_change_connections[obj->ID()].disconnect();
         m_object_change_connections[obj->ID()] = obj->StateChangedSignal.connect(
             boost::bind(&ObjectListBox::ObjectStateChanged, this, obj->ID()), boost::signals2::at_front);
@@ -2373,9 +2346,9 @@ private:
 
     std::map<int, boost::signals2::connection>          m_object_change_connections;
     std::set<int>                                       m_collapsed_objects;
-    std::unique_ptr<Condition::Condition>           m_filter_condition = nullptr;
+    std::unique_ptr<Condition::Condition>               m_filter_condition;
     std::map<UniverseObjectType, std::set<VIS_DISPLAY>> m_visibilities;
-    std::shared_ptr<ObjectHeaderRow>                    m_header_row = nullptr;
+    std::shared_ptr<ObjectHeaderRow>                    m_header_row;
     boost::signals2::connection                         m_obj_deleted_connection;
 };
 
@@ -2393,19 +2366,20 @@ void ObjectListWnd::CompleteConstruction() {
     m_list_box->SetHiliteColor(GG::CLR_ZERO);
     m_list_box->SetStyle(GG::LIST_NOSORT);
 
+    namespace ph = boost::placeholders;
+
     m_list_box->SelRowsChangedSignal.connect(
-        boost::bind(&ObjectListWnd::ObjectSelectionChanged, this, _1));
+        boost::bind(&ObjectListWnd::ObjectSelectionChanged, this, ph::_1));
     m_list_box->DoubleClickedRowSignal.connect(
-        boost::bind(&ObjectListWnd::ObjectDoubleClicked, this, _1, _2, _3));
+        boost::bind(&ObjectListWnd::ObjectDoubleClicked, this, ph::_1, ph::_2, ph::_3));
     m_list_box->RightClickedRowSignal.connect(
-        boost::bind(&ObjectListWnd::ObjectRightClicked, this, _1, _2, _3));
+        boost::bind(&ObjectListWnd::ObjectRightClicked, this, ph::_1, ph::_2, ph::_3));
     m_list_box->ExpandCollapseSignal.connect(
         boost::bind(&ObjectListWnd::DoLayout, this));
     AttachChild(m_list_box);
 
     m_filter_button = Wnd::Create<CUIButton>(UserString("FILTERS"));
-    m_filter_button->LeftClickedSignal.connect(
-        boost::bind(&ObjectListWnd::FilterClicked, this));
+    m_filter_button->LeftClickedSignal.connect(boost::bind(&ObjectListWnd::FilterClicked, this));
     AttachChild(m_filter_button);
 
     m_collapse_button = Wnd::Create<CUIButton>(UserString("COLLAPSE_ALL"));
@@ -2611,8 +2585,7 @@ void ObjectListWnd::ObjectRightClicked(GG::ListBox::iterator it, const GG::Pt& p
 
             std::stringstream out;
             out << UserString(entry.first) << " (" << entry.second << ")";
-            focusMenuItem.next_level.push_back(
-                GG::MenuItem(out.str(), false, false, focus_action));
+            focusMenuItem.next_level.emplace_back(out.str(), false, false, focus_action);
         }
         if (menuitem_id > MENUITEM_SET_FOCUS_BASE)
             popup->AddMenuItem(std::move(focusMenuItem));
@@ -2635,7 +2608,9 @@ void ObjectListWnd::ObjectRightClicked(GG::ListBox::iterator it, const GG::Pt& p
                     if (!one_planet || !one_planet->OwnedBy(app->EmpireID()) || !cur_empire->ProducibleItem(BT_SHIP, ship_design, row->ObjectID()))
                         continue;
                     ProductionQueue::ProductionItem ship_item(BT_SHIP, ship_design);
-                    app->Orders().IssueOrder(std::make_shared<ProductionQueueOrder>(app->EmpireID(), ship_item, 1, row->ObjectID(), pos));
+                    app->Orders().IssueOrder(std::make_shared<ProductionQueueOrder>(
+                        ProductionQueueOrder::PLACE_IN_QUEUE, app->EmpireID(),
+                        ship_item, 1, row->ObjectID(), pos));
                     needs_queue_update = true;
                 }
                 if (needs_queue_update)
@@ -2648,8 +2623,8 @@ void ObjectListWnd::ObjectRightClicked(GG::ListBox::iterator it, const GG::Pt& p
 
             std::stringstream out;
             out << GetShipDesign(design_it->first)->Name() << " (" << design_it->second << ")";
-            ship_menu_item_top.next_level.push_back(GG::MenuItem(out.str(), false, false, produce_ship_action_top));
-            ship_menu_item.next_level.push_back(GG::MenuItem(out.str(), false, false, produce_ship_action_bottom));
+            ship_menu_item_top.next_level.emplace_back(out.str(), false, false, produce_ship_action_top);
+            ship_menu_item.next_level.emplace_back(out.str(), false, false, produce_ship_action_bottom);
         }
 
         if (ship_menuitem_id > MENUITEM_SET_SHIP_BASE) {
@@ -2666,10 +2641,10 @@ void ObjectListWnd::ObjectRightClicked(GG::ListBox::iterator it, const GG::Pt& p
                 std::string bld = entry.first;
                 bool needs_queue_update(false);
                 for (const auto& selection : m_list_box->Selections()) {
-                    ObjectRow *row = dynamic_cast<ObjectRow *>(selection->get());
+                    auto row = dynamic_cast<ObjectRow *>(selection->get());
                     if (!row)
                         continue;
-                    std::shared_ptr<Planet> one_planet = Objects().get<Planet>(row->ObjectID());
+                    auto one_planet = Objects().get<Planet>(row->ObjectID());
                     if (!one_planet || !one_planet->OwnedBy(app->EmpireID())
                         || !cur_empire->EnqueuableItem(BT_BUILDING, bld, row->ObjectID())
                         || !cur_empire->ProducibleItem(BT_BUILDING, bld, row->ObjectID()))
@@ -2677,7 +2652,9 @@ void ObjectListWnd::ObjectRightClicked(GG::ListBox::iterator it, const GG::Pt& p
                         continue;
                     }
                     ProductionQueue::ProductionItem bld_item(BT_BUILDING, bld);
-                    app->Orders().IssueOrder(std::make_shared<ProductionQueueOrder>(app->EmpireID(), bld_item, 1, row->ObjectID(), pos));
+                    app->Orders().IssueOrder(std::make_shared<ProductionQueueOrder>(
+                        ProductionQueueOrder::PLACE_IN_QUEUE, app->EmpireID(),
+                        bld_item, 1, row->ObjectID(), pos));
                     needs_queue_update = true;
                 }
                 if (needs_queue_update)
@@ -2690,8 +2667,8 @@ void ObjectListWnd::ObjectRightClicked(GG::ListBox::iterator it, const GG::Pt& p
 
             std::stringstream out;
             out << UserString(entry.first) << " (" << entry.second << ")";
-            building_menu_item_top.next_level.push_back(GG::MenuItem(out.str(), false, false, produce_building_action_top));
-            building_menu_item.next_level.push_back(GG::MenuItem(out.str(), false, false, produce_building_action_bottom));
+            building_menu_item_top.next_level.emplace_back(out.str(), false, false, produce_building_action_top);
+            building_menu_item.next_level.emplace_back(out.str(), false, false, produce_building_action_bottom);
         }
 
         if (bld_menuitem_id > MENUITEM_SET_BUILDING_BASE) {

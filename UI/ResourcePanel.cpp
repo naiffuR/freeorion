@@ -32,10 +32,7 @@ namespace {
 
 ResourcePanel::ResourcePanel(GG::X w, int object_id) :
     AccordionPanel(w, GG::Y(ClientUI::Pts()*2)),
-    m_rescenter_id(object_id),
-    m_meter_stats(),
-    m_multi_icon_value_indicator(nullptr),
-    m_multi_meter_status_bar(nullptr)
+    m_rescenter_id(object_id)
 {}
 
 void ResourcePanel::CompleteConstruction() {
@@ -60,11 +57,11 @@ void ResourcePanel::CompleteConstruction() {
     std::vector<std::pair<MeterType, MeterType>> meters;
 
     // small meter indicators - for use when panel is collapsed
-    for (MeterType meter : {METER_INDUSTRY, METER_RESEARCH,
+    for (MeterType meter : {METER_INDUSTRY, METER_RESEARCH, METER_INFLUENCE,
                             METER_SUPPLY, METER_STOCKPILE})
     {
         auto stat = GG::Wnd::Create<StatisticIcon>(
-            ClientUI::MeterIcon(meter), obj->InitialMeterValue(meter),
+            ClientUI::MeterIcon(meter), obj->GetMeter(meter)->Initial(),
             3, false, MeterIconSize().x, MeterIconSize().y);
         AttachChild(stat);
         m_meter_stats.push_back({meter, stat});
@@ -112,8 +109,8 @@ namespace {
                           std::pair<MeterType, std::shared_ptr<StatisticIcon>> right)
     {
         if (left.second->GetValue() == right.second->GetValue()) {
-            if (left.first == METER_TRADE && right.first == METER_CONSTRUCTION) {
-                // swap order of METER_TRADE and METER_CONSTRUCTION in relation to
+            if (left.first == METER_INFLUENCE && right.first == METER_CONSTRUCTION) {
+                // swap order of METER_INFLUENCE and METER_CONSTRUCTION in relation to
                 // MeterType enum.
                 return false;
             }
@@ -144,7 +141,7 @@ void ResourcePanel::Update() {
 
     // tooltips
     for (auto& meter_stat : m_meter_stats) {
-        meter_stat.second->SetValue(obj->InitialMeterValue(meter_stat.first));
+        meter_stat.second->SetValue(obj->GetMeter(meter_stat.first)->Initial());
 
         auto browse_wnd = GG::Wnd::Create<MeterBrowseWnd>(m_rescenter_id, meter_stat.first, AssociatedMeterType(meter_stat.first));
         meter_stat.second->SetBrowseInfoWnd(browse_wnd);

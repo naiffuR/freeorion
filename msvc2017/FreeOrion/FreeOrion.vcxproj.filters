@@ -369,6 +369,9 @@
     <ClInclude Include="..\..\universe\Field.h">
       <Filter>Header Files\universe</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\universe\FieldType.h">
+      <Filter>Header Files\universe</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\UI\ModeratorActionsWnd.h">
       <Filter>Header Files\UI</Filter>
     </ClInclude>
@@ -403,6 +406,12 @@
       <Filter>Header Files\UI</Filter>
     </ClInclude>
     <ClInclude Include="StdAfx.h" />
+    <ClInclude Include="..\..\UI\SDLGUI.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\UI\GovernmentWnd.h">
+      <Filter>Header Files\UI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\client\human\FreeOrion.ico">
@@ -609,6 +618,12 @@
       <Filter>Source Files\UI</Filter>
     </ClCompile>
     <ClCompile Include="StdAfx.cpp" />
+    <ClCompile Include="..\..\UI\SDLGUI.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\UI\GovernmentWnd.cpp">
+      <Filter>Source Files\UI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\..\client\human\FreeOrion.rc">

@@ -3,6 +3,7 @@
 #include "ParseImpl.h"
 
 #include "../universe/Encyclopedia.h"
+#include "../util/Directories.h"
 
 #include <boost/spirit/include/phoenix.hpp>
 
@@ -85,12 +86,12 @@ namespace {
 namespace parse {
     ArticleMap encyclopedia_articles(const boost::filesystem::path& path) {
         const lexer lexer;
-        std::vector<boost::filesystem::path> file_list = ListScripts(path);
-
         ArticleMap articles;
-        for (const boost::filesystem::path& file : file_list) {
-            /*auto success =*/ detail::parse_file<grammar, ArticleMap>(lexer, file, articles);
-        }
+
+        ScopedTimer timer("Encyclopedia Parsing", true);
+
+        for (const auto& file : ListDir(path, IsFOCScript))
+            detail::parse_file<grammar, ArticleMap>(lexer, file, articles);
 
         return articles;
     }

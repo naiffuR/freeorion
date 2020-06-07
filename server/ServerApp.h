@@ -1,19 +1,18 @@
 #ifndef _ServerApp_h_
 #define _ServerApp_h_
 
+#include <set>
+#include <vector>
+#include <boost/circular_buffer.hpp>
 #include "ServerFramework.h"
 #include "ServerNetworking.h"
-#include "../util/Process.h"
 #include "../Empire/EmpireManager.h"
 #include "../Empire/Supply.h"
 #include "../universe/Universe.h"
 #include "../util/AppInterface.h"
 #include "../util/MultiplayerCommon.h"
+#include "../util/Process.h"
 
-#include <set>
-#include <vector>
-
-#include <boost/circular_buffer.hpp>
 
 class OrderSet;
 struct GalaxySetupData;
@@ -91,6 +90,8 @@ public:
     std::vector<PlayerSaveGameData> GetPlayerSaveGameData() const;
 
     bool IsTurnExpired() const;
+
+    bool IsHaveWinner() const;
     //@}
 
 
@@ -138,7 +139,7 @@ public:
     void    UpdateMonsterTravelRestrictions();
 
     /** Determines resource and supply distribution pathes and connections,
-      * updates research, production, trade spending,
+      * updates research, production, influence spending,
       * does population growth, updates current turn number, checks for
       * eliminated or victorious empires / players, sends new turn updates. */
     void    PostCombatProcessTurns();

@@ -1,73 +1,70 @@
 #include "MapWnd.h"
 
-#include "CensusBrowseWnd.h"
-#include "ResourceBrowseWnd.h"
-#include "ChatWnd.h"
-#include "PlayerListWnd.h"
-#include "ClientUI.h"
-#include "CUIControls.h"
-#include "CUIDrawUtil.h"
-#include "CombatReport/CombatReportWnd.h"
-#include "FleetButton.h"
-#include "FleetWnd.h"
-#include "InGameMenu.h"
-#include "DesignWnd.h"
-#include "ProductionWnd.h"
-#include "ResearchWnd.h"
-#include "EncyclopediaDetailPanel.h"
-#include "ObjectListWnd.h"
-#include "ModeratorActionsWnd.h"
-#include "SidePanel.h"
-#include "SitRepPanel.h"
-#include "SystemIcon.h"
-#include "FieldIcon.h"
-#include "ShaderProgram.h"
-#include "Hotkeys.h"
-#include "Sound.h"
-#include "TextBrowseWnd.h"
-#include "../util/Directories.h"
-#include "../util/i18n.h"
-#include "../util/Logger.h"
-#include "../util/GameRules.h"
-#include "../util/OptionsDB.h"
-#include "../util/Order.h"
-#include "../util/Random.h"
-#include "../util/ModeratorAction.h"
-#include "../util/ScopedTimer.h"
-#include "../universe/Enums.h"
-#include "../universe/Fleet.h"
-#include "../universe/Planet.h"
-#include "../universe/Predicates.h"
-#include "../universe/Ship.h"
-#include "../universe/ShipDesign.h"
-#include "../universe/Species.h"
-#include "../universe/System.h"
-#include "../universe/Field.h"
-#include "../universe/Pathfinder.h"
-#include "../universe/Universe.h"
-#include "../universe/UniverseObject.h"
-#include "../Empire/Empire.h"
-#include "../network/Message.h"
-#include "../client/ClientNetworking.h"
-#include "../client/human/HumanClientApp.h"
-
+#include <deque>
+#include <unordered_map>
+#include <unordered_set>
+#include <valarray>
+#include <vector>
 #include <boost/graph/graph_concepts.hpp>
-#include <boost/unordered_map.hpp>
 #include <boost/optional/optional.hpp>
-#include <boost/range/numeric.hpp>
 #include <boost/range/adaptor/map.hpp>
-
-#include <GG/DrawUtil.h>
+#include <boost/range/numeric.hpp>
 #include <GG/Layout.h>
 #include <GG/MultiEdit.h>
 #include <GG/PtRect.h>
 #include <GG/WndEvent.h>
+#include "CensusBrowseWnd.h"
+#include "ChatWnd.h"
+#include "ClientUI.h"
+#include "CombatReport/CombatReportWnd.h"
+#include "CUIControls.h"
+#include "CUIDrawUtil.h"
+#include "DesignWnd.h"
+#include "EncyclopediaDetailPanel.h"
+#include "FieldIcon.h"
+#include "FleetButton.h"
+#include "FleetWnd.h"
+#include "GovernmentWnd.h"
+#include "Hotkeys.h"
+#include "InGameMenu.h"
+#include "ModeratorActionsWnd.h"
+#include "ObjectListWnd.h"
+#include "PlayerListWnd.h"
+#include "ProductionWnd.h"
+#include "ResearchWnd.h"
+#include "ResourceBrowseWnd.h"
+#include "ShaderProgram.h"
+#include "SidePanel.h"
+#include "SitRepPanel.h"
+#include "Sound.h"
+#include "SystemIcon.h"
+#include "TextBrowseWnd.h"
+#include "../client/ClientNetworking.h"
+#include "../client/human/HumanClientApp.h"
+#include "../Empire/Empire.h"
+#include "../network/Message.h"
+#include "../universe/Enums.h"
+#include "../universe/Field.h"
+#include "../universe/Fleet.h"
+#include "../universe/Pathfinder.h"
+#include "../universe/Planet.h"
+#include "../universe/Predicates.h"
+#include "../universe/ShipDesign.h"
+#include "../universe/Ship.h"
+#include "../universe/Species.h"
+#include "../universe/System.h"
+#include "../universe/Universe.h"
+#include "../universe/UniverseObject.h"
+#include "../util/Directories.h"
+#include "../util/GameRules.h"
+#include "../util/i18n.h"
+#include "../util/Logger.h"
+#include "../util/ModeratorAction.h"
+#include "../util/OptionsDB.h"
+#include "../util/Order.h"
+#include "../util/Random.h"
+#include "../util/ScopedTimer.h"
 
-#include <deque>
-#include <unordered_set>
-#include <valarray>
-#include <vector>
-#include <unordered_map>
 
 namespace {
     const double    ZOOM_STEP_SIZE = std::pow(2.0, 1.0/4.0);
@@ -85,15 +82,20 @@ namespace {
     const std::string MODERATOR_WND_NAME = "map.moderator";
     const std::string COMBAT_REPORT_WND_NAME = "combat.summary";
     const std::string MAP_SIDEPANEL_WND_NAME = "map.sidepanel";
+    const std::string GOVERNMENT_WND_NAME = "map.government";
 
-    const GG::Y     ZOOM_SLIDER_HEIGHT(200);
-    const GG::Y     SCALE_LINE_HEIGHT(20);
-    const GG::X     SCALE_LINE_MAX_WIDTH(240);
-    const int       MIN_SYSTEM_NAME_SIZE = 10;
-    const int       LAYOUT_MARGIN = 5;
-    const GG::Y     TOOLBAR_HEIGHT(32);
+    const GG::Y ZOOM_SLIDER_HEIGHT(200);
+    const GG::Y SCALE_LINE_HEIGHT(20);
+    const GG::X SCALE_LINE_MAX_WIDTH(240);
+    const int   MIN_SYSTEM_NAME_SIZE = 10;
+    const int   LAYOUT_MARGIN = 5;
+    const GG::Y TOOLBAR_HEIGHT(32);
 
-    const double    TWO_PI = 2.0*3.1415926536;
+    constexpr double TWO_PI = 2.0*3.1415926536;
+
+    const GG::X ICON_DUAL_WIDTH(100);
+    const GG::X ICON_WIDTH(24);
+
 
     DeclareThreadSafeLogger(effects);
 
@@ -316,7 +318,7 @@ namespace {
         FleetDetailBrowseWnd(int empire_id, GG::X width) :
             GG::BrowseInfoWnd(GG::X0, GG::Y0, width, GG::Y(ClientUI::Pts())),
             m_empire_id(empire_id),
-            m_margin(5)
+            m_margin(LAYOUT_MARGIN)
         {
             GG::X value_col_width{(m_margin * 3) + (ClientUI::Pts() * 3)};
             m_col_widths = {width - value_col_width, value_col_width};
@@ -594,11 +596,7 @@ namespace {
 class MapWnd::MapScaleLine : public GG::Control {
 public:
     MapScaleLine(GG::X x, GG::Y y, GG::X w, GG::Y h) :
-        GG::Control(x, y, w, h, GG::ONTOP),
-        m_scale_factor(1.0),
-        m_line_length(GG::X1),
-        m_label(nullptr),
-        m_enabled(false)
+        GG::Control(x, y, w, h, GG::ONTOP)
     {
         m_label = GG::Wnd::Create<GG::TextControl>(GG::X0, GG::Y0, GG::X1, GG::Y1, "", ClientUI::GetFont(), ClientUI::TextColor());
     }
@@ -678,7 +676,7 @@ public:
             for (const auto& ship : Objects().find<Ship>(fleet->ShipIDs())) {
                 if (!ship)
                     continue;
-                const float ship_range = ship->InitialMeterValue(METER_DETECTION);
+                const float ship_range = ship->GetMeter(METER_DETECTION)->Initial();
                 if (ship_range > 20)
                     fixed_distances.insert(ship_range);
                 const float ship_speed = ship->Speed();
@@ -691,7 +689,7 @@ public:
             for (const auto& planet : Objects().find<Planet>(system->PlanetIDs())) {
                 if (!planet)
                     continue;
-                const float planet_range = planet->InitialMeterValue(METER_DETECTION);
+                const float planet_range = planet->GetMeter(METER_DETECTION)->Initial();
                 if (planet_range > 20)
                     fixed_distances.insert(planet_range);
             }
@@ -773,10 +771,10 @@ private:
             DetachChild(m_label);
     }
 
-    double              m_scale_factor;
-    GG::X               m_line_length;
+    double                              m_scale_factor = 1.0;
+    GG::X                               m_line_length = GG::X1;
     std::shared_ptr<GG::TextControl>    m_label;
-    bool                m_enabled;
+    bool                                m_enabled = false;
 };
 
 ////////////////////////////////////////////////////////////
@@ -981,8 +979,11 @@ void MapWnd::CompleteConstruction() {
 
     SetName("MapWnd");
 
+    using boost::placeholders::_1;
+    using boost::placeholders::_2;
+
     GetUniverse().UniverseObjectDeleteSignal.connect(
-        boost::bind(&MapWnd::UniverseObjectDeleted, this, _1));
+        boost::bind(&MapWnd::UniverseObjectDeleted, this, boost::placeholders::_1));
 
     // toolbar
     m_toolbar = GG::Wnd::Create<CUIToolBar>();
@@ -990,11 +991,6 @@ void MapWnd::CompleteConstruction() {
     GG::GUI::GetGUI()->Register(m_toolbar);
     m_toolbar->Hide();
 
-    auto layout = GG::Wnd::Create<GG::Layout>(m_toolbar->ClientUpperLeft().x, m_toolbar->ClientUpperLeft().y,
-                                              m_toolbar->ClientWidth(),       m_toolbar->ClientHeight(),
-                                              1, 23);
-    layout->SetName("Toolbar Layout");
-    m_toolbar->SetLayout(layout);
 
     //////////////////////////////
     // Toolbar buttons and icons
@@ -1002,16 +998,14 @@ void MapWnd::CompleteConstruction() {
 
     // turn button
     // determine size from the text that will go into the button, using a test year string
-    std::string turn_button_longest_reasonable_text =  boost::io::str(FlexibleFormat(UserString("MAP_BTN_TURN_UPDATE")) % "99999"); // it is unlikely a game will go over 100000 turns
-    std::string unready_button_longest_reasonable_text =  boost::io::str(FlexibleFormat(UserString("MAP_BTN_TURN_UNREADY")) % "99999");
+    std::string turn_button_longest_reasonable_text = boost::io::str(FlexibleFormat(UserString("MAP_BTN_TURN_UPDATE")) % "99999"); // it is unlikely a game will go over 100000 turns
+    std::string unready_button_longest_reasonable_text = boost::io::str(FlexibleFormat(UserString("MAP_BTN_TURN_UNREADY")) % "99999");
     m_btn_turn = Wnd::Create<CUIButton>(turn_button_longest_reasonable_text.size() > unready_button_longest_reasonable_text.size() ?
                                         turn_button_longest_reasonable_text :
                                         unready_button_longest_reasonable_text);
     m_btn_turn->Resize(m_btn_turn->MinUsableSize());
-    m_btn_turn->LeftClickedSignal.connect(
-        boost::bind(&MapWnd::EndTurn, this));
-    m_btn_turn->LeftClickedSignal.connect(
-        &PlayTurnButtonClickSound);
+    m_btn_turn->LeftClickedSignal.connect(boost::bind(&MapWnd::EndTurn, this));
+    m_btn_turn->LeftClickedSignal.connect(&PlayTurnButtonClickSound);
     RefreshTurnButtonTooltip();
 
     boost::filesystem::path button_texture_dir = ClientUI::ArtDir() / "icons" / "buttons";
@@ -1022,8 +1016,7 @@ void MapWnd::CompleteConstruction() {
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "auto_turn.png")),
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "manual_turn_mouseover.png")));
 
-    m_btn_auto_turn->LeftClickedSignal.connect(
-        boost::bind(&MapWnd::ToggleAutoEndTurn, this));
+    m_btn_auto_turn->LeftClickedSignal.connect(boost::bind(&MapWnd::ToggleAutoEndTurn, this));
     m_btn_auto_turn->Resize(GG::Pt(GG::X(24), GG::Y(24)));
     m_btn_auto_turn->SetMinSize(GG::Pt(GG::X(24), GG::Y(24)));
     ToggleAutoEndTurn();    // toggle twice to set textures without changing default setting state
@@ -1048,10 +1041,9 @@ void MapWnd::CompleteConstruction() {
 
     // create custom InWindow function for Menu button that extends its
     // clickable area to the adjacent edges of the toolbar containing it
-    boost::function<bool(const SettableInWindowCUIButton*, const GG::Pt&)> in_window_func =
+    std::function<bool (const SettableInWindowCUIButton*, const GG::Pt&)> in_window_func =
         boost::bind(&InRect, boost::bind(&WndLeft, _1), boost::bind(&WndTop, m_toolbar.get()),
-                             boost::bind(&WndRight, _1), boost::bind(&WndBottom, _1),
-                    _2);
+                    boost::bind(&WndRight, _1), boost::bind(&WndBottom, _1), _2);
     // Menu button
     m_btn_menu = Wnd::Create<SettableInWindowCUIButton>(
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "menu.png")),
@@ -1059,16 +1051,14 @@ void MapWnd::CompleteConstruction() {
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "menu_mouseover.png")),
         in_window_func);
     m_btn_menu->SetMinSize(GG::Pt(GG::X(32), GG::Y(32)));
-    m_btn_menu->LeftClickedSignal.connect(
-        boost::bind(&MapWnd::ShowMenu, this));
+    m_btn_menu->LeftClickedSignal.connect(boost::bind(&MapWnd::ShowMenu, this));
     m_btn_menu->SetBrowseModeTime(GetOptionsDB().Get<int>("ui.tooltip.delay"));
     m_btn_menu->SetBrowseInfoWnd(GG::Wnd::Create<TextBrowseWnd>(
         UserString("MAP_BTN_MENU"), UserString("MAP_BTN_MENU_DESC")));
 
     in_window_func =
-        boost::bind(&InRect, boost::bind(&WndLeft, _1),   boost::bind(&WndTop, m_toolbar.get()),
-                             boost::bind(&WndRight, _1),  boost::bind(&WndBottom, _1),
-                    _2);
+        boost::bind(&InRect, boost::bind(&WndLeft, _1), boost::bind(&WndTop, m_toolbar.get()),
+                    boost::bind(&WndRight, _1), boost::bind(&WndBottom, _1), _2);
     // Encyclo"pedia" button
     m_btn_pedia = Wnd::Create<SettableInWindowCUIButton>(
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "pedia.png")),
@@ -1076,16 +1066,14 @@ void MapWnd::CompleteConstruction() {
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "pedia_mouseover.png")),
         in_window_func);
     m_btn_pedia->SetMinSize(GG::Pt(GG::X(32), GG::Y(32)));
-    m_btn_pedia->LeftClickedSignal.connect(
-        boost::bind(&MapWnd::TogglePedia, this));
+    m_btn_pedia->LeftClickedSignal.connect(boost::bind(&MapWnd::TogglePedia, this));
     m_btn_pedia->SetBrowseModeTime(GetOptionsDB().Get<int>("ui.tooltip.delay"));
     m_btn_pedia->SetBrowseInfoWnd(GG::Wnd::Create<TextBrowseWnd>(
         UserString("MAP_BTN_PEDIA"), UserString("MAP_BTN_PEDIA_DESC")));
 
     in_window_func =
-        boost::bind(&InRect, boost::bind(&WndLeft, _1),   boost::bind(&WndTop, m_toolbar.get()),
-                             boost::bind(&WndRight, _1),  boost::bind(&WndBottom, _1),
-                    _2);
+        boost::bind(&InRect, boost::bind(&WndLeft, _1), boost::bind(&WndTop, m_toolbar.get()),
+                    boost::bind(&WndRight, _1), boost::bind(&WndBottom, _1), _2);
     // Graphs button
     m_btn_graphs = Wnd::Create<SettableInWindowCUIButton>(
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "charts.png")),
@@ -1093,16 +1081,14 @@ void MapWnd::CompleteConstruction() {
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "charts_mouseover.png")),
         in_window_func);
     m_btn_graphs->SetMinSize(GG::Pt(GG::X(32), GG::Y(32)));
-    m_btn_graphs->LeftClickedSignal.connect(
-        boost::bind(&MapWnd::ShowGraphs, this));
+    m_btn_graphs->LeftClickedSignal.connect(boost::bind(&MapWnd::ShowGraphs, this));
     m_btn_graphs->SetBrowseModeTime(GetOptionsDB().Get<int>("ui.tooltip.delay"));
     m_btn_graphs->SetBrowseInfoWnd(GG::Wnd::Create<TextBrowseWnd>(
         UserString("MAP_BTN_GRAPH"), UserString("MAP_BTN_GRAPH_DESC")));
 
     in_window_func =
-        boost::bind(&InRect, boost::bind(&WndLeft, _1),   boost::bind(&WndTop, m_toolbar.get()),
-                             boost::bind(&WndRight, _1),  boost::bind(&WndBottom, _1),
-                    _2);
+        boost::bind(&InRect, boost::bind(&WndLeft, _1), boost::bind(&WndTop, m_toolbar.get()),
+                    boost::bind(&WndRight, _1), boost::bind(&WndBottom, _1), _2);
     // Design button
     m_btn_design = Wnd::Create<SettableInWindowCUIButton>(
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "design.png")),
@@ -1110,11 +1096,26 @@ void MapWnd::CompleteConstruction() {
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "design_mouseover.png")),
         in_window_func);
     m_btn_design->SetMinSize(GG::Pt(GG::X(32), GG::Y(32)));
-    m_btn_design->LeftClickedSignal.connect(
-        boost::bind(&MapWnd::ToggleDesign, this));
+    m_btn_design->LeftClickedSignal.connect(boost::bind(&MapWnd::ToggleDesign, this));
     m_btn_design->SetBrowseModeTime(GetOptionsDB().Get<int>("ui.tooltip.delay"));
     m_btn_design->SetBrowseInfoWnd(GG::Wnd::Create<TextBrowseWnd>(
         UserString("MAP_BTN_DESIGN"), UserString("MAP_BTN_DESIGN_DESC")));
+
+    in_window_func =
+        boost::bind(&InRect, boost::bind(&WndLeft, _1), boost::bind(&WndTop, m_toolbar.get()),
+                    boost::bind(&WndRight, _1), boost::bind(&WndBottom, _1), _2);
+    // Government button
+    m_btn_government = Wnd::Create<SettableInWindowCUIButton>(
+        GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "government.png")),
+        GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "government_clicked.png")),
+        GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "government_mouseover.png")),
+        in_window_func);
+    m_btn_government->SetMinSize(GG::Pt(GG::X(32), GG::Y(32)));
+    m_btn_government->LeftClickedSignal.connect(
+        boost::bind(&MapWnd::ToggleGovernment, this));
+    m_btn_government->SetBrowseModeTime(GetOptionsDB().Get<int>("ui.tooltip.delay"));
+    m_btn_government->SetBrowseInfoWnd(GG::Wnd::Create<TextBrowseWnd>(
+        UserString("MAP_BTN_GOVERNMENT"), UserString("MAP_BTN_GOVERNMENT_DESC")));
 
     in_window_func =
         boost::bind(&InRect, boost::bind(&WndLeft, _1),   boost::bind(&WndTop, m_toolbar.get()),
@@ -1127,16 +1128,14 @@ void MapWnd::CompleteConstruction() {
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "production_mouseover.png")),
         in_window_func);
     m_btn_production->SetMinSize(GG::Pt(GG::X(32), GG::Y(32)));
-    m_btn_production->LeftClickedSignal.connect(
-        boost::bind(&MapWnd::ToggleProduction, this));
+    m_btn_production->LeftClickedSignal.connect(boost::bind(&MapWnd::ToggleProduction, this));
     m_btn_production->SetBrowseModeTime(GetOptionsDB().Get<int>("ui.tooltip.delay"));
     m_btn_production->SetBrowseInfoWnd(GG::Wnd::Create<TextBrowseWnd>(
         UserString("MAP_BTN_PRODUCTION"), UserString("MAP_BTN_PRODUCTION_DESC")));
 
     in_window_func =
-        boost::bind(&InRect, boost::bind(&WndLeft, _1),   boost::bind(&WndTop, m_toolbar.get()),
-                             boost::bind(&WndRight, _1),  boost::bind(&WndBottom, _1),
-                    _2);
+        boost::bind(&InRect, boost::bind(&WndLeft, _1), boost::bind(&WndTop, m_toolbar.get()),
+                    boost::bind(&WndRight, _1), boost::bind(&WndBottom, _1), _2);
     // Research button
     m_btn_research = Wnd::Create<SettableInWindowCUIButton>(
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "research.png")),
@@ -1144,16 +1143,14 @@ void MapWnd::CompleteConstruction() {
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "research_mouseover.png")),
         in_window_func);
     m_btn_research->SetMinSize(GG::Pt(GG::X(32), GG::Y(32)));
-    m_btn_research->LeftClickedSignal.connect(
-        boost::bind(&MapWnd::ToggleResearch, this));
+    m_btn_research->LeftClickedSignal.connect(boost::bind(&MapWnd::ToggleResearch, this));
     m_btn_research->SetBrowseModeTime(GetOptionsDB().Get<int>("ui.tooltip.delay"));
     m_btn_research->SetBrowseInfoWnd(GG::Wnd::Create<TextBrowseWnd>(
         UserString("MAP_BTN_RESEARCH"), UserString("MAP_BTN_RESEARCH_DESC")));
 
     in_window_func =
-        boost::bind(&InRect, boost::bind(&WndLeft, _1),   boost::bind(&WndTop, m_toolbar.get()),
-                             boost::bind(&WndRight, _1),  boost::bind(&WndBottom, _1),
-                    _2);
+        boost::bind(&InRect, boost::bind(&WndLeft, _1), boost::bind(&WndTop, m_toolbar.get()),
+                    boost::bind(&WndRight, _1), boost::bind(&WndBottom, _1), _2);
     // Objects button
     m_btn_objects = Wnd::Create<SettableInWindowCUIButton>(
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "objects.png")),
@@ -1161,16 +1158,14 @@ void MapWnd::CompleteConstruction() {
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "objects_mouseover.png")),
         in_window_func);
     m_btn_objects->SetMinSize(GG::Pt(GG::X(32), GG::Y(32)));
-    m_btn_objects->LeftClickedSignal.connect(
-        boost::bind(&MapWnd::ToggleObjects, this));
+    m_btn_objects->LeftClickedSignal.connect(boost::bind(&MapWnd::ToggleObjects, this));
     m_btn_objects->SetBrowseModeTime(GetOptionsDB().Get<int>("ui.tooltip.delay"));
     m_btn_objects->SetBrowseInfoWnd(GG::Wnd::Create<TextBrowseWnd>(
         UserString("MAP_BTN_OBJECTS"), UserString("MAP_BTN_OBJECTS_DESC")));
 
     in_window_func =
-        boost::bind(&InRect, boost::bind(&WndLeft, _1),   boost::bind(&WndTop, m_toolbar.get()),
-                             boost::bind(&WndRight, _1),  boost::bind(&WndBottom, _1),
-                    _2);
+        boost::bind(&InRect, boost::bind(&WndLeft, _1), boost::bind(&WndTop, m_toolbar.get()),
+                    boost::bind(&WndRight, _1), boost::bind(&WndBottom, _1), _2);
     // Empires button
     m_btn_empires = Wnd::Create<SettableInWindowCUIButton>(
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "empires.png")),
@@ -1178,16 +1173,14 @@ void MapWnd::CompleteConstruction() {
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "empires_mouseover.png")),
         in_window_func);
     m_btn_empires->SetMinSize(GG::Pt(GG::X(32), GG::Y(32)));
-    m_btn_empires->LeftClickedSignal.connect(
-        boost::bind(&MapWnd::ToggleEmpires, this));
+    m_btn_empires->LeftClickedSignal.connect(boost::bind(&MapWnd::ToggleEmpires, this));
     m_btn_empires->SetBrowseModeTime(GetOptionsDB().Get<int>("ui.tooltip.delay"));
     m_btn_empires->SetBrowseInfoWnd(GG::Wnd::Create<TextBrowseWnd>(
         UserString("MAP_BTN_EMPIRES"), UserString("MAP_BTN_EMPIRES_DESC")));
 
     in_window_func =
-        boost::bind(&InRect, boost::bind(&WndLeft, _1),  boost::bind(&WndTop, m_toolbar.get()),
-                             boost::bind(&WndRight, _1), boost::bind(&WndBottom, _1),
-                    _2);
+        boost::bind(&InRect, boost::bind(&WndLeft, _1), boost::bind(&WndTop, m_toolbar.get()),
+                    boost::bind(&WndRight, _1), boost::bind(&WndBottom, _1), _2);
     // SitRep button
     m_btn_siterep = Wnd::Create<SettableInWindowCUIButton>(
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "sitrep.png")),
@@ -1195,16 +1188,14 @@ void MapWnd::CompleteConstruction() {
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "sitrep_mouseover.png")),
         in_window_func);
     m_btn_siterep->SetMinSize(GG::Pt(GG::X(32), GG::Y(32)));
-    m_btn_siterep->LeftClickedSignal.connect(
-        boost::bind(&MapWnd::ToggleSitRep, this));
+    m_btn_siterep->LeftClickedSignal.connect(boost::bind(&MapWnd::ToggleSitRep, this));
     m_btn_siterep->SetBrowseModeTime(GetOptionsDB().Get<int>("ui.tooltip.delay"));
     m_btn_siterep->SetBrowseInfoWnd(GG::Wnd::Create<TextBrowseWnd>(
         UserString("MAP_BTN_SITREP"), UserString("MAP_BTN_SITREP_DESC")));
 
     in_window_func =
-        boost::bind(&InRect, boost::bind(&WndLeft, _1),  boost::bind(&WndTop, m_toolbar.get()),
-                             boost::bind(&WndRight, _1), boost::bind(&WndBottom, _1),
-                    _2);
+        boost::bind(&InRect, boost::bind(&WndLeft, _1), boost::bind(&WndTop, m_toolbar.get()),
+                    boost::bind(&WndRight, _1), boost::bind(&WndBottom, _1), _2);
     // Messages button
     m_btn_messages = Wnd::Create<SettableInWindowCUIButton>(
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "messages.png")),
@@ -1212,16 +1203,14 @@ void MapWnd::CompleteConstruction() {
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "messages_mouseover.png")),
         in_window_func);
     m_btn_messages->SetMinSize(GG::Pt(GG::X(32), GG::Y(32)));
-    m_btn_messages->LeftClickedSignal.connect(
-        boost::bind(&MapWnd::ToggleMessages, this));
+    m_btn_messages->LeftClickedSignal.connect(boost::bind(&MapWnd::ToggleMessages, this));
     m_btn_messages->SetBrowseModeTime(GetOptionsDB().Get<int>("ui.tooltip.delay"));
     m_btn_messages->SetBrowseInfoWnd(GG::Wnd::Create<TextBrowseWnd>(
         UserString("MAP_BTN_MESSAGES"), UserString("MAP_BTN_MESSAGES_DESC")));
 
     in_window_func =
-        boost::bind(&InRect, boost::bind(&WndLeft, _1),  boost::bind(&WndTop, m_toolbar.get()),
-                             boost::bind(&WndRight, _1), boost::bind(&WndBottom, _1),
-                    _2);
+        boost::bind(&InRect, boost::bind(&WndLeft, _1), boost::bind(&WndTop, m_toolbar.get()),
+                    boost::bind(&WndRight, _1), boost::bind(&WndBottom, _1), _2);
     // Moderator button
     m_btn_moderator = Wnd::Create<SettableInWindowCUIButton>(
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "moderator.png")),
@@ -1229,16 +1218,13 @@ void MapWnd::CompleteConstruction() {
         GG::SubTexture(ClientUI::GetTexture(button_texture_dir / "moderator_mouseover.png")),
         in_window_func);
     m_btn_moderator->SetMinSize(GG::Pt(GG::X(32), GG::Y(32)));
-    m_btn_moderator->LeftClickedSignal.connect(
-        boost::bind(&MapWnd::ToggleModeratorActions, this));
+    m_btn_moderator->LeftClickedSignal.connect(boost::bind(&MapWnd::ToggleModeratorActions, this));
     m_btn_moderator->SetBrowseModeTime(GetOptionsDB().Get<int>("ui.tooltip.delay"));
     m_btn_moderator->SetBrowseInfoWnd(GG::Wnd::Create<TextBrowseWnd>(
         UserString("MAP_BTN_MODERATOR"), UserString("MAP_BTN_MODERATOR_DESC")));
 
 
     // resources
-    const GG::X ICON_DUAL_WIDTH(100);
-    const GG::X ICON_WIDTH(24);
     m_population = GG::Wnd::Create<StatisticIcon>(ClientUI::MeterIcon(METER_POPULATION), 0, 3, false,
                                                   ICON_DUAL_WIDTH, m_btn_turn->Height());
     m_population->SetName("Population StatisticIcon");
@@ -1257,9 +1243,9 @@ void MapWnd::CompleteConstruction() {
     m_research->SetName("Research StatisticIcon");
     m_research->LeftClickedSignal.connect(boost::bind(&MapWnd::ToggleResearch, this));
 
-    m_trade = GG::Wnd::Create<StatisticIcon>(ClientUI::MeterIcon(METER_TRADE), 0, 3, false,
-                                             ICON_DUAL_WIDTH, m_btn_turn->Height());
-    m_trade->SetName("Trade StatisticIcon");
+    m_influence = GG::Wnd::Create<StatisticIcon>(ClientUI::MeterIcon(METER_INFLUENCE), 0, 3, false,
+                                                 ICON_DUAL_WIDTH, m_btn_turn->Height());
+    m_influence->SetName("Influence StatisticIcon");
 
     m_fleet = GG::Wnd::Create<StatisticIcon>(ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "sitrep" / "fleet_arrived.png"),
                                              0, 3, false,
@@ -1295,10 +1281,8 @@ void MapWnd::CompleteConstruction() {
     m_industry_wasted->SetBrowseModeTime(GetOptionsDB().Get<int>("ui.tooltip.delay"));
     m_research_wasted->SetBrowseModeTime(GetOptionsDB().Get<int>("ui.tooltip.delay"));
 
-    m_industry_wasted->LeftClickedSignal.connect(
-        boost::bind(&MapWnd::ZoomToSystemWithWastedPP, this));
-    m_research_wasted->LeftClickedSignal.connect(
-        boost::bind(&MapWnd::ToggleResearch, this));
+    m_industry_wasted->LeftClickedSignal.connect(boost::bind(&MapWnd::ZoomToSystemWithWastedPP, this));
+    m_research_wasted->LeftClickedSignal.connect(boost::bind(&MapWnd::ToggleResearch, this));
 
     //Set the correct tooltips
     RefreshIndustryResourceIndicator();
@@ -1309,125 +1293,73 @@ void MapWnd::CompleteConstruction() {
     /////////////////////////////////////
     // place buttons / icons on toolbar
     /////////////////////////////////////
-    int layout_column(0);
+    std::vector<GG::X> widths{
+        m_btn_turn->Width(),        ICON_WIDTH,                 m_timeout_remain->Width(),
+        GG::X(ClientUI::Pts()*4),   ICON_WIDTH,                 m_industry->Width(),
+        m_stockpile->Width(),       ICON_WIDTH,                 m_research->Width(),
+        m_influence->Width(),       m_fleet->Width(),           m_population->Width(),
+        m_detection->Width(),       m_btn_moderator->Width(),   m_btn_messages->Width(),
+        m_btn_siterep->Width(),     m_btn_empires->Width(),     m_btn_objects->Width(),
+        m_btn_research->Width(),    m_btn_production->Width(),  m_btn_design->Width(),
+        m_btn_government->Width(),  m_btn_graphs->Width(),      m_btn_pedia->Width(),
+        m_btn_menu->Width()};
 
-    layout->SetMinimumColumnWidth(layout_column, m_btn_turn->Width());
-    layout->SetColumnStretch(layout_column, 0.0);
-    layout->Add(m_btn_turn,         0, layout_column, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
-    ++layout_column;
+    std::vector<float> stretches{
+        0.0f,                       0.0f,                       0.0f,
+        0.0f,                       0.0f,                       1.0f,
+        1.2f,                       0.0f,                       1.0f,
+        1.2f,                       1.0f,                       1.0f,
+        1.0f,                       0.0f,                       0.0f,
+        0.0f,                       0.0f,                       0.0f,
+        0.0f,                       0.0f,                       0.0f,
+        0.0f,                       0.0f,                       0.0f,
+        0.0f};
 
-    layout->SetMinimumColumnWidth(layout_column, ICON_WIDTH);
-    layout->SetColumnStretch(layout_column, 0.0);
-    layout->Add(m_btn_auto_turn,    0, layout_column, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
-    ++layout_column;
-
-    layout->SetMinimumColumnWidth(layout_column, m_timeout_remain->Width());
-    layout->SetColumnStretch(layout_column, 0.0);
-    layout->Add(m_timeout_remain,   0, layout_column, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
-    ++layout_column;
-
-    layout->SetMinimumColumnWidth(layout_column, GG::X(ClientUI::Pts()*4));
-    layout->SetColumnStretch(layout_column, 0.0);
-    layout->Add(m_FPS,              0, layout_column, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
-    ++layout_column;
-
-    layout->SetMinimumColumnWidth(layout_column, ICON_WIDTH);
-    layout->SetColumnStretch(layout_column, 0.0);
-    layout->Add(m_industry_wasted,  0, layout_column, GG::ALIGN_RIGHT | GG::ALIGN_VCENTER);
-    ++layout_column;
-
-    layout->SetColumnStretch(layout_column, 1.0);
-    layout->Add(m_industry, 0, layout_column, GG::ALIGN_LEFT | GG::ALIGN_VCENTER);
-    ++layout_column;
-
-    layout->SetColumnStretch(layout_column, 1.2);
-    layout->Add(m_stockpile, 0, layout_column, GG::ALIGN_LEFT | GG::ALIGN_VCENTER);
-    ++layout_column;
-
-    layout->SetMinimumColumnWidth(layout_column, ICON_WIDTH);
-    layout->SetColumnStretch(layout_column, 0.0);
-    layout->Add(m_research_wasted,  0, layout_column, GG::ALIGN_RIGHT | GG::ALIGN_VCENTER);
-    ++layout_column;
-
-    layout->SetColumnStretch(layout_column, 1.0);
-    layout->Add(m_research,         0, layout_column, GG::ALIGN_LEFT | GG::ALIGN_VCENTER);
-    ++layout_column;
-
-    layout->SetColumnStretch(layout_column, 1.0);
-    layout->Add(m_fleet,            0, layout_column, GG::ALIGN_LEFT | GG::ALIGN_VCENTER);
-    ++layout_column;
-
-    layout->SetColumnStretch(layout_column, 1.0);
-    layout->Add(m_population,       0, layout_column, GG::ALIGN_LEFT | GG::ALIGN_VCENTER);
-    ++layout_column;
-
-    layout->SetColumnStretch(layout_column, 1.0);
-    layout->Add(m_detection,        0, layout_column, GG::ALIGN_LEFT | GG::ALIGN_VCENTER);
-    ++layout_column;
-
-    layout->SetMinimumColumnWidth(layout_column, m_btn_moderator->Width());
-    layout->SetColumnStretch(layout_column, 0.0);
-    layout->Add(m_btn_moderator,    0, layout_column, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
-    ++layout_column;
-
-    layout->SetMinimumColumnWidth(layout_column, m_btn_messages->Width());
-    layout->SetColumnStretch(layout_column, 0.0);
-    layout->Add(m_btn_messages,    0, layout_column, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
-    ++layout_column;
-
-    layout->SetMinimumColumnWidth(layout_column, m_btn_siterep->Width());
-    layout->SetColumnStretch(layout_column, 0.0);
-    layout->Add(m_btn_siterep,      0, layout_column, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
-    ++layout_column;
-
-    layout->SetMinimumColumnWidth(layout_column, m_btn_empires->Width());
-    layout->SetColumnStretch(layout_column, 0.0);
-    layout->Add(m_btn_empires,      0, layout_column, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
-    ++layout_column;
-
-    layout->SetMinimumColumnWidth(layout_column, m_btn_objects->Width());
-    layout->SetColumnStretch(layout_column, 0.0);
-    layout->Add(m_btn_objects,      0, layout_column, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
-    ++layout_column;
-
-    layout->SetMinimumColumnWidth(layout_column, m_btn_research->Width());
-    layout->SetColumnStretch(layout_column, 0.0);
-    layout->Add(m_btn_research,     0, layout_column, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
-    ++layout_column;
-
-    layout->SetMinimumColumnWidth(layout_column, m_btn_production->Width());
-    layout->SetColumnStretch(layout_column, 0.0);
-    layout->Add(m_btn_production,   0, layout_column, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
-    ++layout_column;
-
-    layout->SetMinimumColumnWidth(layout_column, m_btn_design->Width());
-    layout->SetColumnStretch(layout_column, 0.0);
-    layout->Add(m_btn_design,       0, layout_column, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
-    ++layout_column;
-
-    layout->SetMinimumColumnWidth(layout_column, m_btn_graphs->Width());
-    layout->SetColumnStretch(layout_column, 0.0);
-    layout->Add(m_btn_graphs,       0, layout_column, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
-    ++layout_column;
-
-    layout->SetMinimumColumnWidth(layout_column, m_btn_pedia->Width());
-    layout->SetColumnStretch(layout_column, 0.0);
-    layout->Add(m_btn_pedia,        0, layout_column, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
-    ++layout_column;
-
-    layout->SetMinimumColumnWidth(layout_column, m_btn_menu->Width());
-    layout->SetColumnStretch(layout_column, 0.0);
-    layout->Add(m_btn_menu,         0, layout_column, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
-    ++layout_column;
-
+    auto layout = GG::Wnd::Create<GG::Layout>(m_toolbar->ClientUpperLeft().x, m_toolbar->ClientUpperLeft().y,
+                                              m_toolbar->ClientWidth(),       m_toolbar->ClientHeight(),
+                                              1, widths.size());
+    layout->SetName("Toolbar Layout");
     layout->SetCellMargin(5);
     layout->SetBorderMargin(5);
+    layout->SetMinimumColumnWidths(widths);
+    layout->SetColumnStretches(stretches);
+    layout->SetMinimumRowHeight(0, GG::Y(Value(ICON_WIDTH)));
+    //layout->RenderOutline(true);
+
+
+    m_toolbar->SetLayout(layout);
+    int layout_column{0};
+
+    layout->Add(m_btn_turn,         0, layout_column++, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);  // 0
+    layout->Add(m_btn_auto_turn,    0, layout_column++, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
+    layout->Add(m_timeout_remain,   0, layout_column++, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
+    layout->Add(m_FPS,              0, layout_column++, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
+    layout->Add(m_industry_wasted,  0, layout_column++, GG::ALIGN_RIGHT  | GG::ALIGN_VCENTER);
+    layout->Add(m_industry,         0, layout_column++, GG::ALIGN_LEFT   | GG::ALIGN_VCENTER);  // 5
+    layout->Add(m_stockpile,        0, layout_column++, GG::ALIGN_LEFT   | GG::ALIGN_VCENTER);
+    layout->Add(m_research_wasted,  0, layout_column++, GG::ALIGN_RIGHT  | GG::ALIGN_VCENTER);
+    layout->Add(m_research,         0, layout_column++, GG::ALIGN_LEFT   | GG::ALIGN_VCENTER);
+    layout->Add(m_influence,        0, layout_column++, GG::ALIGN_LEFT   | GG::ALIGN_VCENTER);
+    layout->Add(m_fleet,            0, layout_column++, GG::ALIGN_LEFT   | GG::ALIGN_VCENTER);  // 10
+    layout->Add(m_population,       0, layout_column++, GG::ALIGN_LEFT   | GG::ALIGN_VCENTER);
+    layout->Add(m_detection,        0, layout_column++, GG::ALIGN_LEFT   | GG::ALIGN_VCENTER);
+    layout->Add(m_btn_moderator,    0, layout_column++, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
+    layout->Add(m_btn_messages,     0, layout_column++, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
+    layout->Add(m_btn_siterep,      0, layout_column++, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);  // 15
+    layout->Add(m_btn_empires,      0, layout_column++, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
+    layout->Add(m_btn_objects,      0, layout_column++, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
+    layout->Add(m_btn_research,     0, layout_column++, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
+    layout->Add(m_btn_production,   0, layout_column++, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
+    layout->Add(m_btn_design,       0, layout_column++, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);  // 20
+    layout->Add(m_btn_government,   0, layout_column++, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
+    layout->Add(m_btn_graphs,       0, layout_column++, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
+    layout->Add(m_btn_pedia,        0, layout_column++, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
+    layout->Add(m_btn_menu,         0, layout_column++, GG::ALIGN_CENTER | GG::ALIGN_VCENTER);
 
 
     ///////////////////
     // Misc widgets on map screen
     ///////////////////
-
     // scale line
     m_scale_line = GG::Wnd::Create<MapScaleLine>(GG::X(LAYOUT_MARGIN),   GG::Y(LAYOUT_MARGIN) + m_toolbar->Height(),
                                                  SCALE_LINE_MAX_WIDTH,   SCALE_LINE_HEIGHT);
@@ -1445,8 +1377,8 @@ void MapWnd::CompleteConstruction() {
     m_zoom_slider->SlideTo(m_zoom_steps_in);
     GG::GUI::GetGUI()->Register(m_zoom_slider);
     m_zoom_slider->Hide();
-    m_zoom_slider->SlidSignal.connect(
-        boost::bind(&MapWnd::SetZoom, this, _1, false));
+    m_zoom_slider->SlidSignal.connect(boost::bind(
+        static_cast<void (MapWnd::*)(double, bool)>(&MapWnd::SetZoom), this, _1, false));
     GetOptionsDB().OptionChangedSignal("ui.map.zoom.slider.shown").connect(
         boost::bind(&MapWnd::RefreshSliders, this));
 
@@ -1458,16 +1390,11 @@ void MapWnd::CompleteConstruction() {
     m_side_panel = GG::Wnd::Create<SidePanel>(MAP_SIDEPANEL_WND_NAME);
     GG::GUI::GetGUI()->Register(m_side_panel);
 
-    SidePanel::SystemSelectedSignal.connect(
-        boost::bind(&MapWnd::SelectSystem, this, _1));
-    SidePanel::PlanetSelectedSignal.connect(
-        boost::bind(&MapWnd::SelectPlanet, this, _1));
-    SidePanel::PlanetDoubleClickedSignal.connect(
-        boost::bind(&MapWnd::PlanetDoubleClicked, this, _1));
-    SidePanel::PlanetRightClickedSignal.connect(
-        boost::bind(&MapWnd::PlanetRightClicked, this, _1));
-    SidePanel::BuildingRightClickedSignal.connect(
-        boost::bind(&MapWnd::BuildingRightClicked, this, _1));
+    SidePanel::SystemSelectedSignal.connect(        boost::bind(&MapWnd::SelectSystem, this, _1));
+    SidePanel::PlanetSelectedSignal.connect(        boost::bind(&MapWnd::SelectPlanet, this, _1));
+    SidePanel::PlanetDoubleClickedSignal.connect(   boost::bind(&MapWnd::PlanetDoubleClicked, this, _1));
+    SidePanel::PlanetRightClickedSignal.connect(    boost::bind(&MapWnd::PlanetRightClicked, this, _1));
+    SidePanel::BuildingRightClickedSignal.connect(  boost::bind(&MapWnd::BuildingRightClicked, this, _1));
 
     // not strictly necessary, as in principle whenever any ResourceCenter
     // changes, all meter estimates and resource pools should / could be
@@ -1482,8 +1409,7 @@ void MapWnd::CompleteConstruction() {
     // situation report window
     m_sitrep_panel = GG::Wnd::Create<SitRepPanel>(SITREP_WND_NAME);
     // Wnd is manually closed by user
-    m_sitrep_panel->ClosingSignal.connect(
-        boost::bind(&MapWnd::HideSitRep, this));
+    m_sitrep_panel->ClosingSignal.connect(boost::bind(&MapWnd::HideSitRep, this));
     if (m_sitrep_panel->Visible()) {
         PushWndStack(m_sitrep_panel);
         m_btn_siterep->SetUnpressedGraphic(GG::SubTexture(ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "buttons" / "sitrep_mouseover.png")));
@@ -1493,8 +1419,7 @@ void MapWnd::CompleteConstruction() {
     // encyclopedia panel
     m_pedia_panel = GG::Wnd::Create<EncyclopediaDetailPanel>(GG::ONTOP | GG::INTERACTIVE | GG::DRAGABLE | GG::RESIZABLE | CLOSABLE | PINABLE, MAP_PEDIA_WND_NAME);
     // Wnd is manually closed by user
-    m_pedia_panel->ClosingSignal.connect(
-        boost::bind(&MapWnd::HidePedia, this));
+    m_pedia_panel->ClosingSignal.connect(boost::bind(&MapWnd::HidePedia, this));
     if (m_pedia_panel->Visible()) {
         PushWndStack(m_pedia_panel);
         m_btn_pedia->SetUnpressedGraphic(GG::SubTexture(ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "buttons" / "pedia_mouseover.png")));
@@ -1504,10 +1429,8 @@ void MapWnd::CompleteConstruction() {
     // objects list
     m_object_list_wnd = GG::Wnd::Create<ObjectListWnd>(OBJECT_WND_NAME);
     // Wnd is manually closed by user
-    m_object_list_wnd->ClosingSignal.connect(
-        boost::bind(&MapWnd::HideObjects, this));
-    m_object_list_wnd->ObjectDumpSignal.connect(
-        boost::bind(&ClientUI::DumpObject, ClientUI::GetClientUI(), _1));
+    m_object_list_wnd->ClosingSignal.connect(boost::bind(&MapWnd::HideObjects, this));
+    m_object_list_wnd->ObjectDumpSignal.connect(boost::bind(&ClientUI::DumpObject, ClientUI::GetClientUI(), _1));
     if (m_object_list_wnd->Visible()) {
         PushWndStack(m_object_list_wnd);
         m_btn_objects->SetUnpressedGraphic(GG::SubTexture(ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "buttons" / "objects_mouseover.png")));
@@ -1516,8 +1439,7 @@ void MapWnd::CompleteConstruction() {
 
     // moderator actions
     m_moderator_wnd = GG::Wnd::Create<ModeratorActionsWnd>(MODERATOR_WND_NAME);
-    m_moderator_wnd->ClosingSignal.connect(
-        boost::bind(&MapWnd::HideModeratorActions, this));
+    m_moderator_wnd->ClosingSignal.connect(boost::bind(&MapWnd::HideModeratorActions, this));
     if (m_moderator_wnd->Visible()) {
         PushWndStack(m_moderator_wnd);
         m_btn_moderator->SetUnpressedGraphic(GG::SubTexture(ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "buttons" / "moderator_mouseover.png")));
@@ -1527,6 +1449,18 @@ void MapWnd::CompleteConstruction() {
     // Combat report
     m_combat_report_wnd = GG::Wnd::Create<CombatReportWnd>(COMBAT_REPORT_WND_NAME);
 
+    // government window
+    m_government_wnd = GG::Wnd::Create<GovernmentWnd>(GOVERNMENT_WND_NAME);
+    // Wnd is manually closed by user
+    m_government_wnd->ClosingSignal.connect(
+        boost::bind(&MapWnd::HideGovernment, this));
+    if (m_government_wnd->Visible()) {
+        PushWndStack(m_government_wnd);
+        m_btn_government->SetUnpressedGraphic(GG::SubTexture(ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "buttons" / "government_mouseover.png")));
+        m_btn_government->SetRolloverGraphic (GG::SubTexture(ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "buttons" / "government.png")));
+    }
+
+
     // position CUIWnds owned by the MapWnd
     InitializeWindows();
 
@@ -1534,8 +1468,7 @@ void MapWnd::CompleteConstruction() {
     if (ClientUI* cui = ClientUI::GetClientUI()) {
         if (const auto& msg_wnd = cui->GetMessageWnd()) {
             // Wnd is manually closed by user
-            msg_wnd->ClosingSignal.connect(
-                boost::bind(&MapWnd::HideMessages, this));
+            msg_wnd->ClosingSignal.connect(boost::bind(&MapWnd::HideMessages, this));
             if (msg_wnd->Visible()) {
                 PushWndStack(msg_wnd);
                 m_btn_messages->SetUnpressedGraphic(GG::SubTexture(ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "buttons" / "messages_mouseover.png")));
@@ -1544,8 +1477,7 @@ void MapWnd::CompleteConstruction() {
         }
         if (const auto& plr_wnd = cui->GetPlayerListWnd()) {
             // Wnd is manually closed by user
-            plr_wnd->ClosingSignal.connect(
-                boost::bind(&MapWnd::HideEmpires, this));
+            plr_wnd->ClosingSignal.connect(boost::bind(&MapWnd::HideEmpires, this));
             if (plr_wnd->Visible()) {
                 PushWndStack(plr_wnd);
                 m_btn_empires->SetUnpressedGraphic(GG::SubTexture(ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "buttons" / "empires_mouseover.png")));
@@ -1568,18 +1500,14 @@ void MapWnd::CompleteConstruction() {
     m_production_wnd->MoveTo(GG::Pt(GG::X0, m_toolbar->Height()));
     GG::GUI::GetGUI()->Register(m_production_wnd);
     m_production_wnd->Hide();
-    m_production_wnd->SystemSelectedSignal.connect(
-        boost::bind(&MapWnd::SelectSystem, this, _1));
-    m_production_wnd->PlanetSelectedSignal.connect(
-        boost::bind(&MapWnd::SelectPlanet, this, _1));
+    m_production_wnd->SystemSelectedSignal.connect(boost::bind(&MapWnd::SelectSystem, this, _1));
+    m_production_wnd->PlanetSelectedSignal.connect(boost::bind(&MapWnd::SelectPlanet, this, _1));
 
     // design window
     m_design_wnd = GG::Wnd::Create<DesignWnd>(AppWidth(), AppHeight() - m_toolbar->Height());
     m_design_wnd->MoveTo(GG::Pt(GG::X0, m_toolbar->Height()));
     GG::GUI::GetGUI()->Register(m_design_wnd);
     m_design_wnd->Hide();
-
-
 
     //////////////////
     // General Gamestate response signals
@@ -1608,6 +1536,7 @@ void MapWnd::DoLayout() {
     m_research_wnd->Resize(GG::Pt(AppWidth(), AppHeight() - m_toolbar->Height()));
     m_production_wnd->Resize(GG::Pt(AppWidth(), AppHeight() - m_toolbar->Height()));
     m_design_wnd->Resize(GG::Pt(AppWidth(), AppHeight() - m_toolbar->Height()));
+    m_government_wnd->ValidatePosition();
     m_sitrep_panel->ValidatePosition();
     m_object_list_wnd->ValidatePosition();
     m_pedia_panel->ValidatePosition();
@@ -1645,27 +1574,31 @@ void MapWnd::InitializeWindows() {
 
     // encyclopedia panel
     const GG::Pt pedia_ul(SCALE_LINE_MAX_WIDTH + LAYOUT_MARGIN, m_toolbar->Bottom() + SITREP_PANEL_HEIGHT);
-    const GG::Pt pedia_wh(SITREP_PANEL_WIDTH, SITREP_PANEL_HEIGHT);
+    const GG::Pt pedia_wh(SITREP_PANEL_WIDTH*3/2, SITREP_PANEL_HEIGHT*3);
 
     // objects list
-    const GG::Pt object_list_ul(GG::X0, m_scale_line->Bottom() + GG::Y(LAYOUT_MARGIN));
-    const GG::Pt object_list_wh(SITREP_PANEL_WIDTH, SITREP_PANEL_HEIGHT);
+    const GG::Pt object_list_ul(SCALE_LINE_MAX_WIDTH/2, m_scale_line->Bottom() + GG::Y(LAYOUT_MARGIN));
+    const GG::Pt object_list_wh(SITREP_PANEL_WIDTH*2, SITREP_PANEL_HEIGHT*3);
 
     // moderator actions
     const GG::Pt moderator_ul(GG::X0, m_scale_line->Bottom() + GG::Y(LAYOUT_MARGIN));
     const GG::Pt moderator_wh(SITREP_PANEL_WIDTH, SITREP_PANEL_HEIGHT);
 
     // Combat report
-    // These values were formerly in UI/CombatReport/CombatReportWnd.cpp
     const GG::Pt combat_log_ul(GG::X(150), GG::Y(50));
     const GG::Pt combat_log_wh(GG::X(400), GG::Y(300));
 
-    m_side_panel->       InitSizeMove(sidepanel_ul,   sidepanel_ul + sidepanel_wh);
-    m_sitrep_panel->     InitSizeMove(sitrep_ul,      sitrep_ul + sitrep_wh);
-    m_pedia_panel->      InitSizeMove(pedia_ul,       pedia_ul + pedia_wh);
-    m_object_list_wnd->  InitSizeMove(object_list_ul, object_list_ul + object_list_wh);
-    m_moderator_wnd->    InitSizeMove(moderator_ul,   moderator_ul + moderator_wh);
-    m_combat_report_wnd->InitSizeMove(combat_log_ul,  combat_log_ul + combat_log_wh);
+    // government window
+    const GG::Pt gov_ul(GG::X0, m_scale_line->Bottom() + m_scale_line->Height() + GG::Y(LAYOUT_MARGIN*2));
+    const GG::Pt gov_wh(SITREP_PANEL_WIDTH*2, SITREP_PANEL_HEIGHT*3);
+
+    m_side_panel->       InitSizeMove(sidepanel_ul,     sidepanel_ul + sidepanel_wh);
+    m_sitrep_panel->     InitSizeMove(sitrep_ul,        sitrep_ul + sitrep_wh);
+    m_pedia_panel->      InitSizeMove(pedia_ul,         pedia_ul + pedia_wh);
+    m_object_list_wnd->  InitSizeMove(object_list_ul,   object_list_ul + object_list_wh);
+    m_moderator_wnd->    InitSizeMove(moderator_ul,     moderator_ul + moderator_wh);
+    m_combat_report_wnd->InitSizeMove(combat_log_ul,    combat_log_ul + combat_log_wh);
+    m_government_wnd->   InitSizeMove(gov_ul,           gov_ul + gov_wh);
 }
 
 GG::Pt MapWnd::ClientUpperLeft() const
@@ -2084,7 +2017,9 @@ void MapWnd::RenderSystems() {
                         }
 
                         // remember if this system has neutrals
-                        if (planet->Unowned() && !planet->SpeciesName().empty() && planet->InitialMeterValue(METER_POPULATION) > 0.0) {
+                        if (planet->Unowned() && !planet->SpeciesName().empty() &&
+                            planet->GetMeter(METER_POPULATION)->Initial() > 0.0f)
+                        {
                             has_neutrals = true;
 
                             std::map<int, int>::iterator it = colony_count_by_empire_id.find(ALL_EMPIRES);
@@ -2529,6 +2464,7 @@ void MapWnd::RegisterWindows() {
         app->Register(m_side_panel);
         app->Register(m_combat_report_wnd);
         app->Register(m_moderator_wnd);
+        app->Register(m_government_wnd);
         // message and player list wnds are managed by the HumanClientFSM
     }
 }
@@ -2543,6 +2479,7 @@ void MapWnd::RemoveWindows() {
         app->Remove(m_side_panel);
         app->Remove(m_combat_report_wnd);
         app->Remove(m_moderator_wnd);
+        app->Remove(m_government_wnd);
         // message and player list wnds are managed by the HumanClientFSM
     }
 }
@@ -2707,6 +2644,7 @@ void MapWnd::EnableOrderIssuing(bool enable/* = true*/) {
     m_production_wnd->EnableOrderIssuing(enable);
     m_research_wnd->EnableOrderIssuing(enable);
     m_design_wnd->EnableOrderIssuing(enable);
+    m_government_wnd->EnableOrderIssuing(enable);
     FleetUIManager::GetFleetUIManager().EnableOrderIssuing(enable);
 }
 
@@ -2800,8 +2738,11 @@ void MapWnd::InitTurn() {
     DebugLogger() << "showing intro sitreps : " << show_intro_sitreps;
     if (show_intro_sitreps || m_sitrep_panel->NumVisibleSitrepsThisTurn() > 0) {
         m_sitrep_panel->ShowSitRepsForTurn(CurrentTurn());
-        if (!m_design_wnd->Visible() && !m_research_wnd->Visible() && !m_production_wnd->Visible())
+        if (!m_design_wnd->Visible() && !m_research_wnd->Visible()
+            && !m_production_wnd->Visible())
+        {
             ShowSitRep();
+        }
     }
 
     if (m_sitrep_panel->Visible()) {
@@ -2833,8 +2774,8 @@ void MapWnd::InitTurn() {
     // (unlike connections to signals from the sidepanel)
     Empire* this_client_empire = GetEmpire(HumanClientApp::GetApp()->EmpireID());
     if (this_client_empire) {
-        this_client_empire->GetResourcePool(RE_TRADE)->ChangedSignal.connect(
-            boost::bind(&MapWnd::RefreshTradeResourceIndicator, this));
+        this_client_empire->GetResourcePool(RE_INFLUENCE)->ChangedSignal.connect(
+            boost::bind(&MapWnd::RefreshInfluenceResourceIndicator, this));
         this_client_empire->GetResourcePool(RE_RESEARCH)->ChangedSignal.connect(
             boost::bind(&MapWnd::RefreshResearchResourceIndicator, this));
         this_client_empire->GetResourcePool(RE_INDUSTRY)->ChangedSignal.connect(
@@ -2859,6 +2800,9 @@ void MapWnd::InitTurn() {
     timer.EnterSection("update resource pools");
     for (auto& entry : Empires())
         entry.second->UpdateResourcePools();
+
+    timer.EnterSection("refresh government");
+    m_government_wnd->Refresh();
 
 
     timer.EnterSection("refresh research");
@@ -2889,7 +2833,7 @@ void MapWnd::InitTurn() {
     timer.EnterSection("refresh indicators");
     RefreshIndustryResourceIndicator();
     RefreshResearchResourceIndicator();
-    RefreshTradeResourceIndicator();
+    RefreshInfluenceResourceIndicator();
     RefreshFleetResourceIndicator();
     RefreshPopulationIndicator();
     RefreshDetectionIndicator();
@@ -2944,6 +2888,9 @@ void MapWnd::InitTurnRendering() {
     DebugLogger() << "MapWnd::InitTurnRendering";
     ScopedTimer timer("MapWnd::InitTurnRendering", true);
 
+    using boost::placeholders::_1;
+    using boost::placeholders::_2;
+
     // adjust size of map window for universe and application size
     Resize(GG::Pt(static_cast<GG::X>(GetUniverse().UniverseWidth() * ZOOM_MAX + AppWidth() * 1.5),
                   static_cast<GG::Y>(GetUniverse().UniverseWidth() * ZOOM_MAX + AppHeight() * 1.5)));
@@ -2982,16 +2929,12 @@ void MapWnd::InitTurnRendering() {
         AttachChild(icon);
 
         // connect UI response signals.  TODO: Make these configurable in GUI?
-        icon->LeftClickedSignal.connect(
-            boost::bind(&MapWnd::SystemLeftClicked, this, _1));
-        icon->RightClickedSignal.connect(
-            boost::bind(&MapWnd::SystemRightClicked, this, _1, _2));
-        icon->LeftDoubleClickedSignal.connect(
-            boost::bind(&MapWnd::SystemDoubleClicked, this, _1));
-        icon->MouseEnteringSignal.connect(
-            boost::bind(&MapWnd::MouseEnteringSystem, this, _1, _2));
-        icon->MouseLeavingSignal.connect(
-            boost::bind(&MapWnd::MouseLeavingSystem, this, _1));
+        icon->LeftClickedSignal.connect(boost::bind(&MapWnd::SystemLeftClicked, this, _1));
+        icon->RightClickedSignal.connect(boost::bind(
+            static_cast<void (MapWnd::*)(int, GG::Flags<GG::ModKey>)>(&MapWnd::SystemRightClicked), this, _1, _2));
+        icon->LeftDoubleClickedSignal.connect(boost::bind(&MapWnd::SystemDoubleClicked, this, _1));
+        icon->MouseEnteringSignal.connect(boost::bind(&MapWnd::MouseEnteringSystem, this, _1, _2));
+        icon->MouseLeavingSignal.connect(boost::bind(&MapWnd::MouseLeavingSystem, this, _1));
     }
 
     // temp: reset starfield each turn
@@ -3032,8 +2975,8 @@ void MapWnd::InitTurnRendering() {
 
         AttachChild(icon);
 
-        icon->RightClickedSignal.connect(
-            boost::bind(&MapWnd::FieldRightClicked, this, _1));
+        icon->RightClickedSignal.connect(boost::bind(
+            static_cast<void (MapWnd::*)(int)>(&MapWnd::FieldRightClicked), this, _1));
     }
 
     // position field icons
@@ -3206,7 +3149,7 @@ void MapWnd::ClearSystemRenderingBuffers() {
 namespace GetPathsThroughSupplyLanes {
     // SupplyLaneMap map keyed by system containing all systems
     // corresponding to valid supply lane destinations
-    typedef boost::unordered_multimap<int,int> SupplyLaneMMap;
+    typedef std::unordered_multimap<int,int> SupplyLaneMMap;
 
 
     /**
@@ -3318,7 +3261,7 @@ namespace GetPathsThroughSupplyLanes {
         std::deque<PrevCurrInfo> try_next;
 
         // visited holds systems already reached by the breadth first search.
-        boost::unordered_map<int, PathInfo> visited;
+        std::unordered_map<int, PathInfo> visited;
 
         // reachable_midpoints holds all systems reachable from at least
         // two different terminal points.
@@ -3410,7 +3353,7 @@ namespace GetPathsThroughSupplyLanes {
         std::unordered_set<int> unprocessed;
 
         for (int reachable_midpoint : reachable_midpoints) {
-            boost::unordered_map<int, PathInfo>::const_iterator previous_ii_sys;
+            std::unordered_map<int, PathInfo>::const_iterator previous_ii_sys;
             int ii_sys;
 
             // Add the mid point to unprocessed, and while there
@@ -3437,6 +3380,21 @@ namespace GetPathsThroughSupplyLanes {
 }
 
 namespace {
+    // Reimplementation of the boost::hash_range function, embedding
+    // boost::hash_combine and using std::hash instead of boost::hash
+    struct hash_set {
+        std::size_t operator()(const std::set<int>& set) const
+        {
+            std::size_t seed(0);
+            std::hash<int> hasher;
+
+            for(auto element : set)
+                seed ^= hasher(element) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+
+            return seed;
+        }
+    };
+
     /** Look a \p kkey in \p mmap and if not found allocate a new
         shared_ptr with the default constructor.*/
     template <typename Map>
@@ -3479,10 +3437,10 @@ namespace {
 
 
     void GetResPoolLaneInfo(int empire_id,
-                            boost::unordered_map<std::set<int>, std::shared_ptr<std::set<int>>>& res_pool_systems,
-                            boost::unordered_map<std::set<int>, std::shared_ptr<std::set<int>>>& res_group_cores,
+                            std::unordered_map<std::set<int>, std::shared_ptr<std::set<int>>, hash_set>& res_pool_systems,
+                            std::unordered_map<std::set<int>, std::shared_ptr<std::set<int>>, hash_set>& res_group_cores,
                             std::unordered_set<int>& res_group_core_members,
-                            boost::unordered_map<int, std::shared_ptr<std::set<int>>>& member_to_core,
+                            std::unordered_map<int, std::shared_ptr<std::set<int>>>& member_to_core,
                             std::shared_ptr<std::unordered_set<int>>& under_alloc_res_grp_core_members)
     {
         res_pool_systems.clear();
@@ -3593,7 +3551,7 @@ namespace {
     }
 
 
-    void PrepFullLanesToRender(const boost::unordered_map<int, std::shared_ptr<SystemIcon>>& sys_icons,
+    void PrepFullLanesToRender(const std::unordered_map<int, std::shared_ptr<SystemIcon>>& sys_icons,
                                GG::GL2DVertexBuffer& starlane_vertices,
                                GG::GLRGBAColorBuffer& starlane_colors)
     {
@@ -3669,7 +3627,7 @@ namespace {
         }
     }
 
-    void PrepResourceConnectionLanesToRender(const boost::unordered_map<int, std::shared_ptr<SystemIcon>>& sys_icons,
+    void PrepResourceConnectionLanesToRender(const std::unordered_map<int, std::shared_ptr<SystemIcon>>& sys_icons,
                                              int empire_id,
                                              std::set<std::pair<int, int>>& rendered_half_starlanes,
                                              GG::GL2DVertexBuffer& rc_starlane_vertices,
@@ -3683,11 +3641,11 @@ namespace {
         GG::Clr lane_colour = empire->Color();
 
         // map keyed by ResourcePool (set of objects) to the corresponding set of system ids
-        boost::unordered_map<std::set<int>, std::shared_ptr<std::set<int>>> res_pool_systems;
+        std::unordered_map<std::set<int>, std::shared_ptr<std::set<int>>, hash_set> res_pool_systems;
         // map keyed by ResourcePool to the set of systems considered the core of the corresponding ResGroup
-        boost::unordered_map<std::set<int>, std::shared_ptr<std::set<int>>> res_group_cores;
+        std::unordered_map<std::set<int>, std::shared_ptr<std::set<int>>, hash_set> res_group_cores;
         std::unordered_set<int> res_group_core_members;
-        boost::unordered_map<int, std::shared_ptr<std::set<int>>> member_to_core;
+        std::unordered_map<int, std::shared_ptr<std::set<int>>> member_to_core;
         std::shared_ptr<std::unordered_set<int>> under_alloc_res_grp_core_members;
         GetResPoolLaneInfo(empire_id, res_pool_systems,
                            res_group_cores, res_group_core_members,
@@ -3747,7 +3705,7 @@ namespace {
                 if (under_alloc_res_grp_core_members
                     && under_alloc_res_grp_core_members->count(start_system->ID()))
                 {
-                    lane_colour_to_use = GG::DarkColor(GG::Clr(255-lane_colour.r, 255-lane_colour.g, 255-lane_colour.b, lane_colour.a));
+                    lane_colour_to_use = GG::DarkenClr(GG::InvertClr(lane_colour));
                 }
 
                 auto start_core = member_to_core.find(start_system->ID());
@@ -3768,7 +3726,7 @@ namespace {
         }
     }
 
-    void PrepObstructedLaneTraversalsToRender(const boost::unordered_map<int, std::shared_ptr<SystemIcon>>& sys_icons,
+    void PrepObstructedLaneTraversalsToRender(const std::unordered_map<int, std::shared_ptr<SystemIcon>>& sys_icons,
                                               int empire_id,
                                               std::set<std::pair<int, int>>& rendered_half_starlanes,
                                               GG::GL2DVertexBuffer& starlane_vertices,
@@ -3852,7 +3810,7 @@ namespace {
     }
 
     std::map<std::pair<int, int>, LaneEndpoints> CalculateStarlaneEndpoints(
-        const boost::unordered_map<int, std::shared_ptr<SystemIcon>>& sys_icons)
+        const std::unordered_map<int, std::shared_ptr<SystemIcon>>& sys_icons)
     {
 
         std::map<std::pair<int, int>, LaneEndpoints> retval;
@@ -3956,7 +3914,7 @@ void MapWnd::InitFieldRenderingBuffers() {
         auto field = Objects().get<Field>(field_icon.first);
         if (!field)
             continue;
-        const float FIELD_SIZE = field->InitialMeterValue(METER_SIZE);  // field size is its radius
+        const float FIELD_SIZE = field->GetMeter(METER_SIZE)->Initial();  // field size is its radius
         if (FIELD_SIZE <= 0)
             continue;
         auto field_texture = field_icon.second->FieldTexture();
@@ -4310,6 +4268,17 @@ void MapWnd::ShowTech(const std::string& tech_name) {
     }
 }
 
+void MapWnd::ShowPolicy(const std::string& policy_name) {
+    if (m_production_wnd->Visible()) {
+        m_production_wnd->ShowPedia();
+        m_production_wnd->ShowPolicyInEncyclopedia(policy_name);
+    } else {
+        if (!m_pedia_panel->Visible())
+            TogglePedia();
+        m_pedia_panel->SetPolicy(policy_name);
+    }
+}
+
 void MapWnd::ShowBuildingType(const std::string& building_type_name) {
     if (m_production_wnd->Visible()) {
         m_production_wnd->ShowPedia();
@@ -4321,26 +4290,26 @@ void MapWnd::ShowBuildingType(const std::string& building_type_name) {
     }
 }
 
-void MapWnd::ShowPartType(const std::string& part_type_name) {
+void MapWnd::ShowShipPart(const std::string& ship_part_name) {
     if (m_design_wnd->Visible())
-        m_design_wnd->ShowPartTypeInEncyclopedia(part_type_name);
+        m_design_wnd->ShowShipPartInEncyclopedia(ship_part_name);
     if (m_in_production_view_mode) {
         m_production_wnd->ShowPedia();
-        m_production_wnd->ShowPartTypeInEncyclopedia(part_type_name);
+        m_production_wnd->ShowShipPartInEncyclopedia(ship_part_name);
     } else {
         if (!m_pedia_panel->Visible())
             TogglePedia();
-        m_pedia_panel->SetPartType(part_type_name);
+        m_pedia_panel->SetShipPart(ship_part_name);
     }
 }
 
-void MapWnd::ShowHullType(const std::string& hull_type_name) {
+void MapWnd::ShowShipHull(const std::string& ship_hull_name) {
     if (m_design_wnd->Visible()) {
-        m_design_wnd->ShowHullTypeInEncyclopedia(hull_type_name);
+        m_design_wnd->ShowShipHullInEncyclopedia(ship_hull_name);
     } else {
         if (!m_pedia_panel->Visible())
             TogglePedia();
-        m_pedia_panel->SetHullType(hull_type_name);
+        m_pedia_panel->SetShipHull(ship_hull_name);
     }
 }
 
@@ -4770,7 +4739,7 @@ void MapWnd::DoFieldIconsLayout() {
             continue;
         }
 
-        double RADIUS = ZoomFactor() * field->InitialMeterValue(METER_SIZE);    // Field's METER_SIZE gives the radius of the field
+        double RADIUS = ZoomFactor() * field->GetMeter(METER_SIZE)->Initial();    // Field's METER_SIZE gives the radius of the field
 
         GG::Pt icon_ul(GG::X(static_cast<int>(field->X()*ZoomFactor() - RADIUS)),
                        GG::Y(static_cast<int>(field->Y()*ZoomFactor() - RADIUS)));
@@ -5103,10 +5072,8 @@ void MapWnd::CreateFleetButtonsOfType(FleetButtonMap& type_fleet_buttons,
             for (int fleet_id : ids_in_cluster)
                 m_fleet_buttons[fleet_id] = fb;
 
-            fb->LeftClickedSignal.connect(
-                boost::bind(&MapWnd::FleetButtonLeftClicked, this, fb.get()));
-            fb->RightClickedSignal.connect(
-                boost::bind(&MapWnd::FleetButtonRightClicked, this, fb.get()));
+            fb->LeftClickedSignal.connect(boost::bind(&MapWnd::FleetButtonLeftClicked, this, fb.get()));
+            fb->RightClickedSignal.connect(boost::bind(&MapWnd::FleetButtonRightClicked, this, fb.get()));
             AttachChild(std::move(fb));
         }
     }
@@ -5449,7 +5416,7 @@ void MapWnd::BuildingRightClicked(int building_id) {
 }
 
 void MapWnd::ReplotProjectedFleetMovement(bool append) {
-    DebugLogger() << "MapWnd::ReplotProjectedFleetMovement" << (append?" append":"");
+    TraceLogger() << "MapWnd::ReplotProjectedFleetMovement" << (append?" append":"");
     for (const auto& fleet_line : m_projected_fleet_lines) {
         const MovementLineData& data = fleet_line.second;
         if (!data.path.empty()) {
@@ -5465,10 +5432,12 @@ void MapWnd::PlotFleetMovement(int system_id, bool execute_move, bool append) {
     if (!FleetUIManager::GetFleetUIManager().ActiveFleetWnd())
         return;
 
-    DebugLogger() << "PlotFleetMovement " << (execute_move?" execute":"") << (append?" append":"");
+    if (execute_move || append)
+        DebugLogger() << "PlotFleetMovement " << (execute_move?" execute":"") << (append?" append":"");
+    else
+        TraceLogger() << "PlotfleetMovement";
 
     int empire_id = HumanClientApp::GetApp()->EmpireID();
-
     auto fleet_ids = FleetUIManager::GetFleetUIManager().ActiveFleetWnd()->SelectedFleetIDs();
 
     // apply to all selected this-player-owned fleets in currently-active FleetWnd
@@ -5920,6 +5889,7 @@ void MapWnd::Sanitize() {
     HideResearch();
     HideProduction();
     HideDesign();
+    HideGovernment();
     RemoveWindows();
     m_pedia_panel->ClearItems();    // deletes all pedia items in the memory
     m_toolbar->Hide();
@@ -5963,6 +5933,7 @@ void MapWnd::Sanitize() {
     m_research_wnd->Sanitize();
     m_production_wnd->Sanitize();
     m_design_wnd->Sanitize();
+    m_government_wnd->Sanitize();
 
     m_selected_fleet_ids.clear();
     m_selected_ship_ids.clear();
@@ -6096,6 +6067,8 @@ bool MapWnd::ReturnToMap() {
         HideEmpires();
     } else if (cui && wnd == cui->GetMessageWnd()) {
         HideMessages();
+    } else if (wnd == m_government_wnd) {
+        HideGovernment();
     } else {
         ErrorLogger() << "Unknown GG::Wnd " << wnd->Name() << " found in MapWnd::m_wnd_stack";
     }
@@ -6153,6 +6126,7 @@ void MapWnd::ShowModeratorActions() {
     HideResearch();
     HideProduction();
     HideDesign();
+    HideGovernment();
 
     // update moderator window
     m_moderator_wnd->Refresh();
@@ -6174,7 +6148,9 @@ void MapWnd::HideModeratorActions() {
 }
 
 bool MapWnd::ToggleModeratorActions() {
-    if (!m_moderator_wnd->Visible() || m_production_wnd->Visible() || m_research_wnd->Visible() || m_design_wnd->Visible()) {
+    if (!m_moderator_wnd->Visible() || m_production_wnd->Visible() ||
+        m_research_wnd->Visible() || m_design_wnd->Visible())
+    {
         ShowModeratorActions();
     } else {
         HideModeratorActions();
@@ -6211,7 +6187,9 @@ void MapWnd::HideObjects() {
 }
 
 bool MapWnd::ToggleObjects() {
-    if (!m_object_list_wnd->Visible() || m_production_wnd->Visible() || m_research_wnd->Visible() || m_design_wnd->Visible()) {
+    if (!m_object_list_wnd->Visible() || m_production_wnd->Visible() ||
+        m_research_wnd->Visible() || m_design_wnd->Visible())
+    {
         ShowObjects();
     } else {
         HideObjects();
@@ -6245,7 +6223,9 @@ void MapWnd::HideSitRep() {
 }
 
 bool MapWnd::ToggleSitRep() {
-    if (!m_sitrep_panel->Visible() || m_production_wnd->Visible() || m_research_wnd->Visible() || m_design_wnd->Visible()) {
+    if (!m_sitrep_panel->Visible() || m_production_wnd->Visible() ||
+        m_research_wnd->Visible() || m_design_wnd->Visible())
+    {
         ShowSitRep();
     } else {
         HideSitRep();
@@ -6294,7 +6274,9 @@ bool MapWnd::ToggleMessages() {
     const auto& msg_wnd = cui->GetMessageWnd();
     if (!msg_wnd)
         return false;
-    if (!msg_wnd->Visible() || m_production_wnd->Visible() || m_research_wnd->Visible() || m_design_wnd->Visible()) {
+    if (!msg_wnd->Visible() || m_production_wnd->Visible() ||
+        m_research_wnd->Visible() || m_design_wnd->Visible())
+    {
         ShowMessages();
     } else {
         HideMessages();
@@ -6342,7 +6324,9 @@ bool MapWnd::ToggleEmpires() {
     const auto& plr_wnd = cui->GetPlayerListWnd();
     if (!plr_wnd)
         return false;
-    if (!plr_wnd->Visible() || m_production_wnd->Visible() || m_research_wnd->Visible() || m_design_wnd->Visible()) {
+    if (!plr_wnd->Visible() || m_production_wnd->Visible() ||
+        m_research_wnd->Visible() || m_design_wnd->Visible())
+    {
         ShowEmpires();
     } else {
         HideEmpires();
@@ -6393,7 +6377,9 @@ void MapWnd::HidePedia() {
 }
 
 bool MapWnd::TogglePedia() {
-    if (!m_pedia_panel->Visible() || m_production_wnd->Visible() || m_research_wnd->Visible() || m_design_wnd->Visible()) {
+    if (!m_pedia_panel->Visible() || m_production_wnd->Visible() ||
+        m_research_wnd->Visible() || m_design_wnd->Visible())
+    {
         ShowPedia();
     } else {
         HidePedia();
@@ -6466,6 +6452,7 @@ void MapWnd::ShowProduction() {
     HideDesign();
     HideSidePanel();
     HidePedia();
+
     if (GetOptionsDB().Get<bool>("ui.production.mappanels.removed")) {
         RemoveWindows();
         GG::GUI::GetGUI()->Remove(ClientUI::GetClientUI()->GetMessageWnd());
@@ -6565,6 +6552,45 @@ bool MapWnd::ToggleDesign() {
     return true;
 }
 
+void MapWnd::ShowGovernment() {
+    ClearProjectedFleetMovementLines();
+
+    // hide other "competing" windows
+    HideResearch();
+    HideProduction();
+    HideDesign();
+
+    // show the government window
+    m_government_wnd->Show();
+    GG::GUI::GetGUI()->MoveUp(m_government_wnd);
+    PushWndStack(m_government_wnd);
+    m_government_wnd->Reset();
+
+    // indicate selection on button
+    m_btn_government->SetUnpressedGraphic(GG::SubTexture(ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "buttons" / "government_mouseover.png")));
+    m_btn_government->SetRolloverGraphic (GG::SubTexture(ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "buttons" / "government.png")));
+}
+
+void MapWnd::HideGovernment() {
+    m_government_wnd->Hide();
+    RemoveFromWndStack(m_government_wnd);
+    m_btn_government->SetUnpressedGraphic(GG::SubTexture(ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "buttons" / "government.png")));
+    m_btn_government->SetRolloverGraphic (GG::SubTexture(ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "buttons" / "government_mouseover.png")));
+
+    RestoreSidePanel();
+}
+
+bool MapWnd::ToggleGovernment() {
+    if (!m_government_wnd->Visible() || m_production_wnd->Visible() ||
+        m_research_wnd->Visible() || m_design_wnd->Visible())
+    {
+        ShowGovernment();
+    } else {
+        HideGovernment();
+    }
+    return true;
+}
+
 bool MapWnd::ShowMenu() {
     if (m_menu_showing)
         return true;
@@ -6623,17 +6649,33 @@ void MapWnd::RefreshTurnButtonTooltip() {
         UserString("MAP_BTN_TURN_TOOLTIP"), btn_turn_tooltip));
 }
 
-void MapWnd::RefreshTradeResourceIndicator() {
+void MapWnd::RefreshInfluenceResourceIndicator() {
     Empire* empire = GetEmpire(HumanClientApp::GetApp()->EmpireID());
     if (!empire) {
-        m_trade->SetValue(0.0);
+        m_influence->SetValue(0.0);
         return;
     }
-    m_trade->SetValue(empire->ResourceStockpile(RE_TRADE));
-    m_trade->ClearBrowseInfoWnd();
-    m_trade->SetBrowseModeTime(GetOptionsDB().Get<int>("ui.tooltip.delay"));
-    m_trade->SetBrowseInfoWnd(GG::Wnd::Create<TextBrowseWnd>(
-        UserString("MAP_TRADE_TITLE"), UserString("MAP_TRADE_TEXT")));
+    double total_IP_spent = empire->GetInfluenceQueue().TotalIPsSpent();
+    double total_IP_output = empire->GetResourcePool(RE_INFLUENCE)->TotalOutput();
+    double total_IP_target_output = empire->GetResourcePool(RE_INFLUENCE)->TargetOutput();
+    float  stockpile = empire->GetResourcePool(RE_INFLUENCE)->Stockpile();
+    float  stockpile_used = empire->GetInfluenceQueue().AllocatedStockpileIP();
+    float  expected_stockpile = empire->GetInfluenceQueue().ExpectedNewStockpileAmount();
+
+    float  stockpile_plusminus_next_turn = expected_stockpile - stockpile;
+    double total_IP_to_stockpile = expected_stockpile - stockpile + stockpile_used;
+
+    m_influence->SetValue(stockpile);
+    m_influence->SetValue(stockpile_plusminus_next_turn, 1);
+
+    DebugLogger() << "MapWnd::RefreshInfluenceResourceIndicator stockpile: " << stockpile
+                  << " plusminus: " << stockpile_plusminus_next_turn;
+
+    m_influence->SetBrowseModeTime(GetOptionsDB().Get<int>("ui.tooltip.delay"));
+    m_influence->SetBrowseInfoWnd(GG::Wnd::Create<ResourceBrowseWnd>(
+        UserString("MAP_INFLUENCE_TITLE"), UserString("GOVERNMENT_INFO_IP"),
+        total_IP_spent, total_IP_output, total_IP_target_output,
+        true, stockpile_used, stockpile, expected_stockpile));
 }
 
 void MapWnd::RefreshFleetResourceIndicator() {
@@ -6814,7 +6856,7 @@ void MapWnd::RefreshPopulationIndicator() {
         const std::string& species_name = pc->SpeciesName();
         if (species_name.empty())
             continue;
-        float this_pop = pc->InitialMeterValue(METER_POPULATION);
+        float this_pop = pc->GetMeter(METER_POPULATION)->Initial();
         population_counts[species_name] += this_pop;
         if (const Species* species = GetSpecies(species_name) ) {
             for (const std::string& tag : species->Tags()) {
@@ -7173,7 +7215,9 @@ void MapWnd::ConnectKeyboardAcceleratorSignals() {
                  AndCondition({NotCoveredMapWndCondition(*this), NoModalWndsOpenCondition}));
 
     // the list of windows for which the fleet shortcuts are blacklisted.
-    std::initializer_list<const GG::Wnd*> bl = {m_research_wnd.get(), m_production_wnd.get(), m_design_wnd.get()};
+    std::initializer_list<const GG::Wnd*> bl = {m_research_wnd.get(),
+                                                m_production_wnd.get(),
+                                                m_design_wnd.get()};
 
     hkm->Connect(boost::bind(&MapWnd::ZoomToPrevFleet, this), "ui.map.fleet.zoom.prev",
                  AndCondition({OrCondition({InvisibleWindowCondition(bl), VisibleWindowCondition(this)}), NoModalWndsOpenCondition}));

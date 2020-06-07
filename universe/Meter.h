@@ -1,13 +1,12 @@
 #ifndef _Meter_h_
 #define _Meter_h_
 
-#include "../util/Export.h"
 
+#include <string>
 #include <boost/serialization/access.hpp>
 #include <boost/serialization/nvp.hpp>
 #include <boost/serialization/version.hpp>
-
-#include <string>
+#include "../util/Export.h"
 
 
 /** A Meter is a value with an associated maximum value.  A typical example is
@@ -19,11 +18,7 @@ public:
     /** \name Structors */ //@{
     /** Creates a new meter with both initial and current value set to
         DEFAULT_VALUE. */
-    Meter();
-
-    /** Creates a new meter with the current value set to @p current_value and
-        the initial value set to DEFAULT_VALUE. */
-    explicit Meter(float current_value);
+    Meter() = default;
 
     /** Creates a new meter with the current value set to @p current_value and
         the initial value set to @p initial_value. */
@@ -35,6 +30,12 @@ public:
     float Initial() const;                  ///< returns the value of the meter as it was at the beginning of the turn
 
     std::string Dump(unsigned short ntabs = 0) const;   ///< returns text of meter values
+
+    bool operator==(const Meter& rhs) const
+    { return m_current_value == rhs.m_current_value && m_initial_value == rhs.m_initial_value; }
+
+    bool operator<(const Meter& rhs) const
+    { return m_current_value < rhs.m_current_value || (m_current_value == rhs.m_current_value && m_initial_value < rhs.m_initial_value); }
     //@}
 
     /** \name Mutators */ //@{
@@ -58,14 +59,14 @@ private:
     float m_initial_value = DEFAULT_VALUE;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
 BOOST_CLASS_VERSION(Meter, 1)
 
 // template implementations
-template <class Archive>
+template <typename Archive>
 void Meter::serialize(Archive& ar, const unsigned int version)
 {
     if (Archive::is_loading::value && version < 1) {

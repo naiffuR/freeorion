@@ -1,17 +1,17 @@
 #include "ResourceCenter.h"
 
+#include <stdexcept>
+#include "Building.h"
+#include "Enums.h"
+#include "Fleet.h"
+#include "Planet.h"
+#include "System.h"
+#include "../Empire/Empire.h"
+#include "../util/AppInterface.h"
 #include "../util/Directories.h"
 #include "../util/Logger.h"
 #include "../util/OptionsDB.h"
-#include "../Empire/Empire.h"
-#include "Fleet.h"
-#include "Planet.h"
-#include "ShipDesign.h"
-#include "System.h"
-#include "Building.h"
-#include "Enums.h"
 
-#include <stdexcept>
 
 namespace {
     static const std::string EMPTY_STRING;
@@ -57,11 +57,11 @@ void ResourceCenter::Init() {
     //DebugLogger() << "ResourceCenter::Init";
     AddMeter(METER_INDUSTRY);
     AddMeter(METER_RESEARCH);
-    AddMeter(METER_TRADE);
+    AddMeter(METER_INFLUENCE);
     AddMeter(METER_CONSTRUCTION);
     AddMeter(METER_TARGET_INDUSTRY);
     AddMeter(METER_TARGET_RESEARCH);
-    AddMeter(METER_TARGET_TRADE);
+    AddMeter(METER_TARGET_INFLUENCE);
     AddMeter(METER_TARGET_CONSTRUCTION);
     m_focus.clear();
     m_last_turn_focus_changed = INVALID_GAME_TURN;
@@ -133,19 +133,19 @@ void ResourceCenter::UpdateFocusHistory() {
 void ResourceCenter::ResourceCenterResetTargetMaxUnpairedMeters() {
     GetMeter(METER_TARGET_INDUSTRY)->ResetCurrent();
     GetMeter(METER_TARGET_RESEARCH)->ResetCurrent();
-    GetMeter(METER_TARGET_TRADE)->ResetCurrent();
+    GetMeter(METER_TARGET_INFLUENCE)->ResetCurrent();
     GetMeter(METER_TARGET_CONSTRUCTION)->ResetCurrent();
 }
 
 void ResourceCenter::ResourceCenterClampMeters() {
     GetMeter(METER_TARGET_INDUSTRY)->ClampCurrentToRange();
     GetMeter(METER_TARGET_RESEARCH)->ClampCurrentToRange();
-    GetMeter(METER_TARGET_TRADE)->ClampCurrentToRange();
+    GetMeter(METER_TARGET_INFLUENCE)->ClampCurrentToRange();
     GetMeter(METER_TARGET_CONSTRUCTION)->ClampCurrentToRange();
 
     GetMeter(METER_INDUSTRY)->ClampCurrentToRange();
     GetMeter(METER_RESEARCH)->ClampCurrentToRange();
-    GetMeter(METER_TRADE)->ClampCurrentToRange();
+    GetMeter(METER_INFLUENCE)->ClampCurrentToRange();
     GetMeter(METER_CONSTRUCTION)->ClampCurrentToRange();
 }
 
@@ -155,11 +155,11 @@ void ResourceCenter::Reset() {
 
     GetMeter(METER_INDUSTRY)->Reset();
     GetMeter(METER_RESEARCH)->Reset();
-    GetMeter(METER_TRADE)->Reset();
+    GetMeter(METER_INFLUENCE)->Reset();
     GetMeter(METER_CONSTRUCTION)->Reset();
 
     GetMeter(METER_TARGET_INDUSTRY)->Reset();
     GetMeter(METER_TARGET_RESEARCH)->Reset();
-    GetMeter(METER_TARGET_TRADE)->Reset();
+    GetMeter(METER_TARGET_INFLUENCE)->Reset();
     GetMeter(METER_TARGET_CONSTRUCTION)->Reset();
 }

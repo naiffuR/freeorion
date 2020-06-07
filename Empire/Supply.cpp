@@ -1,20 +1,20 @@
 #include "Supply.h"
 
-#include "EmpireManager.h"
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/connected_components.hpp>
+#include <boost/graph/connected_components.hpp>
 #include "Empire.h"
+#include "EmpireManager.h"
+#include "../universe/Enums.h"
+#include "../universe/Fleet.h"
+#include "../universe/Planet.h"
+#include "../universe/Predicates.h"
+#include "../universe/System.h"
 #include "../universe/Universe.h"
 #include "../universe/UniverseObject.h"
-#include "../universe/System.h"
-#include "../universe/Planet.h"
-#include "../universe/Fleet.h"
-#include "../universe/Enums.h"
-#include "../universe/Predicates.h"
 #include "../util/AppInterface.h"
 #include "../util/Logger.h"
 
-#include <boost/graph/connected_components.hpp>
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/connected_components.hpp>
 
 namespace {
     DeclareThreadSafeLogger(supply);
@@ -257,10 +257,10 @@ namespace {
         for (auto obj : Objects().find(sys->ObjectIDs())) {
             if (!obj || !obj->OwnedBy(empire_id))
                 continue;
-            if (obj->Meters().count(METER_SUPPLY) > 0)
-                accumulator_current += obj->CurrentMeterValue(METER_SUPPLY);
-            if (obj->Meters().count(METER_MAX_SUPPLY) > 0)
-                accumulator_max += obj->CurrentMeterValue(METER_MAX_SUPPLY);
+            if (const auto* m = obj->GetMeter(METER_SUPPLY))
+                accumulator_current += m->Current();
+            if (const auto* m = obj->GetMeter(METER_MAX_SUPPLY))
+                accumulator_max += m->Current();
         }
         return {accumulator_current, accumulator_max};
     }
@@ -274,8 +274,8 @@ namespace {
         for (auto obj : Objects().find(OwnedVisitor(empire_id))) {
             if (!obj)
                 continue;
-            if (obj->Meters().count(METER_SUPPLY) > 0)
-                accumulator_current += obj->CurrentMeterValue(METER_SUPPLY);
+            if (auto* m = obj->GetMeter(METER_SUPPLY))
+                accumulator_current += m->Current();
         }
         return accumulator_current;
     }
@@ -845,8 +845,8 @@ void SupplyManager::Update() {
         }
 
         // also add connections from all fleet-supplyable systems to themselves, so that
-        // any fleet supply able system with no connection to another system can still
-        // have resource sharing within tiself
+        // any fleet supplyable system with no connection to another system can still
+        // have resource sharing within itself
         for (int system_id : ally_merged_fleet_supplyable_system_ids[empire_id])
             supply_groups_map[system_id].insert(system_id);
 

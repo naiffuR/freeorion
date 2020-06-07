@@ -11,7 +11,6 @@
 #include "../util/Directories.h"
 #include "../universe/Enums.h"
 
-#include <GG/DrawUtil.h>
 #include <GG/WndEvent.h>
 #include <GG/GUI.h>
 #include <boost/xpressive/xpressive.hpp>
@@ -153,7 +152,6 @@ void LinkText::LClick(const GG::Pt& pt, GG::Flags<GG::ModKey> mod_keys)
 { TextLinker::LClick_(pt, mod_keys); }
 
 void LinkText::RClick(const GG::Pt& pt, GG::Flags<GG::ModKey> mod_keys) {
-
     auto rclick_action = [this, pt, mod_keys]() { TextLinker::RClick_(pt, mod_keys); };
     auto copy_action = [this]() { GG::GUI::GetGUI()->CopyWndText(this); };
 
@@ -377,6 +375,7 @@ void TextLinker::FindLinks() {
                     tag->tag_name == VarText::DESIGN_ID_TAG ||
                     tag->tag_name == VarText::PREDEFINED_DESIGN_TAG ||
                     tag->tag_name == VarText::TECH_TAG ||
+                    tag->tag_name == VarText::POLICY_TAG ||
                     tag->tag_name == VarText::BUILDING_TYPE_TAG ||
                     tag->tag_name == VarText::SPECIAL_TAG ||
                     tag->tag_name == VarText::SHIP_HULL_TAG ||
@@ -576,6 +575,7 @@ void RegisterLinkTags() {
     GG::Font::RegisterKnownTag(VarText::PREDEFINED_DESIGN_TAG);
 
     GG::Font::RegisterKnownTag(VarText::TECH_TAG);
+    GG::Font::RegisterKnownTag(VarText::POLICY_TAG);
     GG::Font::RegisterKnownTag(VarText::BUILDING_TYPE_TAG);
     GG::Font::RegisterKnownTag(VarText::SPECIAL_TAG);
     GG::Font::RegisterKnownTag(VarText::SHIP_HULL_TAG);

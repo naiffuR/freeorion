@@ -21,13 +21,6 @@ namespace Effect {
 }
 
 namespace parse { namespace detail {
-    template <typename T, typename U>
-    void emplace_back_1(std::vector<T>& vect, U&& item) {
-        return vect.emplace_back(std::forward<U>(item));
-    }
-
-    BOOST_PHOENIX_ADAPT_FUNCTION(void, emplace_back_1_, emplace_back_1, 2)
-
     /// A functor to determine if \p key will be unique in \p map of \p type, and log an error otherwise.
     struct is_unique {
         typedef bool result_type;
@@ -176,7 +169,7 @@ namespace parse { namespace detail {
 
     template <typename Grammar, typename Arg1>
     bool parse_file(const lexer& lexer, const boost::filesystem::path& path, Arg1& arg1) {
-        SectionedScopedTimer timer("parse_file \"" + path.filename().string()  + "\"", std::chrono::milliseconds(10));
+        ScopedTimer timer("parse_file \"" + path.filename().string()  + "\"", std::chrono::milliseconds(10));
 
         std::string filename;
         std::string file_contents;
@@ -200,7 +193,7 @@ namespace parse { namespace detail {
 
     template <typename Grammar, typename Arg1, typename Arg2>
     bool parse_file(const lexer& lexer, const boost::filesystem::path& path, Arg1& arg1, Arg2& arg2) {
-        SectionedScopedTimer timer("parse_file \"" + path.filename().string()  + "\"", std::chrono::milliseconds(10));
+        ScopedTimer timer("parse_file \"" + path.filename().string()  + "\"", std::chrono::milliseconds(10));
 
         std::string filename;
         std::string file_contents;

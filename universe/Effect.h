@@ -2,18 +2,18 @@
 #define _Effect_h_
 
 
-#include "EnumsFwd.h"
-
+#include <map>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
 #include <boost/container/flat_map.hpp>
 #include <boost/serialization/access.hpp>
-
-#include <memory>
-#include <map>
-#include <string>
-#include <vector>
-#include <unordered_map>
-
+#include "EnumsFwd.h"
 #include "../util/Export.h"
+
+
+FO_COMMON_API extern const int INVALID_OBJECT_ID;
 
 class UniverseObject;
 struct ScriptingContext;
@@ -34,7 +34,7 @@ namespace Effect {
     /** Description of cause of an effect: the general cause type, and the
       * specific cause.  eg. Building and a particular BuildingType. */
     struct FO_COMMON_API EffectCause {
-        EffectCause();
+        explicit EffectCause();
         EffectCause(EffectsCauseType cause_type_, const std::string& specific_cause_,
                     const std::string& custom_label_ = "");
         EffectsCauseType    cause_type;     ///< general type of effect cause, eg. tech, building, special...
@@ -44,7 +44,7 @@ namespace Effect {
 
     /** Combination of targets and cause for an effects group. */
     struct TargetsAndCause {
-        TargetsAndCause();
+        explicit TargetsAndCause();
         TargetsAndCause(const TargetSet& target_set_, const EffectCause& effect_cause_);
         TargetSet target_set;
         EffectCause effect_cause;
@@ -52,11 +52,11 @@ namespace Effect {
 
     /** Combination of an EffectsGroup and the id of a source object. */
     struct SourcedEffectsGroup {
-        SourcedEffectsGroup();
-        SourcedEffectsGroup(int source_object_id_, const std::shared_ptr<EffectsGroup>& effects_group_);
+        explicit SourcedEffectsGroup();
+        SourcedEffectsGroup(int source_object_id_, const EffectsGroup* effects_group_);
         bool operator<(const SourcedEffectsGroup& right) const;
-        int source_object_id;
-        std::shared_ptr<EffectsGroup> effects_group;
+        int source_object_id = INVALID_OBJECT_ID;
+        const EffectsGroup* effects_group = nullptr;
     };
 
     /** Map from (effects group and source object) to target set of for
@@ -65,7 +65,7 @@ namespace Effect {
       * same effectsgroup.  This is useful when a Ship has multiple copies
       * of the same effects group due to having multiple copies of the same
       * ship part in its design. */
-    typedef std::vector<std::pair<SourcedEffectsGroup, TargetsAndCause>> TargetsCauses;
+    typedef std::vector<std::pair<SourcedEffectsGroup, TargetsAndCause>> SourcesEffectsTargetsAndCausesVec;
 
     /** The base class for all Effects.  When an Effect is executed, the source
     * object (the object to which the Effect or its containing EffectGroup is
@@ -76,19 +76,11 @@ namespace Effect {
     public:
         virtual ~Effect();
 
-        virtual void Execute(const ScriptingContext& context) const = 0;
+        virtual void Execute(ScriptingContext& context) const = 0;
 
-        virtual void Execute(const ScriptingContext& context, const TargetSet& targets) const;
+        virtual void Execute(ScriptingContext& context, const TargetSet& targets) const;
 
-        void Execute(const ScriptingContext& context,
-                     const TargetsCauses& targets_causes,
-                     AccountingMap* accounting_map,
-                     bool only_meter_effects = false,
-                     bool only_appearance_effects = false,
-                     bool include_empire_meter_effects = false,
-                     bool only_generate_sitrep_effects = false) const;
-
-        virtual void Execute(const ScriptingContext& context,
+        virtual void Execute(ScriptingContext& context,
                              const TargetSet& targets,
                              AccountingMap* accounting_map,
                              const EffectCause& effect_cause,
@@ -98,33 +90,37 @@ namespace Effect {
                              bool only_generate_sitrep_effects = false) const;
 
         virtual std::string     Dump(unsigned short ntabs = 0) const = 0;
+
         virtual bool            IsMeterEffect() const { return false; }
         virtual bool            IsEmpireMeterEffect() const { return false; }
         virtual bool            IsAppearanceEffect() const { return false; }
         virtual bool            IsSitrepEffect() const { return false; }
         virtual bool            IsConditionalEffect() const { return false; }
+
+        // TODO: source-invariant?
+
         virtual void            SetTopLevelContent(const std::string& content_name) = 0;
         virtual unsigned int    GetCheckSum() const;
 
     private:
         friend class boost::serialization::access;
-        template <class Archive>
+        template <typename Archive>
         void serialize(Archive& ar, const unsigned int version);
     };
 
     /** Accounting information about what the causes are and changes produced
       * by effects groups acting on meters of objects. */
     struct FO_COMMON_API AccountingInfo : public EffectCause {
-        AccountingInfo();
+        explicit AccountingInfo();
         AccountingInfo(int source_id_, EffectsCauseType cause_type_, float meter_change_,
                        float running_meter_total_, const std::string& specific_cause_ = "",
                        const std::string& custom_label_ = "");
 
         bool operator==(const AccountingInfo& rhs) const;
 
-        int     source_id;          ///< source object of effect
-        float   meter_change;       ///< net change on meter due to this effect, as best known by client's empire
-        float   running_meter_total;///< meter total as of this effect.
+        int     source_id = INVALID_OBJECT_ID;  ///< source object of effect
+        float   meter_change = 0.0f;            ///< net change on meter due to this effect, as best known by client's empire
+        float   running_meter_total = 0.0f;     ///< meter total as of this effect.
     };
 
     /** Contains one or more Effects, a Condition which indicates the objects in
@@ -143,19 +139,20 @@ namespace Effect {
                      std::unique_ptr<Condition::Condition>&& activation,
                      std::vector<std::unique_ptr<Effect>>&& effects,
                      const std::string& accounting_label = "",
-                     const std::string& stacking_group = "", int priority = 0,
+                     const std::string& stacking_group = "",
+                     int priority = 0,
                      const std::string& description = "",
                      const std::string& content_name = "");
         virtual ~EffectsGroup();
 
         /** execute all effects in group */
-        void    Execute(const ScriptingContext& context,
-                        const TargetsCauses& targets_causes,
-                        AccountingMap* accounting_map = nullptr,
-                        bool only_meter_effects = false,
-                        bool only_appearance_effects = false,
-                        bool include_empire_meter_effects = false,
-                        bool only_generate_sitrep_effects = false) const;
+        void Execute(ScriptingContext& source_context,
+                     const TargetsAndCause& targets_cause,
+                     AccountingMap* accounting_map = nullptr,
+                     bool only_meter_effects = false,
+                     bool only_appearance_effects = false,
+                     bool include_empire_meter_effects = false,
+                     bool only_generate_sitrep_effects = false) const;
 
         const std::string&              StackingGroup() const       { return m_stacking_group; }
         Condition::Condition*           Scope() const               { return m_scope.get(); }
@@ -180,13 +177,13 @@ namespace Effect {
         std::string                             m_stacking_group;
         std::vector<std::unique_ptr<Effect>>    m_effects;
         std::string                             m_accounting_label;
-        int                                     m_priority;
+        int                                     m_priority; // constructor sets this, so don't need a default value here
         std::string                             m_description;
         std::string                             m_content_name;
 
     private:
         friend class boost::serialization::access;
-        template <class Archive>
+        template <typename Archive>
         void serialize(Archive& ar, const unsigned int version);
     };
 

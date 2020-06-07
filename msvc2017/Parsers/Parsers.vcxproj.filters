@@ -107,9 +107,6 @@
     <ClCompile Include="..\..\parse\EffectParser2.cpp">
       <Filter>Source Files\parse</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\parse\KeymapParser.cpp">
-      <Filter>Source Files\parse</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\parse\ConditionParser4.cpp">
       <Filter>Source Files\parse</Filter>
     </ClCompile>
@@ -162,6 +159,9 @@
       <Filter>Source Files\parse</Filter>
     </ClCompile>
     <ClCompile Include="StdAfx.cpp" />
+    <ClCompile Include="..\..\parse\PoliciesParser.cpp">
+      <Filter>Source Files\parse</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\parse\ConditionParser.h">

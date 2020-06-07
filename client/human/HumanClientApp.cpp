@@ -50,6 +50,7 @@
 #include <boost/optional/optional.hpp>
 #include <boost/serialization/vector.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/uuid/uuid_io.hpp>
 #include <boost/uuid/nil_generator.hpp>
 #include <boost/uuid/string_generator.hpp>
 
@@ -321,9 +322,11 @@ HumanClientApp::HumanClientApp(int width, int height, bool calculate_fps, const 
                                 GetOptionsDB().Get<int>("ui.input.mouse.button.repeat.interval"));
     EnableModalAcceleratorSignals(true);
 
-    WindowResizedSignal.connect(boost::bind(&HumanClientApp::HandleWindowResize,this, _1, _2));
-    FocusChangedSignal.connect( boost::bind(&HumanClientApp::HandleFocusChange, this, _1));
-    WindowMovedSignal.connect(  boost::bind(&HumanClientApp::HandleWindowMove,  this, _1, _2));
+    namespace ph = boost::placeholders;
+
+    WindowResizedSignal.connect(boost::bind(&HumanClientApp::HandleWindowResize,this, ph::_1, ph::_2));
+    FocusChangedSignal.connect( boost::bind(&HumanClientApp::HandleFocusChange, this, ph::_1));
+    WindowMovedSignal.connect(  boost::bind(&HumanClientApp::HandleWindowMove,  this, ph::_1, ph::_2));
     WindowClosingSignal.connect(boost::bind(&HumanClientApp::HandleAppQuitting, this));
     AppQuittingSignal.connect(  boost::bind(&HumanClientApp::HandleAppQuitting, this));
 
@@ -331,22 +334,6 @@ HumanClientApp::HumanClientApp(int width, int height, bool calculate_fps, const 
     SetGLVersionDependentOptionDefaults();
 
     this->SetMouseLRSwapped(GetOptionsDB().Get<bool>("ui.input.mouse.button.swap.enabled"));
-
-    auto named_key_maps = parse::keymaps(GetResourceDir() / "scripting/keymaps.inf");
-    TraceLogger() << "Keymaps:";
-    for (auto& km : named_key_maps) {
-        TraceLogger() << "Keymap name = \"" << km.first << "\"";
-        for (auto& keys : km.second)
-            TraceLogger() << "    " << char(keys.first) << " : " << char(keys.second);
-    }
-    auto km_it = named_key_maps.find("TEST");
-    if (km_it != named_key_maps.end()) {
-        const auto int_key_map = km_it->second;
-        std::map<GG::Key, GG::Key> key_map;
-        for (const auto& int_key : int_key_map)
-        { key_map[GG::Key(int_key.first)] = GG::Key(int_key.second); }
-        this->SetKeyMap(key_map);
-    }
 
     ConnectKeyboardAcceleratorSignals();
 
@@ -375,9 +362,9 @@ void HumanClientApp::ConnectKeyboardAcceleratorSignals() {
     // Add global hotkeys
     HotkeyManager *hkm = HotkeyManager::GetManager();
 
-    hkm->Connect(boost::bind(&HumanClientApp::HandleHotkeyExitApp, this),          "exit",
+    hkm->Connect(boost::bind(&HumanClientApp::HandleHotkeyExitApp, this), "exit",
                  NoModalWndsOpenCondition);
-    hkm->Connect(boost::bind(&HumanClientApp::HandleHotkeyResetGame, this),        "quit",
+    hkm->Connect(boost::bind(&HumanClientApp::HandleHotkeyResetGame, this), "quit",
                  NoModalWndsOpenCondition);
     hkm->Connect(boost::bind(&HumanClientApp::ToggleFullscreen, this), "video.fullscreen",
                  NoModalWndsOpenCondition);
@@ -685,9 +672,10 @@ void HumanClientApp::MultiPlayerGame() {
         try {
             std::string cookie_option = EncodeServerAddressOption(server_dest);
             if (!GetOptionsDB().OptionExists(cookie_option + ".cookie"))
-                GetOptionsDB().Add<std::string>(cookie_option + ".cookie", "OPTIONS_DB_SERVER_COOKIE", "");
+                GetOptionsDB().Add<std::string>(cookie_option + ".cookie", "OPTIONS_DB_SERVER_COOKIE", boost::uuids::to_string(cookie));
             if (!GetOptionsDB().OptionExists(cookie_option + ".address"))
-                GetOptionsDB().Add<std::string>(cookie_option + ".address", "OPTIONS_DB_SERVER_COOKIE", server_dest);
+                GetOptionsDB().Add<std::string>(cookie_option + ".address", "OPTIONS_DB_SERVER_COOKIE", "");
+            GetOptionsDB().Set(cookie_option + ".address", server_dest);
             std::string cookie_str = GetOptionsDB().Get<std::string>(cookie_option + ".cookie");
             boost::uuids::string_generator gen;
             cookie = gen(cookie_str);
@@ -1434,7 +1422,15 @@ void HumanClientApp::ExitSDL(int exit_code)
 { SDLGUI::ExitApp(exit_code); }
 
 void HumanClientApp::ResetOrExitApp(bool reset, bool skip_savegame, int exit_code /* = 0*/) {
-    if (m_exit_handled) return;
+    if (m_exit_handled) {
+        static int repeat_count = 0;
+        if (repeat_count++ > 2) {
+            m_exit_handled = false;
+            skip_savegame = true;
+        } else {
+            return;
+        }
+    }
     m_exit_handled = true;
     DebugLogger() << (reset ? "HumanClientApp::ResetToIntro" : "HumanClientApp::ExitApp");
 
@@ -1494,10 +1490,10 @@ void HumanClientApp::ResetOrExitApp(bool reset, bool skip_savegame, int exit_cod
     // Create an action to reset to intro or quit the app as appropriate.
     std::function<void()> after_server_shutdown_action;
     if (reset)
-        after_server_shutdown_action = std::bind(&HumanClientApp::ResetClientData, this, false);
+        after_server_shutdown_action = boost::bind(&HumanClientApp::ResetClientData, this, false);
     else
         // This throws to exit the GUI
-        after_server_shutdown_action = std::bind(&HumanClientApp::ExitSDL, this, exit_code);
+        after_server_shutdown_action = boost::bind(&HumanClientApp::ExitSDL, this, exit_code);
 
     m_fsm->process_event(StartQuittingGame(m_server_process, std::move(after_server_shutdown_action)));
 

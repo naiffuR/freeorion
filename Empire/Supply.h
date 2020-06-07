@@ -1,13 +1,12 @@
 #ifndef _Supply_h_
 #define _Supply_h_
 
-#include "../util/Export.h"
-
-#include <boost/serialization/access.hpp>
-
 #include <map>
 #include <set>
 #include <string>
+#include <boost/serialization/access.hpp>
+#include "../util/Export.h"
+
 
 FO_COMMON_API extern const int ALL_EMPIRES;
 
@@ -116,7 +115,7 @@ private:
 
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
